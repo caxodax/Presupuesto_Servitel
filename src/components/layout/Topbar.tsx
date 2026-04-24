@@ -1,9 +1,12 @@
 import { auth } from "@/lib/auth"
-import { Bell, Search, User, LogOut } from "lucide-react"
+import { Search, User, LogOut } from "lucide-react"
 import { logout } from "@/app/actions/auth"
+import { AlertCenter } from "@/components/dashboard/AlertCenter"
+import { getUnreadAlerts } from "@/features/alerts/server/queries"
 
 export async function Topbar() {
   const session = await auth()
+  const alerts = await getUnreadAlerts()
   
   return (
     <header className="flex h-16 items-center justify-between border-b bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800/80 px-6 shrink-0">
@@ -26,10 +29,8 @@ export async function Topbar() {
       </div>
 
       <div className="flex items-center justify-end gap-5 w-1/3">
-        <button className="relative text-zinc-400 hover:text-foreground transition-colors group p-2">
-          <Bell className="h-[18px] w-[18px]" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-zinc-950" />
-        </button>
+        <AlertCenter initialAlerts={alerts} />
+        
         <div className="flex items-center gap-3 pl-5 border-l border-zinc-200 dark:border-zinc-800/80">
            <div className="flex flex-col text-right">
              <span className="text-[13px] font-semibold text-foreground leading-none">{session?.user?.name || 'Invitado'}</span>

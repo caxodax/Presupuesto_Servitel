@@ -1,52 +1,42 @@
-import { getCompanies } from "@/features/companies/server/queries"
-import { createCompany } from "@/features/companies/server/actions"
+ import { getCompanies } from "@/features/companies/server/queries"
 import { CompanyRow } from "@/components/empresas/CompanyRow"
+import { CreateCompanyModal } from "@/components/empresas/CreateCompanyModal"
+import { SearchInput } from "@/components/ui/SearchInput"
+import { Pagination } from "@/components/ui/Pagination"
 
-export default async function CompaniesPage() {
-  const companies = await getCompanies();
+export default async function CompaniesPage({ 
+  searchParams 
+}: { 
+  searchParams: { q?: string; page?: string } 
+}) {
+  const query = searchParams.q || "";
+  const page = Number(searchParams.page) || 1;
+  const limit = 10;
+
+  const { items: companies, total, pageCount } = await getCompanies(query, page, limit);
   
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex w-full items-center justify-between">
-         <div>
-           <h1 className="text-3xl font-bold tracking-tight text-foreground">Directorio de Empresas</h1>
-           <p className="text-sm text-muted-foreground mt-1.5">Centros operativos o cuentas de facturación madre.</p>
+    <div className="flex flex-col gap-8 max-w-6xl mx-auto w-full pb-20">
+      <div className="flex flex-col md:flex-row w-full items-start md:items-center justify-between gap-6">
+         <div className="animate-in fade-in slide-in-from-left-4 duration-500">
+           <h1 className="text-3xl font-black tracking-tight text-foreground">Directorio de Empresas</h1>
+           <p className="text-sm text-muted-foreground mt-1.5 font-medium">Centros operativos o cuentas de facturación madre.</p>
+         </div>
+         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto animate-in fade-in slide-in-from-right-4 duration-500">
+           <SearchInput placeholder="Buscar por Razón Social..." />
+           <CreateCompanyModal />
          </div>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Formulario (Columna Menor) */}
-        <div className="lg:col-span-1 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 shadow-[0_4px_40px_rgba(0,0,0,0.02)] p-6 h-fit">
-           <h2 className="text-lg font-semibold mb-5 text-foreground leading-none">Nueva Entidad</h2>
-           <form action={createCompany} className="flex flex-col gap-5">
-              <div className="space-y-2">
-                <label className="text-sm font-medium leading-none block text-zinc-700 dark:text-zinc-300">Razón Social</label>
-                <input 
-                  type="text" 
-                  name="name" 
-                  required
-                  placeholder="ACME Corp S.A." 
-                  className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 px-3 text-sm focus:ring-1 focus:ring-indigo-500 transition-all outline-none"
-                />
-              </div>
-              <button 
-                type="submit"
-                className="w-full bg-foreground text-background dark:bg-indigo-600 dark:text-white rounded-md h-9 text-sm font-medium hover:opacity-90 active:scale-[0.98] transition-all mt-1"
-              >
-                Inscribir Empresa
-              </button>
-           </form>
-        </div>
-
-        {/* Tabla (Columna Mayor) */}
-        <div className="lg:col-span-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 shadow-[0_4px_40px_rgba(0,0,0,0.02)] overflow-hidden">
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
+        {/* Tabla (Ancho Completo) */}
+        <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
            <div className="overflow-x-auto">
              <table className="w-full text-sm text-left whitespace-nowrap">
-               <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800/50 text-zinc-500 font-medium">
+               <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800/50 text-zinc-500 font-bold uppercase tracking-wider text-[10px]">
                  <tr>
-                   <th className="px-6 py-3.5">Organización Creada</th>
-                   <th className="px-6 py-3.5 text-right flex-1">Estatus</th>
+                   <th className="px-8 py-5">Organización Creada</th>
+                   <th className="px-8 py-5 text-right w-fit">Acciones</th>
                  </tr>
                </thead>
                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
@@ -56,12 +46,16 @@ export default async function CompaniesPage() {
 
                  {companies.length === 0 && (
                    <tr>
-                     <td colSpan={2} className="px-6 py-8 text-center text-zinc-500">Ninguna corporación registrada. Oprime Inscribir Empresa para empezar.</td>
+                     <td colSpan={2} className="px-8 py-12 text-center text-zinc-500 font-medium italic">
+                        {query ? `No se encontraron resultados para "${query}"` : "Ninguna corporación registrada. Oprime \"Registrar Empresa\" para empezar."}
+                     </td>
                    </tr>
                  )}
                </tbody>
              </table>
            </div>
+           
+           <Pagination page={page} pageCount={pageCount} total={total} />
         </div>
       </div>
     </div>

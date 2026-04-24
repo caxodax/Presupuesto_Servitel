@@ -4,10 +4,25 @@ import { authConfig } from "./auth.config"
 import { prisma } from "./prisma"
 import * as bcrypt from "bcryptjs"
 import { z } from "zod"
+import { recordAuditLog } from "./audit"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   session: { strategy: "jwt" },
+  events: {
+    async signIn({ user }) {
+      if (user?.id) {
+        await recordAuditLog({
+          action: "LOGIN_SUCCESS",
+          entity: "Sesión de Usuario",
+          entityId: user.id,
+          userId: user.id,
+          companyId: (user as any).companyId,
+          details: { email: user.email, name: user.name, timestamp: new Date().toISOString() }
+        })
+      }
+    }
+  },
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -29,9 +44,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const { email, password } = parsedCredentials.data;
           
           const user = await prisma.user.findUnique({ where: { email } });
-          if (!user) return null;
+          if (!user || !user.isActive) {
+            console.log("Acceso denegado: Usuario inexistente o suspendido.");
+            return null;
+          }
 
           const passwordsMatch = await bcrypt.compare(password, user.passwordHash);
+
           if (!passwordsMatch) return null;
 
           // Entregando el Scope y el Rol para crear el Tokean Seguro

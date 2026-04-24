@@ -1,7 +1,12 @@
 import { getBudgets } from "@/features/budgets/server/queries"
 import { createInvoice } from "@/features/invoices/server/actions"
+import { getCompanies } from "@/features/companies/server/queries"
+import { requireAuth } from "@/lib/permissions"
+import { CompanyFilter } from "@/components/ui/CompanyFilter"
 import { ArrowLeft, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
+import { FileUploadInput } from "@/components/facturas/FileUploadInput"
+
 
 async function fetchBCVRate(): Promise<number | string> {
   try {
@@ -17,9 +22,17 @@ async function fetchBCVRate(): Promise<number | string> {
   }
 }
 
-export default async function NewInvoiceEntryPage() {
-  const [budgets, currentBcvRate] = await Promise.all([
-    getBudgets(),
+export default async function NewInvoiceEntryPage({ 
+  searchParams 
+}: { 
+  searchParams: { companyId?: string } 
+}) {
+  const user = await requireAuth()
+  const companyId = searchParams.companyId
+
+  const [budgets, companies, currentBcvRate] = await Promise.all([
+    getBudgets(companyId),
+    user.role === "SUPER_ADMIN" ? getCompanies() : Promise.resolve([]),
     fetchBCVRate()
   ])
   
@@ -27,23 +40,29 @@ export default async function NewInvoiceEntryPage() {
   const availableAllocations = budgets.flatMap(b => 
       b.allocations.map(a => ({ 
           id: a.id, 
-          label: `${b.name} (${b.branch.name}) - ${a.category.name} ${a.subcategory ? `> ${a.subcategory.name}` : ''}`
+          label: `${user.role === "SUPER_ADMIN" ? `[${b.branch.company.name}] ` : ''}${b.name} (${b.branch.name}) - ${a.category.name} ${a.subcategory ? `> ${a.subcategory.name}` : ''}`
       }))
   )
    
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-8 pb-10">
       
-      <div>
-         <Link href="/dashboard/facturas" className="flex items-center gap-2 text-sm text-zinc-500 hover:text-foreground transition-colors w-fit mb-4">
-           <ArrowLeft className="w-4 h-4" /> Volver al Repositorio
-         </Link>
-         <h1 className="text-3xl font-bold tracking-tight text-foreground">Registro de Gasto</h1>
-         <p className="text-sm text-muted-foreground mt-1.5">Portal transaccional de distracción cero. El impacto será reflejado inmediatamente.</p>
+      <div className="flex items-center justify-between">
+         <div>
+            <Link href="/dashboard/facturas" className="flex items-center gap-2 text-sm text-zinc-500 hover:text-foreground transition-colors w-fit mb-4">
+               <ArrowLeft className="w-4 h-4" /> Volver al Repositorio
+            </Link>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Registro de Gasto</h1>
+            <p className="text-sm text-muted-foreground mt-1.5">Portal transaccional de distracción cero. El impacto será reflejado inmediatamente.</p>
+         </div>
+         {user.role === "SUPER_ADMIN" && (
+            <CompanyFilter companies={companies} />
+         )}
       </div>
 
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 shadow-sm p-8">
-          <form action={createInvoice} className="flex flex-col gap-6">
+          <form action={createInvoice} method="POST" encType="multipart/form-data" className="flex flex-col gap-6">
+
               
               <div className="space-y-2">
                  <label className="text-sm font-semibold tracking-wide text-zinc-700 dark:text-zinc-300 uppercase">Impacto Estratégico (Destino del Gasto)</label>
@@ -82,6 +101,8 @@ export default async function NewInvoiceEntryPage() {
                     {currentBcvRate && <p className="text-[10px] text-amber-600/80 font-medium">Auto-obtenido de DolarApi Oficial</p>}
                  </div>
               </div>
+
+              <FileUploadInput name="attachment" />
 
               <button type="submit" className="w-full h-11 bg-indigo-600 text-white rounded-md flex items-center justify-center gap-2 mt-4 hover:bg-indigo-700 active:scale-[0.98] transition-all font-semibold shadow-md shadow-indigo-600/20">
                  <CheckCircle2 className="w-5 h-5" /> Consolidar Factura y Procesar Resta

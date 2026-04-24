@@ -3,11 +3,19 @@ import { createCategory, createSubcategory } from "@/features/categories/server/
 import { getCompanies } from "@/features/companies/server/queries"
 import { requireAuth } from "@/lib/permissions"
 import { Layers } from "lucide-react"
+import { CompanyFilter } from "@/components/ui/CompanyFilter"
+import { CategoryItem } from "@/components/categorias/CategoryItem"
 
-export default async function CategoriesPage() {
+export default async function CategoriesPage({ 
+  searchParams 
+}: { 
+  searchParams: { companyId?: string } 
+}) {
   const user = await requireAuth()
+  const companyId = searchParams.companyId
+
   const [categories, companies] = await Promise.all([
-    getCategories(),
+    getCategories(companyId),
     user.role === "SUPER_ADMIN" ? getCompanies() : Promise.resolve([]),
   ])
 
@@ -18,6 +26,9 @@ export default async function CategoriesPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Clasificación Contable</h1>
           <p className="text-sm text-muted-foreground mt-1.5">Categorías y clases de los presupuestos de gasto.</p>
         </div>
+        {user.role === "SUPER_ADMIN" && (
+          <CompanyFilter companies={companies} />
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -28,11 +39,20 @@ export default async function CategoriesPage() {
               {user.role === "SUPER_ADMIN" && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium leading-none block">Empresa</label>
-                  <select name="companyId" required className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 px-3 text-sm outline-none">
-                    {companies.map((company) => (
-                      <option key={company.id} value={company.id}>{company.name}</option>
-                    ))}
-                  </select>
+                  {companyId ? (
+                    <div className="flex items-center gap-2 h-9 px-3 rounded-md bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium">
+                        <input type="hidden" name="companyId" value={companyId} />
+                        <span className="text-foreground">{companies.find(c => c.id === companyId)?.name || 'Empresa Seleccionada'}</span>
+                        <span className="text-[10px] bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 rounded text-zinc-500 uppercase">Fijada</span>
+                    </div>
+                  ) : (
+                    <select name="companyId" required className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 px-3 text-sm outline-none">
+                        <option value="" disabled selected>Seleccione corporación...</option>
+                        {companies.map((company) => (
+                        <option key={company.id} value={company.id}>{company.name}</option>
+                        ))}
+                    </select>
+                  )}
                 </div>
               )}
               <div className="space-y-2">
@@ -49,8 +69,11 @@ export default async function CategoriesPage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium leading-none block">Padre Referencial</label>
                 <select name="categoryId" required className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 px-3 text-sm outline-none">
+                  <option value="" disabled selected>Seleccione padre...</option>
                   {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    <option key={cat.id} value={cat.id}>
+                        {cat.name} {user.role === 'SUPER_ADMIN' && !companyId ? `(${cat.company.name})` : ''}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -64,23 +87,20 @@ export default async function CategoriesPage() {
         </div>
 
         <div className="lg:col-span-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 shadow-[0_4px_40px_rgba(0,0,0,0.02)] overflow-hidden p-6">
-          <div className="flex flex-col gap-2">
-            {categories.map((cat) => (
-              <div key={cat.id} className="border border-zinc-200 dark:border-zinc-800/80 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2 font-semibold">
-                  <Layers className="w-4 h-4 text-indigo-500" />
-                  <span>{cat.name}</span>
-                </div>
-                {cat.subcategories.length > 0 ? (
-                  <div className="flex flex-wrap gap-2 mt-3 pl-6">
-                    {cat.subcategories.map((sub) => (
-                      <span key={sub.id} className="inline-flex text-[12px] font-medium px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300">↳ {sub.name}</span>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="pl-6 text-xs text-zinc-400 mt-1">Sin subramas atadas.</div>
-                )}
-              </div>
+          <div className="flex flex-col gap-3">
+            {categories
+              .sort((a, b) => {
+                 // Activos primero, luego por nombre
+                 if (a.isActive && !b.isActive) return -1
+                 if (!a.isActive && b.isActive) return 1
+                 return a.name.localeCompare(b.name)
+              })
+              .map((cat) => (
+                <CategoryItem 
+                    key={cat.id} 
+                    cat={cat} 
+                    showCompanyBadge={user.role === 'SUPER_ADMIN' && !companyId} 
+                />
             ))}
             {categories.length === 0 && <div className="text-center py-8 text-zinc-500 text-sm">Malla categórica vacía.</div>}
           </div>

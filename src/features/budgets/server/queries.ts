@@ -1,15 +1,35 @@
 import { prisma } from "@/lib/prisma"
 import { requireAuth, enforceCompanyScope, getBranchIsolation } from "@/lib/permissions"
 
-export async function getBudgets() {
+export async function getBudgets(companyId?: string) {
   const user = await requireAuth()
-  const filter = enforceCompanyScope(user)
-  const branchScope = getBranchIsolation(user)
+  
+  // Si no es Super Admin, siempre forzamos su propia empresa
+  if (user.role !== 'SUPER_ADMIN') {
+    return prisma.budget.findMany({
+      where: { companyId: user.companyId as string },
+      include: {
+        branch: {
+          include: { company: true }
+        },
+        allocations: {
+          include: {
+            category: true,
+            subcategory: true,
+          },
+        },
+      },
+      orderBy: { initialDate: "desc" },
+    })
+  }
 
+  // Super Admin: Puede ver todo o filtrar por una empresa específica
   return prisma.budget.findMany({
-    where: { ...filter, ...branchScope },
+    where: companyId ? { companyId } : {},
     include: {
-      branch: true,
+      branch: {
+        include: { company: true }
+      },
       allocations: {
         include: {
           category: true,

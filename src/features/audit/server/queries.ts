@@ -5,15 +5,20 @@ import { requireAuth, enforceCompanyScope } from "@/lib/permissions"
  * Escaner perimetral del sistema forense y auditoría.
  * Soporta paginacion pura y filtros relacionales integrados con RLS.
  */
-export async function getAuditTrail(searchParams: { page?: string, actionFilter?: string }) {
+export async function getAuditTrail(searchParams: { page?: string, actionFilter?: string, companyId?: string }) {
    const user = await requireAuth()
-   const filter = enforceCompanyScope(user)
-
+   
    const currentPage = Math.max(1, Number(searchParams.page) || 1)
-   const pageSize = 12 // Capacidad de filas requerida visualmente
+   const pageSize = 12 
    const skipChunks = (currentPage - 1) * pageSize
 
-   const whereClause: any = { ...filter }
+   let whereClause: any = {}
+   
+   if (user.role !== 'SUPER_ADMIN') {
+      whereClause = { ...enforceCompanyScope(user) }
+   } else if (searchParams.companyId) {
+      whereClause = { companyId: searchParams.companyId }
+   }
    
    if (searchParams.actionFilter) {
        whereClause.action = searchParams.actionFilter
@@ -23,7 +28,8 @@ export async function getAuditTrail(searchParams: { page?: string, actionFilter?
       prisma.auditLog.findMany({
          where: whereClause,
          include: { 
-             user: { select: { name: true, role: true, email: true } }
+             user: { select: { name: true, role: true, email: true } },
+             company: { select: { name: true } }
          },
          orderBy: { createdAt: 'desc' },
          skip: skipChunks,

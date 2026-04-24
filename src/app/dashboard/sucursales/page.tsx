@@ -1,67 +1,84 @@
-import { getBranches, getCompanies } from "@/features/companies/server/queries"
-import { createBranch } from "@/features/companies/server/actions"
+ import { getBranches, getCompanies } from "@/features/companies/server/queries"
 import { requireAuth } from "@/lib/permissions"
+import { CompanyFilter } from "@/components/ui/CompanyFilter"
+import { SearchInput } from "@/components/ui/SearchInput"
+import { Pagination } from "@/components/ui/Pagination"
+import { CreateBranchModal } from "@/components/sucursales/CreateBranchModal"
+import { BranchRow } from "@/components/sucursales/BranchRow"
 
-export default async function BranchesPage() {
+export default async function BranchesPage({ 
+  searchParams 
+}: { 
+  searchParams: { companyId?: string; q?: string; page?: string } 
+}) {
   const user = await requireAuth()
-  const [branches, companies] = await Promise.all([
-    getBranches(),
+  const companyId = searchParams.companyId;
+  const query = searchParams.q || "";
+  const page = Number(searchParams.page) || 1;
+  const limit = 10;
+
+  const [{ items: branches, total, pageCount }, companies] = await Promise.all([
+    getBranches(companyId, query, page, limit),
     user.role === "SUPER_ADMIN" ? getCompanies() : Promise.resolve([]),
   ])
 
+  // Encontrar el nombre de la empresa filtrada si existe
+  const filteredCompany = companyId ? companies.find(c => c.id === companyId) : null;
+
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex w-full items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Sucursales Físicas</h1>
-          <p className="text-sm text-muted-foreground mt-1.5">Divisiones internas usadas como etiquetas de los presupuestos.</p>
+    <div className="flex flex-col gap-8 pb-20 max-w-7xl mx-auto w-full">
+      <div className="flex flex-col md:flex-row w-full items-start md:items-center justify-between gap-6">
+        <div className="animate-in fade-in slide-in-from-left-4 duration-500">
+          <h1 className="text-3xl font-black tracking-tight text-foreground">Sedes Operativas</h1>
+          <p className="text-sm text-muted-foreground mt-1.5 font-medium">
+            {filteredCompany ? `Unidades de negocio de ${filteredCompany.name}` : 'Todas las unidades operativas registradas.'}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500">
+          {user.role === "SUPER_ADMIN" && (
+            <CompanyFilter companies={companies} />
+          )}
+          <SearchInput placeholder="Buscar por Nombre..." />
+          <CreateBranchModal 
+            companies={companies} 
+            userRole={user.role} 
+            filteredCompanyId={companyId} 
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 shadow-[0_4px_40px_rgba(0,0,0,0.02)] p-6 h-fit">
-          <h2 className="text-lg font-semibold mb-5 text-foreground leading-none">Nueva Unidad Operativa</h2>
-          <form action={createBranch} className="flex flex-col gap-5">
-            {user.role === "SUPER_ADMIN" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium leading-none block">Empresa</label>
-                <select name="companyId" required className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 px-3 text-sm outline-none">
-                  {companies.map((company) => (
-                    <option key={company.id} value={company.id}>{company.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <div className="space-y-2">
-              <label className="text-sm font-medium leading-none block text-zinc-700 dark:text-zinc-300">Nombre de Sucursal</label>
-              <input type="text" name="name" required placeholder="Oficina Centro Histórico" className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 px-3 text-sm focus:ring-1 focus:ring-indigo-500 transition-all outline-none" />
-            </div>
-            <button type="submit" className="w-full bg-foreground text-background dark:bg-indigo-600 dark:text-white rounded-md h-9 text-sm font-medium hover:opacity-90 active:scale-[0.98] transition-all mt-1">Registrar Sucursal</button>
-          </form>
-        </div>
-
-        <div className="lg:col-span-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 shadow-[0_4px_40px_rgba(0,0,0,0.02)] overflow-hidden">
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
+        <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left whitespace-nowrap">
-              <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800/50 text-zinc-500 font-medium">
+              <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800/50 text-zinc-500 font-bold uppercase tracking-wider text-[10px]">
                 <tr>
-                  <th className="px-6 py-3.5">Nombre Filial</th>
-                  <th className="px-6 py-3.5">Empresa</th>
-                  <th className="px-6 py-3.5 text-right">Estatus</th>
+                  <th className="px-8 py-5">Nombre de Sucursal</th>
+                  {!filteredCompany && <th className="px-8 py-5">Empresa Propietaria</th>}
+                  <th className="px-8 py-5 text-right w-fit">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
                 {branches.map((branch) => (
-                  <tr key={branch.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/20 transition-colors group">
-                    <td className="px-6 py-4 font-medium text-foreground">{branch.name}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{branch.company.name}</td>
-                    <td className="px-6 py-4 text-right"><span className="inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-bold tracking-wider bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">{branch.isActive ? "OPERATIVA" : "BAJA"}</span></td>
-                  </tr>
+                  <BranchRow 
+                    key={branch.id} 
+                    branch={branch} 
+                    showCompany={!filteredCompany && user.role === "SUPER_ADMIN"} 
+                  />
                 ))}
-                {branches.length === 0 && <tr><td colSpan={3} className="px-6 py-8 text-center text-zinc-500">Sin sucursales registradas.</td></tr>}
+                {branches.length === 0 && (
+                  <tr>
+                    <td colSpan={filteredCompany ? 2 : 3} className="px-8 py-16 text-center text-zinc-500 font-medium italic">
+                       {query ? `No se encontraron sucursales para "${query}"` : "Sin sedes registradas en este alcance."}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
+          
+          <Pagination page={page} pageCount={pageCount} total={total} />
         </div>
       </div>
     </div>

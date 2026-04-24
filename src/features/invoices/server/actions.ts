@@ -4,6 +4,12 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, enforceCompanyScope, getBranchIsolation } from "@/lib/permissions"
 import { invoiceSchema } from "../validations"
 import { redirect } from "next/navigation"
+import { triggerBudgetAlerts } from "@/features/alerts/server/actions"
+
+
+import { writeFile } from "fs/promises"
+import { join } from "path"
+import { crypto } from "crypto"
 
 export async function createInvoice(formData: FormData) {
   const user = await requireAuth()
@@ -17,7 +23,21 @@ export async function createInvoice(formData: FormData) {
     date: formData.get("date"),
   })
 
+  // Procesar Adjunto
+  const file = formData.get("attachment") as File
+  let attachmentKey: string | null = null
+  let attachmentName: string | null = null
+
+  if (file && file.size > 0) {
+    attachmentName = file.name
+    attachmentKey = `${Date.now()}-${attachmentName.replace(/\s+/g, "_")}`
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const path = join(process.cwd(), "uploads", attachmentKey)
+    await writeFile(path, buffer)
+  }
+
   const calculatedVES = validated.amountUSD * validated.exchangeRate
+
 
   const allocation = await prisma.budgetAllocation.findUnique({
     where: { id: validated.allocationId },
@@ -43,8 +63,11 @@ export async function createInvoice(formData: FormData) {
         date: new Date(validated.date),
         companyId: allocation.budget.companyId,
         registeredById: user.id,
+        attachmentKey,
+        attachmentName,
       },
     })
+
 
     await tx.budgetAllocation.update({
       where: { id: validated.allocationId },
@@ -69,8 +92,12 @@ export async function createInvoice(formData: FormData) {
       },
     })
 
+    // Disparar motor de alertas
+    await triggerBudgetAlerts(validated.allocationId, tx)
+
     return inv.id
   })
+
 
   redirect(`/dashboard/facturas/${recordedInvoiceId}`)
 }

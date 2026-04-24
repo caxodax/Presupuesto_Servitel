@@ -5,13 +5,26 @@ import { requireAuth, enforceCompanyScope } from "@/lib/permissions"
  * Devuelve el catálogo jerárquico segmentado exclusivamente 
  * al ámbito visible del usuario (RLS)
  */
-export async function getCategories() {
+export async function getCategories(companyId?: string) {
   const user = await requireAuth()
-  const filter = enforceCompanyScope(user) // Bloquea todo intento de sobre-leer datos de vecinos
   
+  if (user.role !== 'SUPER_ADMIN') {
+    return prisma.category.findMany({
+      where: { companyId: user.companyId as string },
+      include: { 
+        subcategories: true,
+        company: true
+      },
+      orderBy: { name: 'asc' }
+    })
+  }
+
   return prisma.category.findMany({
-    where: filter,
-    include: { subcategories: true },
+    where: companyId ? { companyId } : {},
+    include: { 
+      subcategories: true,
+      company: true
+    },
     orderBy: { name: 'asc' }
   })
 }

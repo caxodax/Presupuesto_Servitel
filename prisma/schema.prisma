@@ -195,7 +195,10 @@ model Invoice {
   companyId      String
   registeredById String
   status         InvoiceStatus @default(REGISTERED)
+  attachmentKey  String?
+  attachmentName String?
   createdAt      DateTime      @default(now())
+
   updatedAt      DateTime      @updatedAt
 
   allocation     BudgetAllocation @relation(fields: [allocationId], references: [id], onDelete: Restrict)

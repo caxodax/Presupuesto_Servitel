@@ -22,7 +22,15 @@ export async function RecentActivity({ searchParams }: { searchParams: any }) {
                           <FileText className="w-4 h-4 text-zinc-400 group-hover:text-indigo-500" />
                        </div>
                        <div>
-                          <p className="font-bold text-sm text-foreground">{inv.supplierName} <span className="text-zinc-400 font-medium ml-1">#{inv.number}</span></p>
+                          <p className="font-bold text-sm text-foreground flex items-center gap-2">
+                             {inv.supplierName} 
+                             <span className="text-zinc-400 font-medium tracking-tight">#{inv.number}</span>
+                             {(inv as any)?.company?.name && (
+                                <span className="text-[9px] font-black uppercase tracking-wider bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-500">
+                                   {(inv as any).company.name}
+                                </span>
+                             )}
+                          </p>
                           <p className="text-xs text-zinc-500 mt-0.5">{inv.allocation.category.name} <span className="text-zinc-300 dark:text-zinc-700 mx-1">•</span> {inv.allocation.budget.branch.name}</p>
                        </div>
                     </div>

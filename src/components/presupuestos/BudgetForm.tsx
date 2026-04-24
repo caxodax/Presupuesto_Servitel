@@ -1,11 +1,26 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { createBudget } from "@/features/budgets/server/actions"
 
-export function BudgetForm({ companies, branches }: { companies: any[], branches: any[] }) {
-   const [selectedCompany, setSelectedCompany] = useState(companies.length === 1 ? companies[0].id : "")
+export function BudgetForm({ 
+  companies, 
+  branches,
+  defaultCompanyId
+}: { 
+  companies: any[], 
+  branches: any[],
+  defaultCompanyId?: string
+}) {
+   const [selectedCompany, setSelectedCompany] = useState(defaultCompanyId || (companies.length === 1 ? companies[0].id : ""))
    
+   // Sincronizar con el filtro externo si cambia
+   useEffect(() => {
+     if (defaultCompanyId) {
+        setSelectedCompany(defaultCompanyId)
+     }
+   }, [defaultCompanyId])
+
    const filteredBranches = branches.filter(b => b.companyId === selectedCompany)
 
    return (

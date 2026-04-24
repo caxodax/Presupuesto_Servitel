@@ -3,12 +3,14 @@ import { getCategories } from "@/features/categories/server/queries"
 import { upsertAllocation, registerAdjustment } from "@/features/budgets/server/actions"
 import { ArrowLeft, PlusCircle, Activity } from "lucide-react"
 import Link from "next/link"
+import { requireAuth } from "@/lib/permissions"
+import { FundTransfer } from "@/components/presupuestos/FundTransfer"
+import { MasterBudgetEditor } from "@/components/presupuestos/MasterBudgetEditor"
 
 export default async function BudgetDetailsPage({ params }: { params: { id: string } }) {
-  const [data, availableCategories] = await Promise.all([
-    getBudgetDetails(params.id),
-    getCategories()
-  ])
+  const user = await requireAuth()
+  const data = await getBudgetDetails(params.id)
+  const availableCategories = await getCategories(data.budget.companyId)
   
   const { budget, stats } = data
 
@@ -33,12 +35,13 @@ export default async function BudgetDetailsPage({ params }: { params: { id: stri
          </div>
          
          <div className="text-right">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-1">Presupuesto Master (USD)</h3>
-            <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-               ${stats.originalHardLimit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-            </span>
-         </div>
+             <MasterBudgetEditor budgetId={budget.id} currentLimit={stats.originalHardLimit} />
+          </div>
       </div>
+
+      {user.role === 'SUPER_ADMIN' && budget.allocations.length > 1 && (
+        <FundTransfer allocations={budget.allocations} budgetId={budget.id} />
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2 -mt-2">
          <MetricBox label="Distribuido Neto" value={stats.netAllocated} color="text-indigo-600 dark:text-indigo-400" />
@@ -108,7 +111,11 @@ export default async function BudgetDetailsPage({ params }: { params: { id: stri
                 <div className="space-y-1">
                    <label className="text-xs font-semibold">Categoría Directa</label>
                    <select name="categoryId" required className="w-full h-8 text-sm outline-none px-2 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950">
-                      {availableCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {availableCategories.map(c => (
+                         <option key={c.id} value={c.id}>
+                            {c.name} {user.role === 'SUPER_ADMIN' ? `— [${c.company.name}]` : ''}
+                         </option>
+                      ))}
                    </select>
                 </div>
                 <div className="space-y-1">
