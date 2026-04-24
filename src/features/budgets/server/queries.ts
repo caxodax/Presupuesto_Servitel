@@ -1,72 +1,80 @@
-import { prisma } from "@/lib/prisma"
+import { createClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope, getBranchIsolation } from "@/lib/permissions"
 
-export async function getBudgets(companyId?: string) {
+export async function getBudgets(companyId?: number) {
   const user = await requireAuth()
+  const supabase = createClient()
   
-  // Si no es Super Admin, siempre forzamos su propia empresa
+  let query = supabase
+    .from('Budget')
+    .select(`
+      *,
+      branch:Branch(*, company:Company(*)),
+      allocations:BudgetAllocation(
+        *,
+        category:Category(*),
+        subcategory:Subcategory(*)
+      )
+    `)
+    .order('initialDate', { ascending: false })
+
   if (user.role !== 'SUPER_ADMIN') {
-    return prisma.budget.findMany({
-      where: { companyId: user.companyId as string },
-      include: {
-        branch: {
-          include: { company: true }
-        },
-        allocations: {
-          include: {
-            category: true,
-            subcategory: true,
-          },
-        },
-      },
-      orderBy: { initialDate: "desc" },
-    })
+    query = query.eq('companyId', user.companyId)
+  } else if (companyId) {
+    query = query.eq('companyId', companyId)
   }
 
-  // Super Admin: Puede ver todo o filtrar por una empresa específica
-  return prisma.budget.findMany({
-    where: companyId ? { companyId } : {},
-    include: {
-      branch: {
-        include: { company: true }
-      },
-      allocations: {
-        include: {
-          category: true,
-          subcategory: true,
-        },
-      },
-    },
-    orderBy: { initialDate: "desc" },
-  })
+  const { data, error } = await query
+
+  if (error) {
+    throw new Error(`Error al obtener presupuestos: ${error.message}`)
+  }
+
+  return data
 }
 
-export async function getBudgetDetails(budgetId: string) {
+export async function getBudgetDetails(budgetId: number) {
   const user = await requireAuth()
+  const supabase = createClient()
+  
   const filter = enforceCompanyScope(user)
   const branchScope = getBranchIsolation(user)
 
-  const budget = await prisma.budget.findFirst({
-    where: { ...filter, ...branchScope, id: budgetId },
-    include: {
-      branch: true,
-      allocations: {
-        include: {
-          category: true,
-          subcategory: true,
-          adjustments: { orderBy: { createdAt: "desc" } },
-        },
-      },
-    },
-  })
+  let query = supabase
+    .from('Budget')
+    .select(`
+      *,
+      branch:Branch(*),
+      allocations:BudgetAllocation(
+        *,
+        category:Category(*),
+        subcategory:Subcategory(*),
+        adjustments:BudgetAdjustment(*)
+      )
+    `)
+    .eq('id', budgetId)
 
-  if (!budget) throw new Error("Presupuesto no encontrado.")
+  if (filter.companyId) query = query.eq('companyId', filter.companyId)
+  if (branchScope.branchId) query = query.eq('branchId', branchScope.branchId)
+
+  const { data: budget, error } = await query.single()
+
+  if (error || !budget) throw new Error("Presupuesto no encontrado o error de acceso.")
+
+  // Ordenamos los ajustes manualmente si es necesario (BudgetAllocation ya trae los ajustes)
+  budget.allocations.forEach((alloc: any) => {
+    if (alloc.adjustments) {
+      alloc.adjustments.sort((a: any, b: any) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+    }
+  })
 
   let totalAllocatedRaw = 0
   let totalConsumedUSD = 0
   let totalConsumedVES = 0
 
-  budget.allocations.forEach((alloc) => {
+  budget.allocations.forEach((alloc: any) => {
     totalAllocatedRaw += Number(alloc.amountUSD)
     totalConsumedUSD += Number(alloc.consumedUSD)
     totalConsumedVES += Number(alloc.consumedVES)

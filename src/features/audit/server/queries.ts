@@ -1,50 +1,51 @@
-import { prisma } from "@/lib/prisma"
+import { createClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope } from "@/lib/permissions"
 
 /**
  * Escaner perimetral del sistema forense y auditoría.
- * Soporta paginacion pura y filtros relacionales integrados con RLS.
  */
 export async function getAuditTrail(searchParams: { page?: string, actionFilter?: string, companyId?: string }) {
    const user = await requireAuth()
+   const supabase = createClient()
    
    const currentPage = Math.max(1, Number(searchParams.page) || 1)
    const pageSize = 12 
-   const skipChunks = (currentPage - 1) * pageSize
+   const from = (currentPage - 1) * pageSize
+   const to = from + pageSize - 1
 
-   let whereClause: any = {}
-   
+   let query = supabase
+     .from('AuditLog')
+     .select(`
+       *,
+       user:User(name, role, email),
+       company:Company(name)
+     `, { count: 'exact' })
+
    if (user.role !== 'SUPER_ADMIN') {
-      whereClause = { ...enforceCompanyScope(user) }
+     query = query.eq('companyId', user.companyId)
    } else if (searchParams.companyId) {
-      whereClause = { companyId: searchParams.companyId }
+     query = query.eq('companyId', Number(searchParams.companyId))
    }
    
    if (searchParams.actionFilter) {
-       whereClause.action = searchParams.actionFilter
+     query = query.eq('action', searchParams.actionFilter)
    }
 
-   const [logs, totalRows] = await Promise.all([
-      prisma.auditLog.findMany({
-         where: whereClause,
-         include: { 
-             user: { select: { name: true, role: true, email: true } },
-             company: { select: { name: true } }
-         },
-         orderBy: { createdAt: 'desc' },
-         skip: skipChunks,
-         take: pageSize
-      }),
-      prisma.auditLog.count({ where: whereClause })
-   ])
+   const { data: logs, count: totalRows, error } = await query
+     .order('createdAt', { ascending: false })
+     .range(from, to)
+
+   if (error) throw new Error(`Error auditoría: ${error.message}`)
+
+   const totalCount = totalRows || 0
 
    return { 
-       logs, 
+       logs: logs || [], 
        metadata: { 
-           totalRecords: totalRows, 
-           totalPages: Math.ceil(totalRows / pageSize), 
+           totalRecords: totalCount, 
+           totalPages: Math.ceil(totalCount / pageSize), 
            page: currentPage,
-           hasNextPage: (skipChunks + pageSize) < totalRows,
+           hasNextPage: (from + pageSize) < totalCount,
            hasPreviousPage: currentPage > 1
        } 
    }

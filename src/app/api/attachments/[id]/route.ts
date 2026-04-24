@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { createClient } from "@/lib/supabase/server"
 import { join } from "path"
 import { readFile } from "fs/promises"
 import { enforceCompanyScope } from "@/lib/permissions"
@@ -12,11 +12,14 @@ export async function GET(
     const session = await auth()
     if (!session?.user) return new NextResponse("No autorizado", { status: 401 })
 
-    const invoice = await prisma.invoice.findUnique({
-        where: { id: params.id }
-    })
+    const supabase = createClient()
+    const { data: invoice, error } = await supabase
+        .from('Invoice')
+        .select('*')
+        .eq('id', Number(params.id))
+        .single()
 
-    if (!invoice || !invoice.attachmentKey) {
+    if (error || !invoice || !invoice.attachmentKey) {
         return new NextResponse("Archivo no encontrado", { status: 404 })
     }
 

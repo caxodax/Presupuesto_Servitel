@@ -7,20 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "supabase:gen": "npx supabase gen types typescript --project-id syghchvygifxxneglpdg > src/types/database.ts"
   },
   "dependencies": {
-    "@prisma/client": "^5.12.0",
-    "bcryptjs": "^2.4.3",
+    "@supabase/ssr": "^0.10.2",
+    "@supabase/supabase-js": "^2.104.1",
     "clsx": "^2.1.0",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.365.0",
     "next": "14.2.0",
-    "next-auth": "5.0.0-beta.16",
     "react": "^18",
     "react-dom": "^18",
     "recharts": "^3.8.1",
@@ -28,7 +23,6 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
@@ -36,7 +30,6 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.0",
     "postcss": "^8.4.38",
-    "prisma": "^5.12.0",
     "tailwindcss": "^3.4.3",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",

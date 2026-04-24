@@ -1,18 +1,17 @@
 "use server"
 
-import { prisma } from "@/lib/prisma"
+import { createClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope, getBranchIsolation } from "@/lib/permissions"
 import { invoiceSchema } from "../validations"
 import { redirect } from "next/navigation"
 import { triggerBudgetAlerts } from "@/features/alerts/server/actions"
-
-
 import { writeFile } from "fs/promises"
 import { join } from "path"
-import { crypto } from "crypto"
+import { recordAuditLog } from "@/lib/audit"
 
 export async function createInvoice(formData: FormData) {
   const user = await requireAuth()
+  const supabase = createClient()
 
   const validated = invoiceSchema.parse({
     number: formData.get("number"),
@@ -38,66 +37,69 @@ export async function createInvoice(formData: FormData) {
 
   const calculatedVES = validated.amountUSD * validated.exchangeRate
 
+  const { data: allocation, error: aError } = await supabase
+    .from('BudgetAllocation')
+    .select('*, budget:Budget(id, companyId, branchId)')
+    .eq('id', validated.allocationId)
+    .single()
 
-  const allocation = await prisma.budgetAllocation.findUnique({
-    where: { id: validated.allocationId },
-    include: { budget: true },
-  })
-  if (!allocation) throw new Error("Asignación presupuestaria no encontrada.")
+  if (aError || !allocation) throw new Error("Asignación presupuestaria no encontrada.")
 
-  enforceCompanyScope(user, allocation.budget.companyId)
+  enforceCompanyScope(user, (allocation as any).budget.companyId)
   const branchScope = getBranchIsolation(user)
-  if (branchScope.branchId && branchScope.branchId !== allocation.budget.branchId) {
+  if (branchScope.branchId && branchScope.branchId !== (allocation as any).budget.branchId) {
      throw new Error("Error de Seguridad: Intentas registrar una factura sobre el fondo de una sucursal en la cual no estás asignado.")
   }
 
-  const recordedInvoiceId = await prisma.$transaction(async (tx) => {
-    const inv = await tx.invoice.create({
-      data: {
-        number: validated.number,
-        supplierName: validated.supplierName,
-        allocationId: validated.allocationId,
-        amountUSD: validated.amountUSD,
-        amountVES: calculatedVES,
-        exchangeRate: validated.exchangeRate,
-        date: new Date(validated.date),
-        companyId: allocation.budget.companyId,
-        registeredById: user.id,
-        attachmentKey,
-        attachmentName,
-      },
+  // Creación de Factura
+  const { data: inv, error: iError } = await supabase
+    .from('Invoice')
+    .insert({
+      number: validated.number,
+      supplierName: validated.supplierName,
+      allocationId: validated.allocationId,
+      amountUSD: validated.amountUSD,
+      amountVES: calculatedVES,
+      exchangeRate: validated.exchangeRate,
+      date: new Date(validated.date).toISOString(),
+      companyId: (allocation as any).budget.companyId,
+      registeredById: user.profileId,
+      attachmentKey,
+      attachmentName,
     })
+    .select()
+    .single()
 
+  if (iError || !inv) throw new Error(`Error crear factura: ${iError?.message}`)
 
-    await tx.budgetAllocation.update({
-      where: { id: validated.allocationId },
-      data: {
-        consumedUSD: { increment: validated.amountUSD },
-        consumedVES: { increment: calculatedVES },
-      },
+  // Actualizar Consumo en Asignación
+  // Incremento manual
+  const newConsumedUSD = Number(allocation.consumedUSD) + validated.amountUSD
+  const newConsumedVES = Number(allocation.consumedVES) + calculatedVES
+  
+  await supabase
+    .from('BudgetAllocation')
+    .update({
+      consumedUSD: newConsumedUSD,
+      consumedVES: newConsumedVES,
     })
+    .eq('id', validated.allocationId)
 
-    await tx.auditLog.create({
-      data: {
-        action: "CREATE_INVOICE",
-        entity: "Factura Operativa",
-        entityId: inv.id,
-        companyId: allocation.budget.companyId,
-        userId: user.id,
-        details: {
-          number: inv.number,
-          supplier: inv.supplierName,
-          deductedUSD: Number(inv.amountUSD),
-        },
-      },
-    })
-
-    // Disparar motor de alertas
-    await triggerBudgetAlerts(validated.allocationId, tx)
-
-    return inv.id
+  await recordAuditLog({
+    action: "CREATE_INVOICE",
+    entity: "Factura Operativa",
+    entityId: inv.id,
+    companyId: (allocation as any).budget.companyId,
+    userId: user.profileId,
+    details: {
+      number: inv.number,
+      supplier: inv.supplierName,
+      deductedUSD: Number(inv.amountUSD),
+    },
   })
 
+  // Disparar motor de alertas
+  await triggerBudgetAlerts(validated.allocationId)
 
-  redirect(`/dashboard/facturas/${recordedInvoiceId}`)
+  redirect(`/dashboard/facturas/${inv.id}`)
 }

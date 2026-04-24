@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/prisma"
+import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/permissions"
 import { revalidatePath } from "next/cache"
 
@@ -8,44 +8,50 @@ import { revalidatePath } from "next/cache"
  * Motor de detección de alertas de presupuesto.
  * Evalúa una asignación y dispara notificaciones si se alcanzan umbrales críticos.
  */
-export async function triggerBudgetAlerts(allocationId: string, tx: any = prisma) {
-  const allocation = await tx.budgetAllocation.findUnique({
-    where: { id: allocationId },
-    include: { 
-      category: true,
-      subcategory: true,
-      budget: { include: { company: true } }
-    }
-  })
+export async function triggerBudgetAlerts(allocationId: number) {
+  const supabase = createClient()
 
-  if (!allocation) return
+  const { data: allocation, error } = await supabase
+    .from('BudgetAllocation')
+    .select(`
+      *,
+      category:Category(name),
+      subcategory:Subcategory(name),
+      budget:Budget(companyId)
+    `)
+    .eq('id', allocationId)
+    .single()
+
+  if (error || !allocation) return
 
   const limitUSD = Number(allocation.amountUSD)
   const consumedUSD = Number(allocation.consumedUSD)
-  const percent = consumedUSD / limitUSD
+  const percent = limitUSD > 0 ? consumedUSD / limitUSD : 0
 
-  const companyId = allocation.budget.companyId
+  const companyId = (allocation as any).budget.companyId
   const rubroName = allocation.subcategory 
-    ? `${allocation.category.name} > ${allocation.subcategory.name}`
-    : allocation.category.name
+    ? `${(allocation as any).category.name} > ${(allocation as any).subcategory.name}`
+    : (allocation as any).category.name
 
   // 1. Alerta de Exceso (100%+)
   if (consumedUSD > limitUSD) {
     const title = `Presupuesto Excedido: ${rubroName}`
     
-    // Evitar duplicados (no leídos) para el mismo rubro
-    const existing = await tx.alert.findFirst({
-      where: { companyId, title, isRead: false }
-    })
+    // Evitar duplicados (no leídos)
+    const { data: existing } = await supabase
+      .from('Alert')
+      .select('id')
+      .eq('companyId', companyId)
+      .eq('title', title)
+      .eq('isRead', false)
+      .maybeSingle()
 
     if (!existing) {
-      await tx.alert.create({
-        data: {
+      await supabase.from('Alert').insert({
           companyId,
           type: "BUDGET_EXCEEDED",
           title,
           message: `El rubro ${rubroName} ha superado su límite de $${limitUSD.toLocaleString()}. Consumo actual: $${consumedUSD.toLocaleString()}.`
-        }
       })
     }
   } 
@@ -53,52 +59,63 @@ export async function triggerBudgetAlerts(allocationId: string, tx: any = prisma
   else if (percent >= 0.90) {
     const title = `Umbral Crítico (90%): ${rubroName}`
     
-    const existing = await tx.alert.findFirst({
-      where: { companyId, title, isRead: false }
-    })
+    const { data: existing } = await supabase
+      .from('Alert')
+      .select('id')
+      .eq('companyId', companyId)
+      .eq('title', title)
+      .eq('isRead', false)
+      .maybeSingle()
 
     if (!existing) {
-      await tx.alert.create({
-        data: {
+      await supabase.from('Alert').insert({
           companyId,
           type: "SYSTEM_WARNING",
           title,
           message: `El rubro ${rubroName} ha alcanzado el 90% de su capacidad. Disponible: $${(limitUSD - consumedUSD).toLocaleString()}.`
-        }
       })
     }
   }
 }
 
-export async function markAlertAsRead(alertId: string) {
+export async function markAlertAsRead(alertId: number) {
   const user = await requireAuth()
+  const supabase = createClient()
   
-  // Solo permitimos marcar como leídas las alertas de la empresa del usuario
-  // (O si es Super Admin puede todas)
-  const alert = await prisma.alert.findUnique({ where: { id: alertId }})
+  const { data: alert } = await supabase
+    .from('Alert')
+    .select('companyId')
+    .eq('id', alertId)
+    .single()
+
   if (!alert) return
 
   if (user.role !== 'SUPER_ADMIN' && alert.companyId !== user.companyId) {
     throw new Error("No tienes permiso para gestionar esta alerta.")
   }
 
-  await prisma.alert.update({
-    where: { id: alertId },
-    data: { isRead: true }
-  })
+  await supabase
+    .from('Alert')
+    .update({ isRead: true })
+    .eq('id', alertId)
 
   revalidatePath("/dashboard")
 }
 
 export async function markAllAlertsAsRead() {
   const user = await requireAuth()
+  const supabase = createClient()
   
-  const whereClause = user.role === 'SUPER_ADMIN' ? {} : { companyId: user.companyId }
+  let query = supabase
+    .from('Alert')
+    .update({ isRead: true })
+    .eq('isRead', false)
 
-  await prisma.alert.updateMany({
-    where: { ...whereClause, isRead: false },
-    data: { isRead: true }
-  })
+  if (user.role !== 'SUPER_ADMIN') {
+    query = query.eq('companyId', user.companyId)
+  }
+
+  await query
 
   revalidatePath("/dashboard")
 }

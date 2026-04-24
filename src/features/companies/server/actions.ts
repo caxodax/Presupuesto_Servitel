@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/prisma"
+import { createClient } from "@/lib/supabase/server"
 import { requireAuth, hasRole, enforceCompanyScope } from "@/lib/permissions"
 import { companySchema, branchSchema } from "../validations"
 import { revalidatePath } from "next/cache"
@@ -8,24 +8,27 @@ import { recordAuditLog } from "@/lib/audit"
 
 export async function createCompany(formData: FormData) {
   const user = await requireAuth()
+  const supabase = createClient()
   
   if (!hasRole(user.role, ["SUPER_ADMIN"])) throw new Error("Acceso denegado. Privilegios insuficientes.")
     
-  const data = { 
+  const validated = companySchema.parse({ 
     name: formData.get("name") as string,
-  }
-  
-  const validated = companySchema.parse(data)
-  
-  const company = await prisma.company.create({
-    data: { name: validated.name }
   })
+  
+  const { data: company, error } = await supabase
+    .from('Company')
+    .insert({ name: validated.name })
+    .select()
+    .single()
+
+  if (error || !company) throw new Error(`Error crear empresa: ${error?.message}`)
 
   await recordAuditLog({
     action: "CREATE_COMPANY",
     entity: "Entidad Jurídica",
     entityId: company.id,
-    userId: user.id,
+    userId: user.profileId,
     details: { name: company.name }
   })
   
@@ -34,29 +37,32 @@ export async function createCompany(formData: FormData) {
 
 export async function createBranch(formData: FormData) {
   const user = await requireAuth()
+  const supabase = createClient()
   
-  const targetId = formData.get("companyId") as string | undefined;
+  const targetId = formData.get("companyId") ? Number(formData.get("companyId")) : undefined;
   const scope = enforceCompanyScope(user, targetId)
   
-  const data = { 
+  const validated = branchSchema.parse({ 
     name: formData.get("name") as string,
     companyId: scope.companyId!
-  }
-  
-  const validated = branchSchema.parse(data)
+  })
 
-  const branch = await prisma.branch.create({
-    data: {
+  const { data: branch, error } = await supabase
+    .from('Branch')
+    .insert({
       name: validated.name,
       companyId: validated.companyId
-    }
-  })
+    })
+    .select()
+    .single()
+
+  if (error || !branch) throw new Error(`Error crear sucursal: ${error?.message}`)
 
   await recordAuditLog({
     action: "CREATE_BRANCH",
     entity: "Sucursal Operativa",
     entityId: branch.id,
-    userId: user.id,
+    userId: user.profileId,
     companyId: branch.companyId,
     details: { name: branch.name }
   })
@@ -64,73 +70,98 @@ export async function createBranch(formData: FormData) {
   revalidatePath("/dashboard/sucursales")
 }
 
-export async function updateCompany(companyId: string, formData: FormData) {
+export async function updateCompany(companyId: number, formData: FormData) {
   const user = await requireAuth()
+  const supabase = createClient()
   if (!hasRole(user.role, ["SUPER_ADMIN"])) throw new Error("Acceso denegado. Privilegios insuficientes.")
   
   const newName = formData.get("name") as string
   if (!newName || newName.trim().length === 0) throw new Error("El nombre no puede estar vacío.")
 
-  const company = await prisma.company.update({
-    where: { id: companyId },
-    data: { name: newName }
-  })
+  const { data: company, error } = await supabase
+    .from('Company')
+    .update({ name: newName })
+    .eq('id', companyId)
+    .select()
+    .single()
+
+  if (error || !company) throw new Error(`Error actualizar empresa: ${error?.message}`)
 
   await recordAuditLog({
     action: "UPDATE_COMPANY",
     entity: "Entidad Jurídica",
     entityId: company.id,
-    userId: user.id,
+    userId: user.profileId,
     details: { newName: company.name }
   })
   
   revalidatePath("/dashboard/empresas")
 }
 
-export async function toggleCompanyStatus(companyId: string) {
+export async function toggleCompanyStatus(companyId: number) {
   const user = await requireAuth()
+  const supabase = createClient()
   if (!hasRole(user.role, ["SUPER_ADMIN"])) throw new Error("Acceso denegado. Privilegios insuficientes.")
 
-  const current = await prisma.company.findUnique({ where: { id: companyId } })
-  if (!current) throw new Error("Empresa no encontrada")
+  const { data: current, error: fError } = await supabase
+    .from('Company')
+    .select('*')
+    .eq('id', companyId)
+    .single()
 
-  const updated = await prisma.company.update({
-    where: { id: companyId },
-    data: { isActive: !current.isActive }
-  })
+  if (fError || !current) throw new Error("Empresa no encontrada")
+
+  const { data: updated, error } = await supabase
+    .from('Company')
+    .update({ isActive: !current.isActive })
+    .eq('id', companyId)
+    .select()
+    .single()
+
+  if (error || !updated) throw new Error(`Error toggle empresa: ${error?.message}`)
 
   await recordAuditLog({
     action: updated.isActive ? "ACTIVATE_COMPANY" : "DEACTIVATE_COMPANY",
     entity: "Entidad Jurídica",
     entityId: updated.id,
-    userId: user.id,
+    userId: user.profileId,
     details: { status: updated.isActive ? "ACTIVA" : "SUSPENDIDA" }
   })
   
   revalidatePath("/dashboard/empresas")
 }
 
-export async function updateBranch(branchId: string, formData: FormData) {
+export async function updateBranch(branchId: number, formData: FormData) {
   const user = await requireAuth()
+  const supabase = createClient()
   
-  const branchData = await prisma.branch.findUnique({ where: { id: branchId } })
-  if (!branchData) throw new Error("Sucursal no encontrada")
+  const { data: branchData, error: fError } = await supabase
+    .from('Branch')
+    .select('*')
+    .eq('id', branchId)
+    .single()
+
+  if (fError || !branchData) throw new Error("Sucursal no encontrada")
   
   enforceCompanyScope(user, branchData.companyId)
   
   const newName = formData.get("name") as string
   if (!newName || newName.trim().length === 0) throw new Error("El nombre es requerido")
 
-  const updatedBranch = await prisma.branch.update({
-    where: { id: branchId },
-    data: { name: newName }
-  })
+  const { data: updatedBranch, error } = await supabase
+    .from('Branch')
+    .update({ name: newName })
+    .eq('id', branchId)
+    .select()
+    .single()
+
+  if (error || !updatedBranch) throw new Error(`Error actualizar sucursal: ${error?.message}`)
 
   await recordAuditLog({
     action: "UPDATE_BRANCH",
     entity: "Sucursal Operativa",
     entityId: updatedBranch.id,
-    userId: user.id,
+    userId: user.profileId,
     companyId: updatedBranch.companyId,
     details: { newName: updatedBranch.name }
   })
@@ -138,24 +169,34 @@ export async function updateBranch(branchId: string, formData: FormData) {
   revalidatePath("/dashboard/sucursales")
 }
 
-export async function toggleBranchStatus(branchId: string) {
+export async function toggleBranchStatus(branchId: number) {
   const user = await requireAuth()
+  const supabase = createClient()
   
-  const current = await prisma.branch.findUnique({ where: { id: branchId } })
-  if (!current) throw new Error("Sucursal no encontrada")
+  const { data: current, error: fError } = await supabase
+    .from('Branch')
+    .select('*')
+    .eq('id', branchId)
+    .single()
+
+  if (fError || !current) throw new Error("Sucursal no encontrada")
   
   enforceCompanyScope(user, current.companyId)
 
-  const updated = await prisma.branch.update({
-    where: { id: branchId },
-    data: { isActive: !current.isActive }
-  })
+  const { data: updated, error } = await supabase
+    .from('Branch')
+    .update({ isActive: !current.isActive })
+    .eq('id', branchId)
+    .select()
+    .single()
+
+  if (error || !updated) throw new Error(`Error toggle sucursal: ${error?.message}`)
 
   await recordAuditLog({
     action: updated.isActive ? "ACTIVATE_BRANCH" : "DEACTIVATE_BRANCH",
     entity: "Sucursal Operativa",
     entityId: updated.id,
-    userId: user.id,
+    userId: user.profileId,
     companyId: updated.companyId,
     details: { status: updated.isActive ? "ACTIVA" : "BAJA" }
   })

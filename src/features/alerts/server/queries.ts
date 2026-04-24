@@ -1,19 +1,28 @@
-import { prisma } from "@/lib/prisma"
+import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/permissions"
 
 export async function getUnreadAlerts() {
     const user = await requireAuth()
+    const supabase = createClient()
     
-    const whereClause: any = { isRead: false }
+    let query = supabase
+        .from('Alert')
+        .select('*')
+        .eq('isRead', false)
     
     if (user.role !== 'SUPER_ADMIN') {
         if (!user.companyId) return []
-        whereClause.companyId = user.companyId
+        query = query.eq('companyId', user.companyId)
     }
 
-    return prisma.alert.findMany({
-        where: whereClause,
-        orderBy: { createdAt: 'desc' },
-        take: 10
-    })
+    const { data, error } = await query
+        .order('createdAt', { ascending: false })
+        .limit(10)
+
+    if (error) {
+        console.error("Error al obtener alertas:", error.message)
+        return []
+    }
+
+    return data || []
 }

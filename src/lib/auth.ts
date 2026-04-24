@@ -1,72 +1,30 @@
-import NextAuth from "next-auth"
-import CredentialsProvider from "next-auth/providers/credentials"
-import { authConfig } from "./auth.config"
-import { prisma } from "./prisma"
-import * as bcrypt from "bcryptjs"
-import { z } from "zod"
-import { recordAuditLog } from "./audit"
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  ...authConfig,
-  session: { strategy: "jwt" },
-  events: {
-    async signIn({ user }) {
-      if (user?.id) {
-        await recordAuditLog({
-          action: "LOGIN_SUCCESS",
-          entity: "Sesión de Usuario",
-          entityId: user.id,
-          userId: user.id,
-          companyId: (user as any).companyId,
-          details: { email: user.email, name: user.name, timestamp: new Date().toISOString() }
-        })
-      }
-    }
-  },
-  providers: [
-    CredentialsProvider({
-      name: "Credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
-      },
-      async authorize(credentials) {
-        try {
-          const parsedCredentials = z
-            .object({ email: z.string().email(), password: z.string().min(6) })
-            .safeParse(credentials)
+export async function signIn(provider: string, options: { email?: any, password?: any, redirectTo?: string }) {
+  const supabase = createClient()
+  
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: options.email,
+    password: options.password,
+  })
 
-          if (!parsedCredentials.success) {
-            console.log("Credenciales con formato inválido.");
-            return null;
-          }
+  if (error) {
+    throw error
+  }
 
-          const { email, password } = parsedCredentials.data;
-          
-          const user = await prisma.user.findUnique({ where: { email } });
-          if (!user || !user.isActive) {
-            console.log("Acceso denegado: Usuario inexistente o suspendido.");
-            return null;
-          }
+  return data
+}
 
-          const passwordsMatch = await bcrypt.compare(password, user.passwordHash);
+export async function signOut(options?: { redirectTo?: string }) {
+  const supabase = createClient()
+  await supabase.auth.signOut()
+  
+  if (options?.redirectTo) {
+    redirect(options.redirectTo)
+  }
+}
 
-          if (!passwordsMatch) return null;
-
-          // Entregando el Scope y el Rol para crear el Tokean Seguro
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            companyId: user.companyId,
-            branchId: user.branchId,
-          }
-        } catch (error) {
-          console.error("Error validación NextAuth authorize:", error);
-          return null;
-        }
-      }
-    })
-  ]
-})
+// Mantenemos una exportación 'auth' para compatibilidad conceptual, 
+// apuntando a nuestro nuevo sistema de sesión.
+export { getSession as auth } from "./permissions"

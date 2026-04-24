@@ -1,39 +1,43 @@
-import { prisma } from "@/lib/prisma"
+import { createClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope, getBranchIsolation } from "@/lib/permissions"
 
-export async function getDashboardKpis(searchParams: { companyId?: string; branchId?: string; budgetId?: string }) {
+export async function getDashboardKpis(searchParams: { companyId?: number; branchId?: number; budgetId?: number }) {
   const user = await requireAuth()
+  const supabase = createClient()
+  
   const filter = enforceCompanyScope(user)
   const branchScope = getBranchIsolation(user)
 
-  const whereClause: any = { ...filter }
-  if (searchParams.companyId) whereClause.companyId = searchParams.companyId
-  if (searchParams.branchId) whereClause.branchId = searchParams.branchId
-  if (searchParams.budgetId) whereClause.id = searchParams.budgetId
+  let query = supabase
+    .from('Budget')
+    .select(`
+      amountLimitUSD,
+      allocations:BudgetAllocation(amountUSD, consumedUSD)
+    `)
 
-  // Security Override
-  if (branchScope.branchId) whereClause.branchId = branchScope.branchId
+  if (filter.companyId) query = query.eq('companyId', filter.companyId)
+  if (searchParams.companyId) query = query.eq('companyId', searchParams.companyId)
+  
+  if (branchScope.branchId) query = query.eq('branchId', branchScope.branchId)
+  else if (searchParams.branchId) query = query.eq('branchId', searchParams.branchId)
+  
+  if (searchParams.budgetId) query = query.eq('id', searchParams.budgetId)
 
-  const budgets = await prisma.budget.findMany({
-    where: whereClause,
-    include: {
-      allocations: {
-        select: { amountUSD: true, consumedUSD: true },
-      },
-    },
-  })
+  const { data: budgets, error } = await query
+
+  if (error) throw new Error(`Error KPIs: ${error.message}`)
 
   let totalLimit = 0
   let totalConsolidatedAllocations = 0
   let totalConsumed = 0
 
-  for (const b of budgets) {
+  budgets?.forEach((b: any) => {
     totalLimit += Number(b.amountLimitUSD)
-    for (const a of b.allocations) {
+    b.allocations?.forEach((a: any) => {
       totalConsolidatedAllocations += Number(a.amountUSD)
       totalConsumed += Number(a.consumedUSD)
-    }
-  }
+    })
+  })
 
   const overbudgetAmount = totalConsumed > totalLimit ? totalConsumed - totalLimit : 0
   const executionPercentage = totalLimit > 0 ? (totalConsumed / totalLimit) * 100 : 0
@@ -48,76 +52,77 @@ export async function getDashboardKpis(searchParams: { companyId?: string; branc
   }
 }
 
-export async function getExecutiveAnalytics(searchParams: { companyId?: string; branchId?: string; budgetId?: string }) {
+export async function getExecutiveAnalytics(searchParams: { companyId?: number; branchId?: number; budgetId?: number }) {
   const user = await requireAuth()
+  const supabase = createClient()
+  
   const filter = enforceCompanyScope(user)
   const branchScope = getBranchIsolation(user)
   
-  const whereClause: any = { ...filter }
-  if (searchParams.companyId) whereClause.companyId = searchParams.companyId
-  if (searchParams.branchId) whereClause.id = searchParams.branchId // Filtrar sucursal por ID
+  // 1. Ranking de Sucursales
+  let branchQuery = supabase
+    .from('Branch')
+    .select(`
+      id,
+      name,
+      budgets:Budget(
+        id,
+        allocations:BudgetAllocation(consumedUSD)
+      )
+    `)
 
-  // Security Override
-  if (branchScope.branchId) whereClause.id = branchScope.branchId
+  if (filter.companyId) branchQuery = branchQuery.eq('companyId', filter.companyId)
+  if (searchParams.companyId) branchQuery = branchQuery.eq('companyId', searchParams.companyId)
+  
+  if (branchScope.branchId) branchQuery = branchQuery.eq('id', branchScope.branchId)
+  else if (searchParams.branchId) branchQuery = branchQuery.eq('id', searchParams.branchId)
 
-  // 1. Ranking de Sucursales por Consumo (Filtrado por presupuesto si aplica)
-  const branchesData = await prisma.branch.findMany({
-    where: whereClause,
-    include: {
-      budgets: {
-        where: searchParams.budgetId ? { id: searchParams.budgetId } : {},
-        include: {
-          allocations: { select: { consumedUSD: true } }
-        }
-      }
-    }
-  })
+  const { data: branchesData, error: bError } = await branchQuery
 
-  const branchRankings = branchesData
-    .map(b => {
+  const branchRankings = (branchesData || [])
+    .map((b: any) => {
       let consumed = 0
-      b.budgets.forEach(bud => {
-        bud.allocations.forEach(a => (consumed += Number(a.consumedUSD)))
+      b.budgets?.forEach((bud: any) => {
+        // Si hay un filtro de presupuesto específico, solo sumamos ese
+        if (searchParams.budgetId && bud.id !== Number(searchParams.budgetId)) return
+        bud.allocations?.forEach((a: any) => (consumed += Number(a.consumedUSD)))
       })
       return { name: b.name, consumed }
     })
-    .filter(b => b.consumed > 0 || searchParams.branchId) // Si se filtra por sucursal, mostrarla aunque sea 0. Si no, solo las que tienen datos si hay presupuesto seleccionado.
+    .filter(b => b.consumed > 0 || searchParams.branchId)
     .sort((a, b) => b.consumed - a.consumed)
     .slice(0, 5)
 
-  // 2. Ranking de Categorías más pesadas (Filtrado por presupuesto y sucursal)
-  const categoryWhereClause: any = { 
-    budget: { 
-      companyId: whereClause.companyId || filter.companyId 
-    } 
-  }
+  // 2. Ranking de Categorías
+  let allocQuery = supabase
+    .from('BudgetAllocation')
+    .select(`
+      consumedUSD,
+      category:Category(id, name),
+      budget:Budget!inner(id, companyId, branchId)
+    `)
+
+  if (filter.companyId) allocQuery = allocQuery.eq('budget.companyId', filter.companyId)
+  if (searchParams.companyId) allocQuery = allocQuery.eq('budget.companyId', searchParams.companyId)
   
-  if (searchParams.branchId || branchScope.branchId) {
-    categoryWhereClause.budget.branchId = searchParams.branchId || branchScope.branchId
-  }
-  if (searchParams.budgetId) {
-    categoryWhereClause.budget.id = searchParams.budgetId
-  }
+  if (branchScope.branchId) allocQuery = allocQuery.eq('budget.branchId', branchScope.branchId)
+  else if (searchParams.branchId) allocQuery = allocQuery.eq('budget.branchId', searchParams.branchId)
+  
+  if (searchParams.budgetId) allocQuery = allocQuery.eq('budget.id', searchParams.budgetId)
 
-  const categoryGroup = await prisma.budgetAllocation.groupBy({
-    by: ['categoryId'],
-    where: categoryWhereClause,
-    _sum: { consumedUSD: true },
-    orderBy: { _sum: { consumedUSD: 'desc' } },
-    take: 5
+  const { data: allocations, error: aError } = await allocQuery
+
+  const categoryMap = new Map<number, { name: string, consumed: number }>()
+  allocations?.forEach((a: any) => {
+    const catId = a.category.id
+    const prev = categoryMap.get(catId) || { name: a.category.name, consumed: 0 }
+    categoryMap.set(catId, { ...prev, consumed: prev.consumed + Number(a.consumedUSD) })
   })
 
-  // Recuperamos los nombres de las categorías para el ranking
-  const categories = await prisma.category.findMany({
-    where: { id: { in: categoryGroup.map(c => c.categoryId) } }
-  })
-
-  const categoryRankings = categoryGroup
-    .map(cg => ({
-      name: categories.find(c => c.id === cg.categoryId)?.name || "Sin Categoría",
-      consumed: Number(cg._sum.consumedUSD || 0)
-    }))
-    .filter(c => c.consumed > 0) // Opciones de limpieza: solo categorías con gasto real
+  const categoryRankings = Array.from(categoryMap.values())
+    .filter(c => c.consumed > 0)
+    .sort((a, b) => b.consumed - a.consumed)
+    .slice(0, 5)
 
   return {
     branchRankings,
@@ -125,47 +130,83 @@ export async function getExecutiveAnalytics(searchParams: { companyId?: string; 
   }
 }
 
-
-export async function getRecentActivity(searchParams: { companyId?: string; branchId?: string; budgetId?: string }) {
+export async function getRecentActivity(searchParams: { companyId?: number; branchId?: number; budgetId?: number }) {
   const user = await requireAuth()
+  const supabase = createClient()
+  
   const filter = enforceCompanyScope(user)
   const branchScope = getBranchIsolation(user)
 
-  const whereClause: any = filter.companyId ? { companyId: filter.companyId } : {}
-  if (searchParams.companyId) whereClause.companyId = searchParams.companyId
+  let query = supabase
+    .from('Invoice')
+    .select(`
+      *,
+      company:Company(name),
+      allocation:BudgetAllocation(
+        id,
+        category:Category(name),
+        budget:Budget(
+          id,
+          branch:Branch(name)
+        )
+      )
+    `)
 
-  if (searchParams.branchId || searchParams.budgetId || branchScope.branchId) {
-    whereClause.allocation = { budget: {} as any }
-    if (searchParams.branchId) whereClause.allocation.budget.branchId = searchParams.branchId
-    if (searchParams.budgetId) whereClause.allocation.budget.id = searchParams.budgetId
-    // Security Override
-    if (branchScope.branchId) whereClause.allocation.budget.branchId = branchScope.branchId
+  if (filter.companyId) query = query.eq('companyId', filter.companyId)
+  if (searchParams.companyId) query = query.eq('companyId', searchParams.companyId)
+  
+  // Para filtros anidados profundos en Supabase usamos dot notation si la relación está cargada (inner join si es necesario)
+  // Pero aquí Invoice tiene companyId directo. Para branchId necesitamos filtrar por la relación.
+  // Usamos inner join para filtrar por campos de tablas relacionadas
+  if (branchScope.branchId || searchParams.branchId || searchParams.budgetId) {
+      // Re-estructuramos el select para asegurar inner joins si queremos filtrar por ellos
+      // Supabase permite filtrar relaciones anidadas así: from('Table').select('..., Relation!inner(*)').eq('Relation.field', value)
   }
 
-  return prisma.invoice.findMany({
-    where: whereClause,
-    include: {
-      allocation: { include: { category: true, budget: { include: { branch: true } } } },
-      company: { select: { name: true } }
-    },
-    orderBy: { createdAt: "desc" },
-    take: 6,
-  })
+  const { data, error } = await query
+    .order('createdAt', { ascending: false })
+    .limit(6)
+
+  // Filtrado post-query para casos complejos de relaciones anidadas si no queremos usar syntax de inner joins complejos
+  let filteredData = data || []
+  if (branchScope.branchId || searchParams.branchId) {
+      const bid = branchScope.branchId || searchParams.branchId
+      filteredData = filteredData.filter((inv: any) => inv.allocation?.budget?.branch?.id === bid)
+  }
+  if (searchParams.budgetId) {
+      filteredData = filteredData.filter((inv: any) => inv.allocation?.budget?.id === Number(searchParams.budgetId))
+  }
+
+  return filteredData
 }
 
 export async function getFilterOptions() {
   const user = await requireAuth()
+  const supabase = createClient()
+  
   const filter = enforceCompanyScope(user)
   const branchScope = getBranchIsolation(user)
 
-  const [companies, branches, budgets] = await Promise.all([
-    prisma.company.findMany({ where: filter.companyId ? { id: filter.companyId } : {}, select: { id: true, name: true }, orderBy: { name: "asc" } }),
-    prisma.branch.findMany({ where: { ...filter, ...(branchScope.branchId ? { id: branchScope.branchId } : {}) }, select: { id: true, name: true, companyId: true }, orderBy: { name: "asc" } }),
-    prisma.budget.findMany({ where: { ...filter, ...branchScope }, select: { id: true, name: true, branchId: true, companyId: true }, orderBy: { initialDate: "desc" } }),
+  const [resComp, resBranch, resBudget] = await Promise.all([
+    supabase.from('Company').select('id, name').order('name'),
+    supabase.from('Branch').select('id, name, companyId').order('name'),
+    supabase.from('Budget').select('id, name, branchId, companyId').order('initialDate', { ascending: false })
   ])
+
+  let companies = resComp.data || []
+  let branches = resBranch.data || []
+  let budgets = resBudget.data || []
+
+  if (filter.companyId) {
+      companies = companies.filter(c => c.id === filter.companyId)
+      branches = branches.filter(b => b.companyId === filter.companyId)
+      budgets = budgets.filter(b => b.companyId === filter.companyId)
+  }
+
+  if (branchScope.branchId) {
+      branches = branches.filter(b => b.id === branchScope.branchId)
+      budgets = budgets.filter(b => b.branchId === branchScope.branchId)
+  }
 
   return { companies, branches, budgets }
 }
-
-
-

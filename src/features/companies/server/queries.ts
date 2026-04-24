@@ -1,102 +1,92 @@
-import { prisma } from "@/lib/prisma"
+import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/permissions"
 
 /**
- * Trae empresas puras. Cerrado por seguridad absoluta al Super Admin.
- * Si se pasa 'page', devuelve un objeto con metadata de paginación.
- * Si NO se pasa 'page', devuelve un array directo (mantiene compatibilidad).
+ * Trae empresas puras.
  */
-export async function getCompanies(query?: string, page?: number, limit: number = 10) {
+export async function getCompanies(queryParam?: string, page?: number, limit: number = 10) {
   const user = await requireAuth()
-  const whereClause: any = user.role === 'SUPER_ADMIN' ? {} : { id: user.companyId as string };
+  const supabase = createClient()
   
-  if (query) {
-    whereClause.name = { contains: query, mode: 'insensitive' }
+  let query = supabase.from('Company').select('*', { count: 'exact' })
+  
+  if (user.role !== 'SUPER_ADMIN') {
+    query = query.eq('id', user.companyId)
+  }
+
+  if (queryParam) {
+    query = query.ilike('name', `%${queryParam}%`)
   }
 
   if (page === undefined) {
-    return prisma.company.findMany({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' }
-    })
+    const { data } = await query.order('createdAt', { ascending: false })
+    return data || []
   }
 
-  const skip = (page - 1) * limit;
+  const from = (page - 1) * limit
+  const to = from + limit - 1
 
-  const [items, total] = await Promise.all([
-    prisma.company.findMany({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-    }),
-    prisma.company.count({ where: whereClause })
-  ]);
+  const { data: items, count } = await query
+    .order('createdAt', { ascending: false })
+    .range(from, to)
   
   return {
-    items,
-    total,
-    pageCount: Math.ceil(total / limit)
+    items: items || [],
+    total: count || 0,
+    pageCount: Math.ceil((count || 0) / limit)
   }
 }
 
 /**
- * Trae todas las empresas sin paginación (ideal para selectores).
+ * Trae todas las empresas sin paginación.
  */
 export async function getAllCompanies() {
   const user = await requireAuth()
-  const whereClause = user.role === 'SUPER_ADMIN' ? {} : { id: user.companyId as string };
+  const supabase = createClient()
   
-  return prisma.company.findMany({
-    where: whereClause,
-    orderBy: { name: 'asc' }
-  })
+  let query = supabase.from('Company').select('*')
+  if (user.role !== 'SUPER_ADMIN') {
+    query = query.eq('id', user.companyId)
+  }
+  
+  const { data } = await query.order('name', { ascending: true })
+  return data || []
 }
 
 /**
- * Trae sucursales. Respeta la partición de datos:
- * Super Admin ve todo (o filtra por compañía), Empresa Admin o Auditor ve solo las de su corporación.
+ * Trae sucursales.
  */
-export async function getBranches(companyId?: string, query?: string, page?: number, limit: number = 10) {
+export async function getBranches(companyId?: number, queryParam?: string, page?: number, limit: number = 10) {
   const user = await requireAuth()
+  const supabase = createClient()
   
-  const whereClause: any = {}
+  let query = supabase.from('Branch').select('*, company:Company(*)', { count: 'exact' })
   
-  // Seguridad: Los no-SuperAdmin NUNCA pueden ver otras empresas
   if (user.role !== 'SUPER_ADMIN') {
-    whereClause.companyId = user.companyId as string
+    query = query.eq('companyId', user.companyId)
   } else if (companyId) {
-    whereClause.companyId = companyId
+    query = query.eq('companyId', companyId)
   }
 
-  if (query) {
-    whereClause.name = { contains: query, mode: 'insensitive' }
+  if (queryParam) {
+    query = query.ilike('name', `%${queryParam}%`)
   }
 
   if (page === undefined) {
-    return prisma.branch.findMany({
-      where: whereClause,
-      include: { company: true },
-      orderBy: { createdAt: 'desc' }
-    })
+    const { data } = await query.order('createdAt', { ascending: false })
+    return data || []
   }
 
-  const skip = (page - 1) * limit;
+  const from = (page - 1) * limit
+  const to = from + limit - 1
 
-  const [items, total] = await Promise.all([
-    prisma.branch.findMany({
-      where: whereClause,
-      include: { company: true },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-    }),
-    prisma.branch.count({ where: whereClause })
-  ]);
+  const { data: items, count } = await query
+    .order('createdAt', { ascending: false })
+    .range(from, to)
   
   return {
-    items,
-    total,
-    pageCount: Math.ceil(total / limit)
+    items: items || [],
+    total: count || 0,
+    pageCount: Math.ceil((count || 0) / limit)
   }
 }

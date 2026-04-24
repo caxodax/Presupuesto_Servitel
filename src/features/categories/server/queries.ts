@@ -1,30 +1,34 @@
-import { prisma } from "@/lib/prisma"
-import { requireAuth, enforceCompanyScope } from "@/lib/permissions"
+import { createClient } from "@/lib/supabase/server"
+import { requireAuth } from "@/lib/permissions"
 
 /**
  * Devuelve el catálogo jerárquico segmentado exclusivamente 
  * al ámbito visible del usuario (RLS)
  */
-export async function getCategories(companyId?: string) {
+export async function getCategories(companyId?: number) {
   const user = await requireAuth()
+  const supabase = createClient()
   
+  let query = supabase
+    .from('Category')
+    .select(`
+      *,
+      subcategories:Subcategory(*),
+      Company(id, name)
+    `)
+    .order('name', { ascending: true })
+
   if (user.role !== 'SUPER_ADMIN') {
-    return prisma.category.findMany({
-      where: { companyId: user.companyId as string },
-      include: { 
-        subcategories: true,
-        company: true
-      },
-      orderBy: { name: 'asc' }
-    })
+    query = query.eq('companyId', user.companyId)
+  } else if (companyId) {
+    query = query.eq('companyId', companyId)
   }
 
-  return prisma.category.findMany({
-    where: companyId ? { companyId } : {},
-    include: { 
-      subcategories: true,
-      company: true
-    },
-    orderBy: { name: 'asc' }
-  })
+  const { data, error } = await query
+
+  if (error) {
+    throw new Error(`Error al obtener categorías: ${error.message}`)
+  }
+
+  return data
 }
