@@ -1,5 +1,5 @@
 import { getUsers } from "@/features/users/server/queries"
-import { getCompanies, getBranches } from "@/features/companies/server/queries"
+import { getCompanies, getAllCompanies, getBranches } from "@/features/companies/server/queries"
 import { requireAuth } from "@/lib/permissions"
 import { CompanyFilter } from "@/components/ui/CompanyFilter"
 import { BranchFilter } from "@/components/ui/BranchFilter"
@@ -15,14 +15,20 @@ export default async function UsuariosPage({
   const user = await requireAuth()
   const companyId = searchParams.companyId
   const branchId = searchParams.branchId
+  const companyIdNum = companyId ? Number(companyId) : undefined
+  const branchIdNum = branchId ? Number(branchId) : undefined
   const page = Number(searchParams.page) || 1
   const limit = 10
 
-  const [{ items: users, total, pageCount }, companies, branches] = await Promise.all([
-     getUsers(companyId, branchId, page, limit), 
-     user.role === 'SUPER_ADMIN' ? getCompanies() : Promise.resolve([]),
+  const [usersResult, companiesResult, branchesResult] = await Promise.all([
+     getUsers(companyIdNum, branchIdNum, page, limit), 
+     user.role === 'SUPER_ADMIN' ? getAllCompanies() : Promise.resolve([]),
      getBranches()
   ])
+
+  const { items: users, total, pageCount } = usersResult
+  const companies = companiesResult as any[]
+  const branches = branchesResult as any[]
 
   return (
     <div className="flex flex-col gap-8 pb-20 max-w-7xl mx-auto w-full">

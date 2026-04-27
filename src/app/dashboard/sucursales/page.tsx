@@ -1,4 +1,4 @@
- import { getBranches, getCompanies } from "@/features/companies/server/queries"
+ import { getBranches, getCompanies, getAllCompanies } from "@/features/companies/server/queries"
 import { requireAuth } from "@/lib/permissions"
 import { CompanyFilter } from "@/components/ui/CompanyFilter"
 import { SearchInput } from "@/components/ui/SearchInput"
@@ -13,14 +13,18 @@ export default async function BranchesPage({
 }) {
   const user = await requireAuth()
   const companyId = searchParams.companyId;
+  const companyIdNum = companyId ? Number(companyId) : undefined;
   const query = searchParams.q || "";
   const page = Number(searchParams.page) || 1;
   const limit = 10;
 
-  const [{ items: branches, total, pageCount }, companies] = await Promise.all([
-    getBranches(companyId, query, page, limit),
-    user.role === "SUPER_ADMIN" ? getCompanies() : Promise.resolve([]),
+  const [branchesResult, companiesResult] = await Promise.all([
+    getBranches(companyIdNum, query, page, limit),
+    user.role === "SUPER_ADMIN" ? getAllCompanies() : Promise.resolve([]),
   ])
+
+  const { items: branches, total, pageCount } = branchesResult as { items: any[]; total: number; pageCount: number }
+  const companies = companiesResult as any[]
 
   // Encontrar el nombre de la empresa filtrada si existe
   const filteredCompany = companyId ? companies.find(c => c.id === companyId) : null;
@@ -60,7 +64,7 @@ export default async function BranchesPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
-                {branches.map((branch) => (
+                {branches.map((branch: any) => (
                   <BranchRow 
                     key={branch.id} 
                     branch={branch} 

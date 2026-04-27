@@ -1,5 +1,5 @@
 import { getCategories } from "@/features/categories/server/queries"
-import { getCompanies } from "@/features/companies/server/queries"
+import { getCompanies, getAllCompanies } from "@/features/companies/server/queries"
 import { requireAuth } from "@/lib/permissions"
 import { CompanyFilter } from "@/components/ui/CompanyFilter"
 import { SearchInput } from "@/components/ui/SearchInput"
@@ -18,15 +18,18 @@ export default async function CategoriesPage({
   const page = Number(searchParams.page) || 1
   const limit = 10
 
-  const [categoriesResult, companies, allCategories] = await Promise.all([
+  const [categoriesResult, companiesResult, allCategoriesResult] = await Promise.all([
      getCategories(companyId, query, page, limit),
-     user.role === "SUPER_ADMIN" ? getCompanies() : Promise.resolve([]),
+     user.role === "SUPER_ADMIN" ? getAllCompanies() : Promise.resolve([]),
      getCategories(companyId) // Fetch all for dropdown in modal
   ])
 
-  // getCategories retours un array si no passamos 'page' (ver queries.ts), 
-  // pero si pasamos le retorna { items, total, pageCount }
-  const { items: categories, total, pageCount } = categoriesResult as any
+  // types cast correctly
+  const categoriesData = categoriesResult as { items: any[]; total: number; pageCount: number }
+  const companies = companiesResult as any[]
+  const allCategories = allCategoriesResult as any[]
+  
+  const { items: categories, total, pageCount } = categoriesData
 
   return (
     <div className="flex flex-col gap-8 pb-20 max-w-7xl mx-auto w-full">

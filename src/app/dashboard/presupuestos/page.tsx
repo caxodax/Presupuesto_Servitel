@@ -1,5 +1,5 @@
 import { getBudgets } from "@/features/budgets/server/queries"
-import { getBranches, getCompanies } from "@/features/companies/server/queries"
+import { getBranches, getCompanies, getAllCompanies } from "@/features/companies/server/queries"
 import { Layers } from "lucide-react"
 import Link from "next/link"
 import { CompanyFilter } from "@/components/ui/CompanyFilter"
@@ -17,19 +17,21 @@ export default async function BudgetsRootPage({
   const user = await requireAuth()
   const companyId = searchParams.companyId;
   const branchId = searchParams.branchId;
+  const companyIdNum = companyId ? Number(companyId) : undefined;
   const query = searchParams.q || "";
   const page = Number(searchParams.page) || 1;
   const limit = 10;
 
-  const [budgetsResult, branchesResult, companies] = await Promise.all([
+  const [budgetsResult, branchesResult, companiesResult] = await Promise.all([
     getBudgets(companyId, branchId, query, page, limit),
-    getBranches(companyId), // branchesResult might be paginated if I passed page, but without it returns array
-    user.role === "SUPER_ADMIN" ? getCompanies() : Promise.resolve([]),
+    getBranches(companyIdNum), 
+    user.role === "SUPER_ADMIN" ? getAllCompanies() : Promise.resolve([]),
   ])
   
-  // Extraer valores paginados
+  // Extraer valores paginados o listados
   const { items: budgets, total, pageCount } = budgetsResult as any
-  const branches = Array.isArray(branchesResult) ? branchesResult : (branchesResult as any).items || [];
+  const branches = branchesResult as any[]
+  const companies = companiesResult as any[]
 
   return (
     <div className="flex flex-col gap-8 pb-20 max-w-7xl mx-auto w-full">
