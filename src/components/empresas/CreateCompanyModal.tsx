@@ -1,23 +1,27 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { Plus, X, Building2, Loader2, Check } from "lucide-react"
 import { createCompany } from "@/features/companies/server/actions"
+import { toast } from "sonner"
 
 export function CreateCompanyModal() {
   const [isOpen, setIsOpen] = useState(false)
-  const [isPending, setIsPending] = useState(false)
+  const [isPending, startTransition] = useTransition()
 
-  const handleSubmit = async (formData: FormData) => {
-    setIsPending(true)
-    try {
-      await createCompany(formData)
-      setIsOpen(false)
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setIsPending(false)
-    }
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    
+    startTransition(async () => {
+      try {
+        await createCompany(formData)
+        toast.success("Empresa registrada satisfactoriamente")
+        setIsOpen(false)
+      } catch (error: any) {
+        toast.error(error.message || "Error al registrar la empresa")
+      }
+    })
   }
 
   return (
@@ -48,7 +52,8 @@ export function CreateCompanyModal() {
               </div>
               <button 
                 onClick={() => setIsOpen(false)}
-                className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full text-zinc-400 transition-colors"
+                disabled={isPending}
+                className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full text-zinc-400 transition-colors disabled:opacity-50"
                 aria-label="Cerrar"
               >
                 <X className="w-4 h-4" />
@@ -56,7 +61,7 @@ export function CreateCompanyModal() {
             </div>
 
             {/* Form */}
-            <form action={handleSubmit} className="p-8 space-y-6">
+            <form onSubmit={handleSubmit} className="p-8 space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Razón Social</label>
                 <div className="relative group">
@@ -65,11 +70,13 @@ export function CreateCompanyModal() {
                     name="name" 
                     required 
                     autoFocus
+                    disabled={isPending}
                     placeholder="Ej: Servitel C.A" 
-                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" 
+                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50" 
                   />
                   <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity">
-                    <Check className="w-4 h-4 text-emerald-500" />
+                    {/* Solo muestra el check si no esta pending */}
+                    {!isPending && <Check className="w-4 h-4 text-emerald-500" />}
                   </div>
                 </div>
               </div>
@@ -78,7 +85,8 @@ export function CreateCompanyModal() {
                 <button 
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="flex-1 h-12 rounded-2xl text-sm font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all active:scale-95"
+                  disabled={isPending}
+                  className="flex-1 h-12 rounded-2xl text-sm font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all active:scale-95 disabled:opacity-50"
                 >
                   Cancelar
                 </button>

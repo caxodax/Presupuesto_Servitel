@@ -1,8 +1,9 @@
 "use client"
 
 import { transferFunds } from "@/features/budgets/server/actions"
-import { ArrowRightLeft, Send } from "lucide-react"
-import { useState } from "react"
+import { ArrowRightLeft, Send, Loader2 } from "lucide-react"
+import { useTransition } from "react"
+import { toast } from "sonner"
 
 type Allocation = {
     id: string
@@ -11,7 +12,28 @@ type Allocation = {
 }
 
 export function FundTransfer({ allocations, budgetId }: { allocations: Allocation[], budgetId: string }) {
-    const [isLoading, setIsLoading] = useState(false)
+    const [isPending, startTransition] = useTransition()
+
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        const formData = new FormData(e.currentTarget)
+        const form = e.currentTarget
+        
+        if (formData.get('sourceAllocationId') === formData.get('targetAllocationId')) {
+            toast.error("El origen y destino no pueden ser el mismo")
+            return
+        }
+
+        startTransition(async () => {
+            try {
+                await transferFunds(formData)
+                toast.success("Transferencia ejecutada con éxito")
+                form.reset()
+            } catch (error: any) {
+                toast.error(error.message || "Error al transferir fondos")
+            }
+        })
+    }
 
     return (
         <div className="rounded-2xl border border-indigo-100 dark:border-indigo-900/50 bg-gradient-to-br from-indigo-50/50 to-white dark:from-indigo-950/20 dark:to-zinc-900 p-6 shadow-sm">
@@ -25,16 +47,7 @@ export function FundTransfer({ allocations, budgetId }: { allocations: Allocatio
                 </div>
             </div>
 
-            <form action={async (fd) => {
-                setIsLoading(true)
-                try {
-                    await transferFunds(fd)
-                } catch (e: any) {
-                    alert(e.message)
-                } finally {
-                    setIsLoading(false)
-                }
-            }} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Origen (Sale)</label>
@@ -79,15 +92,11 @@ export function FundTransfer({ allocations, budgetId }: { allocations: Allocatio
                     </div>
                     <button 
                         type="submit" 
-                        disabled={isLoading}
+                        disabled={isPending}
                         className="h-10 px-6 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-indigo-500/20 active:scale-95"
                     >
-                        {isLoading ? 'Procesando...' : (
-                            <>
-                                <Send className="w-3.5 h-3.5" />
-                                Transferir
-                            </>
-                        )}
+                        {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                        {isPending ? 'Procesando...' : 'Transferir'}
                     </button>
                 </div>
                 

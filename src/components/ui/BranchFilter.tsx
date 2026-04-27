@@ -14,7 +14,10 @@ export function BranchFilter({ branches, selectedCompanyId }: { branches: Branch
   const currentBranchId = searchParams.get("branchId") || ""
 
   const filteredBranches = selectedCompanyId 
-    ? branches.filter(b => b.companyId === selectedCompanyId)
+    ? branches.filter(b => {
+        const compId = (b as any).company_id || b.companyId;
+        return compId && compId.toString() === selectedCompanyId.toString();
+      })
     : branches
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -39,7 +42,7 @@ export function BranchFilter({ branches, selectedCompanyId }: { branches: Branch
       <select 
         value={currentBranchId}
         onChange={handleChange}
-        className="bg-transparent text-sm font-bold outline-none text-foreground cursor-pointer min-w-[120px]"
+        className="bg-transparent text-sm font-bold outline-none text-foreground cursor-pointer w-auto max-w-[140px] truncate"
       >
         <option value="">Todas</option>
         {filteredBranches.map((branch) => (

@@ -4,17 +4,16 @@ import { logout } from "@/app/actions/auth"
 import { AlertCenter } from "@/components/dashboard/AlertCenter"
 import { getUnreadAlerts } from "@/features/alerts/server/queries"
 
+import { Breadcrumbs } from "./Breadcrumbs"
+
 export async function Topbar() {
   const session = await auth()
   const alerts = await getUnreadAlerts()
   
   return (
     <header className="flex h-16 items-center justify-between border-b bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800/80 px-6 shrink-0">
-      <div className="flex items-center gap-4 text-sm text-muted-foreground w-1/3">
-        {/* Simulación Breadcrumb dinámico por venir */}
-        <span className="font-medium text-zinc-400 hover:text-zinc-600 cursor-pointer transition-colors">Workspace</span>
-        <span className="text-zinc-300 dark:text-zinc-700">/</span>
-        <span className="text-foreground font-medium">Dashboard General</span>
+      <div className="flex items-center gap-4 w-1/3">
+        <Breadcrumbs />
       </div>
       
       <div className="flex flex-1 items-center justify-center max-w-md">

@@ -3,8 +3,8 @@
 import { useState } from "react"
 import { Upload, File, HelpCircle } from "lucide-react"
 
-export function FileUploadInput({ name }: { name: string }) {
-    const [fileName, setFileName] = useState<string | null>(null)
+export function FileUploadInput({ name, currentFile }: { name: string, currentFile?: string }) {
+    const [fileName, setFileName] = useState<string | null>(currentFile || null)
 
     return (
         <div className="space-y-2">

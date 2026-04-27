@@ -1,7 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope } from "@/lib/permissions"
+import { r2Client, BUCKET_NAME } from "@/lib/r2"
+import { GetObjectCommand } from "@aws-sdk/client-s3"
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 
-export async function getInvoices() {
+export async function getInvoices(companyId?: string, queryParam?: string, page?: number, limit: number = 10) {
   const user = await requireAuth()
   const supabase = createClient()
   
@@ -21,20 +24,40 @@ export async function getInvoices() {
           branch:Branch(name)
         )
       )
-    `)
+    `, { count: 'exact' })
     .order('date', { ascending: false })
 
   if (whereClause.companyId) {
     query = query.eq('companyId', whereClause.companyId)
+  } else if (companyId) {
+    query = query.eq('companyId', Number(companyId))
   }
 
-  const { data, error } = await query
+  if (queryParam) {
+    // Buscamos por número de factura o nombre del proveedor
+    query = query.or(`number.ilike.%${queryParam}%,supplierName.ilike.%${queryParam}%`)
+  }
+
+  if (page === undefined) {
+    const { data, error } = await query
+    if (error) throw new Error(`Error al obtener facturas: ${error.message}`)
+    return { items: data || [], total: (data || []).length, pageCount: 1 }
+  }
+
+  const from = (page - 1) * limit
+  const to = from + limit - 1
+
+  const { data: items, count, error } = await query.range(from, to)
 
   if (error) {
     throw new Error(`Error al obtener facturas: ${error.message}`)
   }
 
-  return data
+  return {
+    items: items || [],
+    total: count || 0,
+    pageCount: Math.ceil((count || 0) / limit)
+  }
 }
 
 export async function getInvoiceDetails(invoiceId: number) {
@@ -80,8 +103,22 @@ export async function getInvoiceDetails(invoiceId: number) {
     .eq('entityId', String(invoiceId)) // Mantenemos casteado a string por compatibilidad con la tabla AuditLog
     .order('createdAt', { ascending: false })
 
+  // Generar URL firmada para el adjunto si existe
+  let attachmentUrl = null
+  if (invoice.attachmentKey) {
+      try {
+          const command = new GetObjectCommand({
+              Bucket: BUCKET_NAME,
+              Key: invoice.attachmentKey,
+          })
+          attachmentUrl = await getSignedUrl(r2Client, command, { expiresIn: 3600 })
+      } catch (e) {
+          console.error("Error generando Signed URL:", e)
+      }
+  }
+
   return {
-    invoice,
+    invoice: { ...invoice, attachmentUrl },
     analytics: {
       hardLimit: allocLimit,
       totalConsumedNow: currentConsumedAll,
@@ -90,4 +127,15 @@ export async function getInvoiceDetails(invoiceId: number) {
     },
     auditLogs: auditLogs || []
   }
+}
+export async function getExchangeRateForDate(date: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('ExchangeRate')
+    .select('usd')
+    .eq('date', date)
+    .single()
+
+  if (error || !data) return null
+  return data.usd
 }

@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition, useOptimistic } from "react"
 import { toggleUserStatus, updateUser } from "@/features/users/server/actions"
-import { MoreHorizontal, User as UserIcon, ShieldX, ShieldCheck, Edit2, X, Loader2 } from "lucide-react"
+import { MoreHorizontal, User as UserIcon, ShieldX, ShieldCheck, Edit2, X, Loader2, Eye, EyeOff } from "lucide-react"
+import { toast } from "sonner"
 
 type UserItem = {
     id: string
@@ -15,54 +16,61 @@ type UserItem = {
 }
 
 export function UserRow({ user, companies, branches }: { user: UserItem, companies: any[], branches: any[] }) {
-    const [isPending, setIsPending] = useState(false)
+    const [isPendingToggle, startTransitionToggle] = useTransition()
     const [showEdit, setShowEdit] = useState(false)
 
-    const handleToggle = async () => {
-        if (!confirm(`¿Estás seguro de que deseas ${user.isActive ? 'SUSPENDER' : 'REACTIVAR'} el acceso de ${user.name}?`)) return
-        setIsPending(true)
-        try {
-            await toggleUserStatus(user.id)
-        } catch (e: any) {
-            alert(e.message)
-        } finally {
-            setIsPending(false)
-        }
+    const [optimisticUser, setOptimisticUser] = useOptimistic(
+        user,
+        (state, newState: Partial<typeof user>) => ({ ...state, ...newState })
+    )
+
+    const handleToggle = () => {
+        if (!confirm(`¿Estás seguro de que deseas ${optimisticUser.isActive ? 'SUSPENDER' : 'REACTIVAR'} el acceso de ${optimisticUser.name}?`)) return
+        
+        startTransitionToggle(async () => {
+            setOptimisticUser({ isActive: !optimisticUser.isActive })
+            try {
+                await toggleUserStatus(Number(user.id))
+                toast.success(optimisticUser.isActive ? 'Usuario suspendido' : 'Usuario reactivado')
+            } catch (e: any) {
+                toast.error(e.message || "Error al cambiar el estado del usuario")
+            }
+        })
     }
 
     return (
         <>
-            <tr className={`group hover:bg-zinc-50 dark:hover:bg-zinc-800/20 transition-all duration-300 ${!user.isActive ? 'opacity-60 grayscale-[0.5]' : ''}`}>
+            <tr className={`group hover:bg-zinc-50 dark:hover:bg-zinc-800/20 transition-all duration-300 ${!optimisticUser.isActive ? 'opacity-60 grayscale-[0.5]' : ''}`}>
                 <td className="px-8 py-5">
                     <div className="flex flex-col gap-0.5">
                         <span className="font-bold text-foreground flex items-center gap-2 tracking-tight">
-                            <div className={`p-1.5 rounded-lg ${user.isActive ? 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600' : 'bg-zinc-100 text-zinc-400'}`}>
+                            <div className={`p-1.5 rounded-lg ${optimisticUser.isActive ? 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600' : 'bg-zinc-100 text-zinc-400'}`}>
                                 <UserIcon className="w-3.5 h-3.5" /> 
                             </div>
-                            {user.name}
-                            {!user.isActive && (
+                            {optimisticUser.name}
+                            {!optimisticUser.isActive && (
                                 <span className="text-[9px] font-black uppercase text-rose-500 bg-rose-50 dark:bg-rose-950/30 px-1.5 py-0.5 rounded-md border border-rose-100 dark:border-rose-900/30">
                                     Inactivo
                                 </span>
                             )}
                         </span>
-                        <span className="text-[11px] text-zinc-500 pl-8 font-medium">{user.email}</span>
+                        <span className="text-[11px] text-zinc-500 pl-8 font-medium">{optimisticUser.email}</span>
                     </div>
                 </td>
                 <td className="px-8 py-5">
                     <span className={`text-[10px] uppercase font-black tracking-widest px-2.5 py-1 rounded-lg border shadow-sm ${
-                        user.role === 'SUPER_ADMIN' ? 'bg-indigo-50 border-indigo-100 text-indigo-700 dark:bg-indigo-950/30 dark:border-indigo-900/50 dark:text-indigo-400' : 
-                        user.role === 'COMPANY_ADMIN' ? 'bg-emerald-50 border-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-900/50 dark:text-emerald-400' : 
+                        optimisticUser.role === 'SUPER_ADMIN' ? 'bg-indigo-50 border-indigo-100 text-indigo-700 dark:bg-indigo-950/30 dark:border-indigo-900/50 dark:text-indigo-400' : 
+                        optimisticUser.role === 'COMPANY_ADMIN' ? 'bg-emerald-50 border-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-900/50 dark:text-emerald-400' : 
                         'bg-zinc-50 border-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400'
                     }`}>
-                        {user.role.replace('_', ' ')}
+                        {optimisticUser.role.replace('_', ' ')}
                     </span>
                 </td>
                 <td className="px-8 py-5">
-                    {user.company ? (
+                    {optimisticUser.company ? (
                         <div className="flex flex-col gap-0.5">
-                            <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">{user.company.name}</span>
-                            {user.branch && <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight flex items-center gap-1 opacity-70"><div className="w-1 h-1 rounded-full bg-zinc-300" /> {user.branch.name}</span>}
+                            <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">{optimisticUser.company.name}</span>
+                            {optimisticUser.branch && <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight flex items-center gap-1 opacity-70"><div className="w-1 h-1 rounded-full bg-zinc-300" /> {optimisticUser.branch.name}</span>}
                         </div>
                     ) : (
                         <span className="text-[10px] uppercase font-black text-zinc-400 tracking-widest italic">- Acceso Global -</span>
@@ -80,16 +88,16 @@ export function UserRow({ user, companies, branches }: { user: UserItem, compani
                         
                         <button 
                             onClick={handleToggle}
-                            disabled={isPending}
-                            className={`p-2 rounded-xl transition-all shadow-sm active:scale-90 border ${
-                                user.isActive 
+                            disabled={isPendingToggle}
+                            className={`p-2 rounded-xl transition-all shadow-sm active:scale-90 border disabled:opacity-50 ${
+                                optimisticUser.isActive 
                                 ? 'text-rose-500 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:bg-rose-50 hover:border-rose-100 dark:hover:bg-rose-950/30 dark:hover:border-rose-900/50' 
                                 : 'text-emerald-500 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:bg-emerald-50 hover:border-emerald-100 dark:hover:bg-emerald-950/30 dark:hover:border-emerald-900/50'
                             }`}
-                            title={user.isActive ? "Suspender Usuario" : "Activar Usuario"}
+                            title={optimisticUser.isActive ? "Suspender Usuario" : "Activar Usuario"}
                         >
-                            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                                user.isActive ? <ShieldX className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />
+                            {isPendingToggle ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                                optimisticUser.isActive ? <ShieldX className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />
                             )}
                         </button>
                     </div>
@@ -111,9 +119,25 @@ export function UserRow({ user, companies, branches }: { user: UserItem, compani
 function UserEditModal({ user, companies, branches, onClose }: { user: UserItem, companies: any[], branches: any[], onClose: () => void }) {
     const [selectedCompany, setSelectedCompany] = useState(user.company?.id || "")
     const [selectedRole, setSelectedRole] = useState(user.role)
-    const [isSaving, setIsSaving] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
+    const [isSaving, startTransitionUpdate] = useTransition()
 
     const filteredBranches = branches.filter(b => b.companyId === selectedCompany)
+
+    const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        const formData = new FormData(e.currentTarget)
+        
+        startTransitionUpdate(async () => {
+            try {
+                await updateUser(formData)
+                toast.success("Perfil actualizado correctamente")
+                onClose()
+            } catch (e: any) {
+                toast.error(e.message || "Error al actualizar el usuario")
+            }
+        })
+    }
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/60 backdrop-blur-md p-4 text-left whitespace-normal animate-in fade-in duration-300">
@@ -131,31 +155,22 @@ function UserEditModal({ user, companies, branches, onClose }: { user: UserItem,
                     </div>
                     <button 
                         onClick={onClose}
-                        className="absolute top-8 right-8 p-2.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full text-zinc-400 transition-all active:scale-90"
+                        disabled={isSaving}
+                        className="absolute top-8 right-8 p-2.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full text-zinc-400 transition-all active:scale-90 disabled:opacity-50"
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 <form 
-                    action={async (fd) => {
-                        setIsSaving(true)
-                        try {
-                            await updateUser(fd)
-                            onClose()
-                        } catch (e: any) {
-                            alert(e.message)
-                        } finally {
-                            setIsSaving(false)
-                        }
-                    }}
+                    onSubmit={handleUpdate}
                     className="p-10 grid grid-cols-1 md:grid-cols-2 gap-8"
                 >
                     <input type="hidden" name="userId" value={user.id} />
                     
                     <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1">Nombre Completo</label>
-                        <input type="text" name="name" defaultValue={user.name} required className="w-full h-12 px-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all shadow-sm" />
+                        <input type="text" name="name" defaultValue={user.name} disabled={isSaving} required className="w-full h-12 px-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all shadow-sm disabled:opacity-50" />
                     </div>
 
                     <div className="space-y-2">
@@ -166,7 +181,8 @@ function UserEditModal({ user, companies, branches, onClose }: { user: UserItem,
                                 value={selectedRole} 
                                 onChange={(e) => setSelectedRole(e.target.value)}
                                 required 
-                                className="w-full h-12 px-5 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl text-sm font-black text-indigo-700 dark:text-indigo-400 outline-none focus:ring-4 focus:ring-indigo-500/10 appearance-none cursor-pointer transition-all shadow-sm"
+                                disabled={isSaving}
+                                className="w-full h-12 px-5 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl text-sm font-black text-indigo-700 dark:text-indigo-400 outline-none focus:ring-4 focus:ring-indigo-500/10 appearance-none cursor-pointer transition-all shadow-sm disabled:opacity-50"
                             >
                                 <option value="OPERATOR">Operador (Zonal)</option>
                                 <option value="COMPANY_ADMIN">Administrador Empresa</option>
@@ -182,7 +198,8 @@ function UserEditModal({ user, companies, branches, onClose }: { user: UserItem,
                             name="companyId" 
                             value={selectedCompany} 
                             onChange={(e) => setSelectedCompany(e.target.value)}
-                            className="w-full h-12 px-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 cursor-pointer transition-all shadow-sm"
+                            disabled={isSaving}
+                            className="w-full h-12 px-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 cursor-pointer transition-all shadow-sm disabled:opacity-50"
                         >
                             <option value="">-- Sin Empresa --</option>
                             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -194,7 +211,7 @@ function UserEditModal({ user, companies, branches, onClose }: { user: UserItem,
                         <select 
                             name="branchId" 
                             defaultValue={user.branch?.id || ""}
-                            disabled={!selectedCompany || (selectedRole !== 'OPERATOR' && selectedRole !== 'AUDITOR')}
+                            disabled={isSaving || !selectedCompany || (selectedRole !== 'OPERATOR' && selectedRole !== 'AUDITOR')}
                             className="w-full h-12 px-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 disabled:opacity-40 cursor-pointer transition-all shadow-sm"
                         >
                             <option value="">-- Sin Sucursal --</option>
@@ -202,11 +219,34 @@ function UserEditModal({ user, companies, branches, onClose }: { user: UserItem,
                         </select>
                     </div>
 
+                    <div className="space-y-2 md:col-span-2">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1">Nueva Contraseña (Opcional)</label>
+                        <div className="relative">
+                            <input 
+                                type={showPassword ? "text" : "password"} 
+                                name="password" 
+                                placeholder="Dejar en blanco para mantener la actual"
+                                disabled={isSaving} 
+                                className="w-full h-12 px-5 pr-12 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all shadow-sm disabled:opacity-50" 
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
+                                tabIndex={-1}
+                            >
+                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-zinc-400 font-medium ml-1">Mínimo 6 caracteres si decide cambiarla.</p>
+                    </div>
+
                     <div className="md:col-span-2 flex gap-4 pt-4">
                         <button 
                             type="button"
                             onClick={onClose}
-                            className="flex-1 h-14 rounded-2xl text-sm font-black text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all active:scale-95 uppercase tracking-widest"
+                            disabled={isSaving}
+                            className="flex-1 h-14 rounded-2xl text-sm font-black text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all active:scale-95 uppercase tracking-widest disabled:opacity-50"
                         >
                             Cerrar
                         </button>

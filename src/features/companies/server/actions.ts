@@ -24,7 +24,7 @@ export async function createCompany(formData: FormData) {
 
   if (error || !company) throw new Error(`Error crear empresa: ${error?.message}`)
 
-  await recordAuditLog({
+  recordAuditLog({
     action: "CREATE_COMPANY",
     entity: "Entidad Jurídica",
     entityId: company.id,
@@ -58,7 +58,7 @@ export async function createBranch(formData: FormData) {
 
   if (error || !branch) throw new Error(`Error crear sucursal: ${error?.message}`)
 
-  await recordAuditLog({
+  recordAuditLog({
     action: "CREATE_BRANCH",
     entity: "Sucursal Operativa",
     entityId: branch.id,
@@ -87,7 +87,7 @@ export async function updateCompany(companyId: number, formData: FormData) {
 
   if (error || !company) throw new Error(`Error actualizar empresa: ${error?.message}`)
 
-  await recordAuditLog({
+  recordAuditLog({
     action: "UPDATE_COMPANY",
     entity: "Entidad Jurídica",
     entityId: company.id,
@@ -120,7 +120,7 @@ export async function toggleCompanyStatus(companyId: number) {
 
   if (error || !updated) throw new Error(`Error toggle empresa: ${error?.message}`)
 
-  await recordAuditLog({
+  recordAuditLog({
     action: updated.isActive ? "ACTIVATE_COMPANY" : "DEACTIVATE_COMPANY",
     entity: "Entidad Jurídica",
     entityId: updated.id,
@@ -157,7 +157,7 @@ export async function updateBranch(branchId: number, formData: FormData) {
 
   if (error || !updatedBranch) throw new Error(`Error actualizar sucursal: ${error?.message}`)
 
-  await recordAuditLog({
+  recordAuditLog({
     action: "UPDATE_BRANCH",
     entity: "Sucursal Operativa",
     entityId: updatedBranch.id,
@@ -192,7 +192,7 @@ export async function toggleBranchStatus(branchId: number) {
 
   if (error || !updated) throw new Error(`Error toggle sucursal: ${error?.message}`)
 
-  await recordAuditLog({
+  recordAuditLog({
     action: updated.isActive ? "ACTIVATE_BRANCH" : "DEACTIVATE_BRANCH",
     entity: "Sucursal Operativa",
     entityId: updated.id,

@@ -26,14 +26,14 @@ export function CompanyFilter({ companies }: { companies: Company[] }) {
   }
 
   return (
-    <div className="flex items-center gap-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-lg px-3 py-2 shadow-sm">
-      <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Filtrar Empresa:</label>
+    <div className="flex items-center gap-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl px-4 py-2 shadow-sm">
+      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.15em]">Empresa:</label>
       <select 
         value={currentCompanyId}
         onChange={handleChange}
-        className="bg-transparent text-sm font-medium outline-none text-foreground cursor-pointer min-w-[150px]"
+        className="bg-transparent text-sm font-bold outline-none text-foreground cursor-pointer w-auto max-w-[140px] md:max-w-[180px] truncate"
       >
-        <option value="">Todas las Empresas</option>
+        <option value="">Todas</option>
         {companies.map((company) => (
           <option key={company.id} value={company.id}>
             {company.name}

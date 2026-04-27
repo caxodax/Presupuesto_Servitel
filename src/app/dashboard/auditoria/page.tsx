@@ -61,9 +61,9 @@ export default async function AuditForensicPage({ searchParams }: { searchParams
                     <td className="px-6 py-4">
                        <div className="flex items-center gap-2 text-zinc-500">
                           <Clock className="w-3.5 h-3.5" />
-                          <span className="font-medium text-foreground">{log.createdAt.toLocaleDateString()}</span>
+                          <span className="font-medium text-foreground">{new Date(log.createdAt).toLocaleDateString()}</span>
                        </div>
-                       <div className="text-[10px] text-muted-foreground ml-5 mt-0.5">{log.createdAt.toLocaleTimeString()}</div>
+                       <div className="text-[10px] text-muted-foreground ml-5 mt-0.5">{new Date(log.createdAt).toLocaleTimeString()}</div>
                     </td>
                     <td className="px-6 py-4">
                        <div className="flex items-center gap-2 font-medium text-foreground">

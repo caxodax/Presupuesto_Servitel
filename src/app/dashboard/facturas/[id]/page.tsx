@@ -73,7 +73,7 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
                      </div>
                      <div>
                         <div className="text-xs text-muted-foreground mb-1 font-medium">Fecha Contable</div>
-                        <div className="font-semibold text-foreground text-sm">{invoice.date.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+                        <div className="font-semibold text-foreground text-sm">{new Date(invoice.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
                      </div>
                      <div>
                         <div className="text-xs text-muted-foreground mb-1 font-medium">Operador Procesante</div>
@@ -132,11 +132,12 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
                               </div>
                           </div>
                           <a 
-                            href={`/api/attachments/${invoice.id}`} 
+                            href={invoice.attachmentUrl} 
                             target="_blank"
+                            rel="noopener noreferrer"
                             className="w-full h-10 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
                           >
-                              <Download className="w-3.5 h-3.5" /> Descargar Soporte
+                              <Download className="w-3.5 h-3.5" /> Ver / Descargar Soporte
                           </a>
                       </div>
                   ) : (

@@ -1,29 +1,37 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, X, UserPlus, ShieldCheck, Loader2 } from "lucide-react"
+import { useState, useTransition } from "react"
+import { Plus, X, UserPlus, ShieldCheck, Loader2, Eye, EyeOff } from "lucide-react"
 import { createUser } from "@/features/users/server/actions"
+import { toast } from "sonner"
 
 export function CreateUserModal({ companies, branches }: { companies: any[], branches: any[] }) {
   const [isOpen, setIsOpen] = useState(false)
-  const [isPending, setIsPending] = useState(false)
+  const [isPending, startTransition] = useTransition()
   const [selectedCompany, setSelectedCompany] = useState("")
   const [selectedRole, setSelectedRole] = useState("OPERATOR")
+  const [showPassword, setShowPassword] = useState(false)
 
-  const filteredBranches = branches.filter(b => b.companyId === selectedCompany)
+  const filteredBranches = branches.filter(b => {
+    const compId = b.company_id || b.companyId;
+    return compId && compId.toString() === selectedCompany.toString();
+  })
 
-  const handleSubmit = async (formData: FormData) => {
-    setIsPending(true)
-    try {
-      await createUser(formData)
-      setIsOpen(false)
-      setSelectedCompany("")
-      setSelectedRole("OPERATOR")
-    } catch (error: any) {
-      alert(error.message)
-    } finally {
-      setIsPending(false)
-    }
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    
+    startTransition(async () => {
+      try {
+        await createUser(formData)
+        toast.success("Usuario creado exitosamente")
+        setIsOpen(false)
+        setSelectedCompany("")
+        setSelectedRole("OPERATOR")
+      } catch (error: any) {
+        toast.error(error.message || "Error al crear el usuario")
+      }
+    })
   }
 
   return (
@@ -52,32 +60,38 @@ export function CreateUserModal({ companies, branches }: { companies: any[], bra
               </div>
               <button 
                 onClick={() => setIsOpen(false)}
-                className="absolute top-6 right-6 p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full text-zinc-400 transition-colors"
+                disabled={isPending}
+                className="absolute top-6 right-6 p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full text-zinc-400 transition-colors disabled:opacity-50"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Form */}
-            <form action={handleSubmit} className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handleSubmit} className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Nombre Completo</label>
-                <input type="text" name="name" required placeholder="Ej: Juan Pérez" className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all" />
+                <input type="text" name="name" required disabled={isPending} placeholder="Ej: Juan Pérez" className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all disabled:opacity-50" />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Correo Electrónico</label>
-                <input type="email" name="email" required placeholder="juan@ejemplo.com" className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all" />
+                <input type="email" name="email" required disabled={isPending} placeholder="juan@ejemplo.com" className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all disabled:opacity-50" />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Contraseña Temporal</label>
-                <input type="password" name="password" minLength={6} required placeholder="Mínimo 6 caracteres" className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all" />
+                <div className="relative">
+                   <input type={showPassword ? "text" : "password"} name="password" minLength={6} required disabled={isPending} placeholder="Mínimo 6 caracteres" className="w-full h-11 pl-4 pr-12 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all disabled:opacity-50" />
+                   <button type="button" onClick={() => setShowPassword(!showPassword)} tabIndex={-1} className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-indigo-500 transition-colors">
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                   </button>
+                </div>
               </div>
               
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500 ml-1">Rol de Sistema</label>
-                <select name="role" value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} required className="w-full h-11 px-4 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl text-sm font-black text-indigo-600 dark:text-indigo-400 outline-none focus:ring-2 focus:ring-indigo-500/20 appearance-none">
+                <select name="role" value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} required disabled={isPending} className="w-full h-11 px-4 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl text-sm font-black text-indigo-600 dark:text-indigo-400 outline-none focus:ring-2 focus:ring-indigo-500/20 appearance-none disabled:opacity-50">
                   <option value="OPERATOR">Operador</option>
                   <option value="COMPANY_ADMIN">Administrador Empresa</option>
                   <option value="AUDITOR">Auditor</option>
@@ -92,7 +106,8 @@ export function CreateUserModal({ companies, branches }: { companies: any[], bra
                   value={selectedCompany} 
                   onChange={(e) => setSelectedCompany(e.target.value)} 
                   required 
-                  className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  disabled={isPending}
+                  className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50"
                 >
                   <option value="" disabled>Selecciona Empresa</option>
                   {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -105,7 +120,7 @@ export function CreateUserModal({ companies, branches }: { companies: any[], bra
                   name="branchId" 
                   defaultValue="" 
                   required={selectedRole === 'OPERATOR'} 
-                  disabled={!selectedCompany || (selectedRole !== 'OPERATOR' && selectedRole !== 'AUDITOR')} 
+                  disabled={isPending || !selectedCompany || (selectedRole !== 'OPERATOR' && selectedRole !== 'AUDITOR')} 
                   className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50"
                 >
                   <option value="">-- Sin Sucursal --</option>
@@ -117,7 +132,8 @@ export function CreateUserModal({ companies, branches }: { companies: any[], bra
                 <button 
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="flex-1 h-12 rounded-2xl text-sm font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
+                  disabled={isPending}
+                  className="flex-1 h-12 rounded-2xl text-sm font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all disabled:opacity-50"
                 >
                   Cancelar
                 </button>

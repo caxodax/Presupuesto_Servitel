@@ -1,23 +1,27 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { Plus, X, MapPin, Loader2, Check, Building2 } from "lucide-react"
 import { createBranch } from "@/features/companies/server/actions"
+import { toast } from "sonner"
 
 export function CreateBranchModal({ companies, userRole, filteredCompanyId }: { companies: any[], userRole: string, filteredCompanyId?: string }) {
   const [isOpen, setIsOpen] = useState(false)
-  const [isPending, setIsPending] = useState(false)
+  const [isPending, startTransition] = useTransition()
 
-  const handleSubmit = async (formData: FormData) => {
-    setIsPending(true)
-    try {
-      await createBranch(formData)
-      setIsOpen(false)
-    } catch (error: any) {
-      alert(error.message)
-    } finally {
-      setIsPending(false)
-    }
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    
+    startTransition(async () => {
+      try {
+        await createBranch(formData)
+        toast.success("Sucursal creada correctamente")
+        setIsOpen(false)
+      } catch (error: any) {
+        toast.error(error.message || "Error al crear la sucursal")
+      }
+    })
   }
 
   const selectedCompany = filteredCompanyId ? companies.find(c => c.id === filteredCompanyId) : null
@@ -48,14 +52,15 @@ export function CreateBranchModal({ companies, userRole, filteredCompanyId }: { 
               </div>
               <button 
                 onClick={() => setIsOpen(false)}
-                className="absolute top-8 right-8 p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full text-zinc-400 transition-colors"
+                disabled={isPending}
+                className="absolute top-8 right-8 p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full text-zinc-400 transition-colors disabled:opacity-50"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Form */}
-            <form action={handleSubmit} className="p-10 space-y-8">
+            <form onSubmit={handleSubmit} className="p-10 space-y-8">
               {userRole === "SUPER_ADMIN" && (
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1">Empresa Dueña</label>
@@ -67,7 +72,7 @@ export function CreateBranchModal({ companies, userRole, filteredCompanyId }: { 
                       <span className="ml-auto text-[9px] bg-zinc-200 dark:bg-zinc-700 px-2 py-0.5 rounded-full uppercase tracking-tighter opacity-70">Fijada</span>
                     </div>
                   ) : (
-                    <select name="companyId" required className="w-full h-12 px-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 appearance-none transition-all shadow-sm">
+                    <select name="companyId" required disabled={isPending} className="w-full h-12 px-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 appearance-none transition-all shadow-sm disabled:opacity-50">
                       <option value="" disabled selected>-- Seleccione Empresa --</option>
                       {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
@@ -82,8 +87,9 @@ export function CreateBranchModal({ companies, userRole, filteredCompanyId }: { 
                   name="name" 
                   required 
                   autoFocus
+                  disabled={isPending}
                   placeholder="Ej: Sede Principal Valencia" 
-                  className="w-full h-12 px-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all shadow-sm" 
+                  className="w-full h-12 px-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all shadow-sm disabled:opacity-50" 
                 />
               </div>
 
@@ -91,7 +97,8 @@ export function CreateBranchModal({ companies, userRole, filteredCompanyId }: { 
                 <button 
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="flex-1 h-14 rounded-2xl text-sm font-black text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all uppercase tracking-widest"
+                  disabled={isPending}
+                  className="flex-1 h-14 rounded-2xl text-sm font-black text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all uppercase tracking-widest disabled:opacity-50"
                 >
                   Cancelar
                 </button>

@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope, getBranchIsolation } from "@/lib/permissions"
 
-export async function getBudgets(companyId?: number) {
+export async function getBudgets(companyId?: string, branchId?: string, queryParam?: string, page?: number, limit: number = 10) {
   const user = await requireAuth()
   const supabase = createClient()
   
@@ -15,7 +15,7 @@ export async function getBudgets(companyId?: number) {
         category:Category(*),
         subcategory:Subcategory(*)
       )
-    `)
+    `, { count: 'exact' })
     .order('initialDate', { ascending: false })
 
   if (user.role !== 'SUPER_ADMIN') {
@@ -24,13 +24,33 @@ export async function getBudgets(companyId?: number) {
     query = query.eq('companyId', companyId)
   }
 
-  const { data, error } = await query
+  if (branchId) {
+    query = query.eq('branchId', branchId)
+  }
+
+  if (queryParam) {
+    query = query.ilike('name', `%${queryParam}%`)
+  }
+
+  if (page === undefined) {
+    const { data } = await query
+    return data || []
+  }
+
+  const from = (page - 1) * limit
+  const to = from + limit - 1
+
+  const { data: items, count, error } = await query.range(from, to)
 
   if (error) {
     throw new Error(`Error al obtener presupuestos: ${error.message}`)
   }
 
-  return data
+  return {
+    items: items || [],
+    total: count || 0,
+    pageCount: Math.ceil((count || 0) / limit)
+  }
 }
 
 export async function getBudgetDetails(budgetId: number) {

@@ -1,165 +1,144 @@
 import { getBudgetDetails } from "@/features/budgets/server/queries"
 import { getCategories } from "@/features/categories/server/queries"
-import { upsertAllocation, registerAdjustment } from "@/features/budgets/server/actions"
-import { ArrowLeft, PlusCircle, Activity } from "lucide-react"
+import { ArrowLeft, Activity } from "lucide-react"
 import Link from "next/link"
 import { requireAuth } from "@/lib/permissions"
 import { FundTransfer } from "@/components/presupuestos/FundTransfer"
 import { MasterBudgetEditor } from "@/components/presupuestos/MasterBudgetEditor"
+import { InlineAdjustmentForm } from "@/components/presupuestos/AllocationForms"
+import { CreateAllocationModal } from "@/components/presupuestos/CreateAllocationModal"
+import { AdjustmentLogModal } from "@/components/presupuestos/AdjustmentLogModal"
 
 export default async function BudgetDetailsPage({ params }: { params: { id: string } }) {
   const user = await requireAuth()
-  const data = await getBudgetDetails(params.id)
+  const data = await getBudgetDetails(Number(params.id))
   const availableCategories = await getCategories(data.budget.companyId)
   
   const { budget, stats } = data
 
+  const allAdjustments = budget.allocations.flatMap((a: any) => 
+    a.adjustments.map((adj: any) => ({ ...adj, categoryName: a.category.name }))
+  ).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  
+  const recentAdjustments = allAdjustments.slice(0, 5)
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pb-20 max-w-[1400px] mx-auto w-full">
       <Link href="/dashboard/presupuestos" className="flex items-center gap-2 text-sm text-zinc-500 hover:text-foreground transition-colors w-fit">
         <ArrowLeft className="w-4 h-4" />
         Regresar a periodos
       </Link>
       
-      <div className="flex w-full items-end justify-between">
+      <div className="flex flex-col md:flex-row w-full items-start md:items-end justify-between gap-6">
          <div>
            <div className="flex items-center gap-3 mb-2">
-             <h1 className="text-3xl font-bold tracking-tight text-foreground">{budget.name}</h1>
+             <h1 className="text-3xl font-black tracking-tight text-foreground">{budget.name}</h1>
              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold tracking-wider bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-500/20">
                 {budget.branch.name}
              </span>
            </div>
-           <p className="text-sm text-muted-foreground flex items-center gap-2">
-             Periodo válido: {budget.initialDate.toLocaleDateString()} — {budget.endDate.toLocaleDateString()}
+           <p className="text-sm text-muted-foreground flex items-center gap-2 font-medium">
+             Periodo válido: {new Date(budget.initialDate).toLocaleDateString()} — {new Date(budget.endDate).toLocaleDateString()}
            </p>
          </div>
          
-         <div className="text-right">
+         <div className="flex flex-wrap items-center gap-3">
+             <CreateAllocationModal budgetId={budget.id.toString()} availableCategories={availableCategories} userRole={user.role} />
              <MasterBudgetEditor budgetId={budget.id} currentLimit={stats.originalHardLimit} />
-          </div>
+         </div>
       </div>
 
       {user.role === 'SUPER_ADMIN' && budget.allocations.length > 1 && (
         <FundTransfer allocations={budget.allocations} budgetId={budget.id} />
       )}
       
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2 -mt-2">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-2 -mt-2">
          <MetricBox label="Distribuido Neto" value={stats.netAllocated} color="text-indigo-600 dark:text-indigo-400" />
          <MetricBox label="Sin Distribuir" value={stats.availableToAllocate} />
          <MetricBox label="Ejecutado USD" value={stats.totalConsumedUSD} color="text-rose-600 dark:text-rose-400" />
          <MetricBox label="Flotante VES" value={stats.totalConsumedVES} />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        
-        {/* Asignaciones de Gasto */}
-        <div className="xl:col-span-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 shadow-[0_4px_40px_rgba(0,0,0,0.02)] overflow-hidden">
-           <div className="p-5 border-b border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/50 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground">Distribución Categórica</h2>
-           </div>
-           <div className="overflow-x-auto">
-             <table className="w-full text-sm text-left">
-               <thead className="text-xs uppercase text-zinc-500 font-semibold bg-zinc-50 dark:bg-zinc-900/30 border-b border-zinc-200 dark:border-zinc-800/50">
-                 <tr>
-                   <th className="px-5 py-3">Área de Gasto (Categoría)</th>
-                   <th className="px-5 py-3 text-right">Límite Aprobado</th>
-                   <th className="px-5 py-3 text-right">Consumido</th>
-                   <th className="px-5 py-3 text-right bg-rose-50/30 dark:bg-rose-950/20 border-l border-zinc-200 dark:border-zinc-800 text-rose-600 dark:text-rose-400">Acción de Ajuste</th>
+      <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden w-full">
+         <div className="p-5 border-b border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/50">
+            <h2 className="text-lg font-bold text-foreground">Distribución Categórica</h2>
+         </div>
+         <div className="overflow-x-auto">
+           <table className="w-full text-sm text-left border-collapse table-auto">
+             <thead className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold bg-zinc-50 dark:bg-zinc-900/30 border-b border-zinc-200 dark:border-zinc-800/50">
+               <tr>
+                 <th className="px-6 py-4 min-w-[240px]">Área de Gasto (Categoría)</th>
+                 <th className="px-6 py-4 text-right">Límite Aprobado</th>
+                 <th className="px-6 py-4 text-right">Consumido</th>
+                 <th className="px-6 py-4 text-right bg-rose-50/30 dark:bg-rose-950/20 border-l border-zinc-200 dark:border-zinc-800 text-rose-600 dark:text-rose-400 min-w-[360px]">Acción de Ajuste</th>
+               </tr>
+             </thead>
+             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
+               {budget.allocations.map((alloc: any) => (
+                 <tr key={alloc.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/10 transition-colors">
+                   <td className="px-6 py-5">
+                      <div className="font-bold text-foreground text-[14px] whitespace-normal">{alloc.category.name}</div>
+                      {alloc.subcategory && <div className="text-xs text-muted-foreground mt-0.5 font-medium italic">↳ {alloc.subcategory.name}</div>}
+                   </td>
+                   <td className="px-6 py-5 text-right font-black text-zinc-700 dark:text-zinc-300 whitespace-nowrap">${Number(alloc.amountUSD).toLocaleString()}</td>
+                   <td className="px-6 py-5 text-right tabular-nums text-zinc-500 font-bold whitespace-nowrap">${Number(alloc.consumedUSD).toLocaleString()}</td>
+                   <td className="p-4 text-right border-l border-zinc-200 dark:border-zinc-800 bg-rose-50/5 dark:bg-rose-950/10">
+                       <InlineAdjustmentForm allocationId={alloc.id.toString()} />
+                   </td>
                  </tr>
-               </thead>
-               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
-                 {budget.allocations.map(alloc => (
-                   <tr key={alloc.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/10 transition-colors">
-                     <td className="px-5 py-4">
-                        <div className="font-medium text-foreground">{alloc.category.name}</div>
-                        {alloc.subcategory && <div className="text-xs text-muted-foreground mt-0.5">↳ {alloc.subcategory.name}</div>}
-                     </td>
-                     <td className="px-5 py-4 text-right font-medium">${Number(alloc.amountUSD).toLocaleString()}</td>
-                     <td className="px-5 py-4 text-right tabular-nums text-zinc-500">${Number(alloc.consumedUSD).toLocaleString()}</td>
-                     <td className="p-3 text-right border-l border-zinc-200 dark:border-zinc-800 bg-rose-50/10 dark:bg-rose-950/10">
-                         {/* Mini formulario in-line para ajustes rapidos directos al Allocation */}
-                         <form action={registerAdjustment} className="flex flex-col gap-1.5 items-end justify-center w-full">
-                           <input type="hidden" name="allocationId" value={alloc.id} />
-                           {/* Input numerico permite negativo */}
-                           <div className="flex gap-2 w-full max-w-[200px]">
-                              <input type="number" step="0.01" name="amountUSD" required placeholder="± $0.00" className="w-20 h-7 text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded px-2" />
-                              <input type="text" name="reason" required placeholder="Razón..." className="flex-1 h-7 text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded px-2" />
-                           </div>
-                           <button type="submit" className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-100 dark:bg-rose-900/30 px-2 py-1 rounded">Aplicar Ajuste</button>
-                         </form>
-                     </td>
-                   </tr>
-                 ))}
-                 {budget.allocations.length === 0 && (
-                   <tr>
-                     <td colSpan={4} className="px-5 py-8 text-center text-zinc-500">Sin fondos distribuidos.</td>
-                   </tr>
-                 )}
-               </tbody>
-             </table>
-           </div>
-        </div>
-
-        {/* Panel Lateral: Asignador y Log */}
-        <div className="xl:col-span-1 flex flex-col gap-6">
-           <div className="rounded-xl border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-900 shadow-sm p-6">
-             <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-500 mb-4 flex items-center gap-2">
-                <PlusCircle className="w-4 h-4" /> Asignar Fondos a Categoría
-             </h2>
-             <form action={upsertAllocation} className="flex flex-col gap-4">
-                <input type="hidden" name="budgetId" value={budget.id} />
-                <div className="space-y-1">
-                   <label className="text-xs font-semibold">Categoría Directa</label>
-                   <select name="categoryId" required className="w-full h-8 text-sm outline-none px-2 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950">
-                      {availableCategories.map(c => (
-                         <option key={c.id} value={c.id}>
-                            {c.name} {user.role === 'SUPER_ADMIN' ? `— [${c.company.name}]` : ''}
-                         </option>
-                      ))}
-                   </select>
-                </div>
-                <div className="space-y-1">
-                   <label className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Fondos Iniciales Categóricos</label>
-                   <input type="number" step="0.01" name="amountUSD" required placeholder="0.00" className="w-full h-8 text-sm outline-none px-2 rounded border border-emerald-300 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-950/20 font-medium" />
-                </div>
-                <button type="submit" className="w-full h-8 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded text-xs font-bold hover:opacity-90">Distribuir</button>
-             </form>
-           </div>
-           
-           <div className="rounded-xl border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 shadow-sm p-6 flex flex-col">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-500 mb-4 flex items-center gap-2">
-                <Activity className="w-4 h-4" /> Log de Ajustes
-              </h2>
-              <div className="flex-1 overflow-y-auto max-h-[300px] flex flex-col gap-3 pr-2">
-                 {budget.allocations.flatMap(a => a.adjustments.map(adj => ({ ...adj, categoryName: a.category.name }))).sort((a,b) => b.createdAt.getTime() - a.createdAt.getTime()).map(adj => (
-                    <div key={adj.id} className="text-xs border-l-2 border-zinc-200 dark:border-zinc-700 pl-3 py-1">
-                       <div className="flex justify-between items-start mb-1">
-                          <span className="font-semibold text-foreground">{adj.categoryName}</span>
-                          <span className={`font-bold ${Number(adj.amountUSD) > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                              {Number(adj.amountUSD) > 0 ? '+' : ''}{Number(adj.amountUSD)}
-                          </span>
-                       </div>
-                       <p className="text-zinc-500">{adj.reason}</p>
-                       <span className="text-[10px] text-zinc-400 block mt-1">{adj.createdAt.toLocaleTimeString()}</span>
-                    </div>
-                 ))}
-                 {budget.allocations.every(a => a.adjustments.length === 0) && (
-                    <p className="text-xs text-zinc-500 italic">No hay historial de ajustes post-asignación.</p>
-                 )}
-              </div>
-           </div>
-        </div>
-        
+               ))}
+               {budget.allocations.length === 0 && (
+                 <tr>
+                   <td colSpan={4} className="px-6 py-12 text-center text-zinc-500 font-medium italic">Sin fondos distribuidos en este ciclo.</td>
+                 </tr>
+               )}
+             </tbody>
+           </table>
+         </div>
       </div>
+
+      <div className="mt-8 flex flex-col gap-4">
+         <div className="flex justify-between items-center px-2">
+             <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-2">
+                 <Activity className="w-4 h-4" /> Registro de Ajustes Post-Asignación
+             </h2>
+             <AdjustmentLogModal adjustments={allAdjustments} />
+         </div>
+
+         {recentAdjustments.length > 0 ? (
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+               {recentAdjustments.map((adj: any) => (
+                 <div key={adj.id} className="text-sm bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex flex-col">
+                    <div className="flex justify-between items-start mb-2">
+                        <span className="font-bold text-foreground line-clamp-1">{adj.categoryName}</span>
+                        <span className={`font-black tracking-tight ${Number(adj.amountUSD) > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                            {Number(adj.amountUSD) > 0 ? '+' : ''}{Number(adj.amountUSD)}
+                        </span>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-0.5 flex-1">{adj.reason}</p>
+                    <div className="pt-3 mt-3 border-t border-zinc-100 dark:border-zinc-800 flex justify-between items-center text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+                       <span>{new Date(adj.createdAt).toLocaleDateString()}</span>
+                       <span>{new Date(adj.createdAt).toLocaleTimeString()}</span>
+                    </div>
+                 </div>
+               ))}
+           </div>
+         ) : (
+           <div className="w-full border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl py-12 flex items-center justify-center">
+              <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Sin historial operativo</span>
+           </div>
+         )}
+      </div>
+
     </div>
   )
 }
 
 function MetricBox({ label, value, color = "text-foreground" }: { label: string, value: number, color?: string }) {
   return (
-     <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-3 shadow-[0_2px_10px_rgba(0,0,0,0.01)] flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</span>
-        <span className={`font-bold tabular-nums ${color}`}>${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-5 py-4 shadow-[0_2px_10px_rgba(0,0,0,0.01)] flex flex-col gap-1">
+        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{label}</span>
+        <span className={`font-black text-xl tracking-tight ${color}`}>${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
      </div>
   )
 }

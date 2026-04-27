@@ -5,7 +5,7 @@ import { requireAuth } from "@/lib/permissions"
  * Devuelve el catálogo jerárquico segmentado exclusivamente 
  * al ámbito visible del usuario (RLS)
  */
-export async function getCategories(companyId?: number) {
+export async function getCategories(companyId?: string, queryParam?: string, page?: number, limit: number = 10) {
   const user = await requireAuth()
   const supabase = createClient()
   
@@ -15,7 +15,8 @@ export async function getCategories(companyId?: number) {
       *,
       subcategories:Subcategory(*),
       Company(id, name)
-    `)
+    `, { count: 'exact' })
+    .order('isActive', { ascending: false })
     .order('name', { ascending: true })
 
   if (user.role !== 'SUPER_ADMIN') {
@@ -24,11 +25,27 @@ export async function getCategories(companyId?: number) {
     query = query.eq('companyId', companyId)
   }
 
-  const { data, error } = await query
+  if (queryParam) {
+    query = query.ilike('name', `%${queryParam}%`)
+  }
+
+  if (page === undefined) {
+    const { data } = await query
+    return data || []
+  }
+
+  const from = (page - 1) * limit
+  const to = from + limit - 1
+
+  const { data: items, count, error } = await query.range(from, to)
 
   if (error) {
     throw new Error(`Error al obtener categorías: ${error.message}`)
   }
 
-  return data
+  return {
+    items: items || [],
+    total: count || 0,
+    pageCount: Math.ceil((count || 0) / limit)
+  }
 }

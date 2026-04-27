@@ -1,44 +1,81 @@
 "use client"
 
-import { useState } from "react"
-import { Building2, Edit2, Check, X, Power, ShieldAlert, CheckCircle2 } from "lucide-react"
+import { useState, useTransition, useOptimistic } from "react"
+import { Building2, Edit2, Check, X, ShieldAlert, CheckCircle2, Loader2 } from "lucide-react"
 import { updateCompany, toggleCompanyStatus } from "@/features/companies/server/actions"
+import { toast } from "sonner"
 
 export function CompanyRow({ company }: { company: any }) {
   const [isEditing, setIsEditing] = useState(false)
+  const [isPendingUpdate, startTransitionUpdate] = useTransition();
+  const [isPendingToggle, startTransitionToggle] = useTransition();
+
+  const [optimisticCompany, setOptimisticCompany] = useOptimistic(
+    company,
+    (state, newState: Partial<typeof company>) => ({ ...state, ...newState })
+  )
+
+  const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const newName = formData.get("name") as string;
+    
+    startTransitionUpdate(async () => {
+      setOptimisticCompany({ name: newName });
+      try {
+        await updateCompany(company.id, formData);
+        toast.success("Empresa actualizada satisfactoriamente");
+        setIsEditing(false);
+      } catch (error: any) {
+        toast.error(error.message || "Error al actualizar la empresa");
+      }
+    });
+  }
+
+  const handleToggleStatus = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    startTransitionToggle(async () => {
+      setOptimisticCompany({ isActive: !optimisticCompany.isActive });
+      try {
+        await toggleCompanyStatus(company.id);
+        toast.success(optimisticCompany.isActive ? "Empresa suspendida" : "Empresa reactivada correctamente");
+      } catch (error: any) {
+        toast.error(error.message || "Error al cambiar estado");
+      }
+    });
+  }
   
   return (
-    <tr className={`group border-b border-zinc-100 dark:border-zinc-800/50 transition-all duration-300 ${!company.isActive ? 'bg-zinc-50/50 dark:bg-zinc-900/40' : 'hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30'}`}>
+    <tr className={`group border-b border-zinc-100 dark:border-zinc-800/50 transition-all duration-300 ${!optimisticCompany.isActive ? 'bg-zinc-50/50 dark:bg-zinc-900/40' : 'hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30'}`}>
       <td className="px-6 py-5">
          <div className="flex items-center gap-4">
             <div className={`relative h-12 w-12 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 shadow-sm
-               ${company.isActive 
+               ${optimisticCompany.isActive 
                   ? 'bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/20 dark:to-zinc-900 border-indigo-100 dark:border-indigo-500/20 shadow-indigo-500/5' 
                   : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 opacity-60'}`}>
-               <Building2 className={`w-6 h-6 ${company.isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-400'}`} />
-               {company.isActive && (
+               <Building2 className={`w-6 h-6 ${optimisticCompany.isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-400'}`} />
+               {optimisticCompany.isActive && (
                   <div className="absolute -top-1 -right-1 h-3 w-3 bg-emerald-500 border-2 border-white dark:border-zinc-900 rounded-full animate-pulse shadow-sm shadow-emerald-500/50" />
                )}
             </div>
 
             {isEditing ? (
-              <form action={async (fd) => {
-                 await updateCompany(company.id, fd);
-                 setIsEditing(false);
-              }} className="flex items-center gap-2 flex-1 animate-in fade-in slide-in-from-left-2 duration-300">
+              <form onSubmit={handleUpdate} className="flex items-center gap-2 flex-1 animate-in fade-in slide-in-from-left-2 duration-300">
                  <input 
                     type="text" 
                     name="name" 
-                    defaultValue={company.name} 
+                    defaultValue={optimisticCompany.name} 
                     autoFocus 
                     required 
-                    className="h-9 w-full max-w-[280px] rounded-lg border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-zinc-950 px-3 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm" 
+                    disabled={isPendingUpdate}
+                    className="h-9 w-full max-w-[280px] rounded-lg border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-zinc-950 px-3 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm disabled:opacity-50" 
                  />
                  <div className="flex gap-1">
-                    <button type="submit" className="h-9 w-9 flex items-center justify-center bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg shadow-sm shadow-emerald-500/20 transition-all active:scale-95">
-                       <Check className="w-4 h-4" />
+                    <button type="submit" disabled={isPendingUpdate} className="h-9 w-9 flex items-center justify-center bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg shadow-sm shadow-emerald-500/20 transition-all active:scale-95 disabled:opacity-50">
+                       {isPendingUpdate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                     </button>
-                    <button type="button" onClick={() => setIsEditing(false)} className="h-9 w-9 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-rose-500 dark:hover:text-rose-400 rounded-lg transition-all active:scale-95">
+                    <button type="button" onClick={() => setIsEditing(false)} disabled={isPendingUpdate} className="h-9 w-9 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-rose-500 dark:hover:text-rose-400 rounded-lg transition-all active:scale-95 disabled:opacity-50">
                        <X className="w-4 h-4" />
                     </button>
                  </div>
@@ -46,8 +83,8 @@ export function CompanyRow({ company }: { company: any }) {
             ) : (
                <div className="flex flex-col gap-1">
                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-black tracking-tight transition-colors ${company.isActive ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-400'}`}>
-                       {company.name}
+                    <span className={`text-sm font-black tracking-tight transition-colors ${optimisticCompany.isActive ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-400'}`}>
+                       {optimisticCompany.name}
                     </span>
                     <button 
                        onClick={() => setIsEditing(true)} 
@@ -59,11 +96,11 @@ export function CompanyRow({ company }: { company: any }) {
                  </div>
                  <div className="flex items-center gap-2">
                     <div className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-[0.15em] border transition-all
-                       ${company.isActive 
+                       ${optimisticCompany.isActive 
                           ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
                           : 'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 uppercase'
                        }`}>
-                       {company.isActive ? 'Activo' : 'Suspendido'}
+                       {optimisticCompany.isActive ? 'Activo' : 'Suspendido'}
                     </div>
                  </div>
                </div>
@@ -72,19 +109,25 @@ export function CompanyRow({ company }: { company: any }) {
       </td>
       <td className="px-6 py-5 text-right">
          <div className="flex items-center justify-end gap-3">
-            <form action={toggleCompanyStatus.bind(null, company.id)} className="inline-block">
+            <form onSubmit={handleToggleStatus} className="inline-block">
                <button 
                  type="submit" 
+                 disabled={isPendingToggle}
                  className={`
-                   relative flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider
-                   transition-all duration-300 transform active:scale-[0.97] border shadow-sm
-                   ${company.isActive 
+                   relative flex items-center justify-center min-w-[150px] gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider
+                   transition-all duration-300 transform active:scale-[0.97] border shadow-sm disabled:opacity-75 disabled:cursor-wait
+                   ${optimisticCompany.isActive 
                      ? 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 dark:hover:bg-rose-950/20 dark:hover:text-rose-400 dark:hover:border-rose-900/50' 
                      : 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white border-indigo-400 shadow-indigo-500/20 hover:opacity-90'
                    }
                  `}
                 >
-                   {company.isActive ? (
+                   {isPendingToggle ? (
+                      <>
+                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                         Procesando...
+                      </>
+                   ) : optimisticCompany.isActive ? (
                       <>
                          <ShieldAlert className="w-3.5 h-3.5" />
                          Suspender Acceso

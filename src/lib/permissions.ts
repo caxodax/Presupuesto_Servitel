@@ -1,12 +1,15 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import { cache } from "react"
 
 /**
  * Obtiene la sesión actual y el perfil extendido del usuario desde la base de datos.
  * Reemplaza la antigua función 'auth()' de NextAuth.
+ * Usamos \`cache\` de React para deduplicar llamadas dentro de un mismo ciclo de renderizado.
  */
-export async function getSession() {
+export const getSession = cache(async () => {
   const supabase = createClient()
+  
   const { data: { user }, error } = await supabase.auth.getUser()
   
   if (!user || error) {
@@ -35,8 +38,7 @@ export async function getSession() {
       profile: profile
     }
   }
-}
-
+})
 export async function requireAuth() {
   const session = await getSession()
   if (!session?.user) {
