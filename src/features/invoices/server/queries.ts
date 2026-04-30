@@ -34,7 +34,6 @@ export async function getInvoices(companyId?: string, queryParam?: string, page?
   }
 
   if (queryParam) {
-    // Buscamos por número de factura o nombre del proveedor
     query = query.or(`number.ilike.%${queryParam}%,supplierName.ilike.%${queryParam}%`)
   }
 
@@ -92,18 +91,17 @@ export async function getInvoiceDetails(invoiceId: number) {
   const negativeOverBudgetLimit = currentConsumedAll > allocLimit ? currentConsumedAll - allocLimit : 0
   const availableCapacity = allocLimit - currentConsumedAll
 
-  // Recuperar Auditoría Específica
-  const { data: auditLogs, error: auditError } = await supabase
+  const { data: auditLogs } = await supabase
     .from('AuditLog')
     .select(`
       *,
       user:User(name, role)
     `)
     .eq('entity', "Factura Operativa")
-    .eq('entityId', String(invoiceId)) // Mantenemos casteado a string por compatibilidad con la tabla AuditLog
+    .eq('entityId', String(invoiceId))
     .order('createdAt', { ascending: false })
 
-  // Generar URL firmada para el adjunto si existe
+  // Generar URL firmada para Cloudflare R2
   let attachmentUrl = null
   if (invoice.attachmentKey) {
       try {
@@ -113,7 +111,7 @@ export async function getInvoiceDetails(invoiceId: number) {
           })
           attachmentUrl = await getSignedUrl(r2Client, command, { expiresIn: 3600 })
       } catch (e) {
-          console.error("Error generando Signed URL:", e)
+          console.error("Error generando Signed URL R2:", e)
       }
   }
 
@@ -128,6 +126,7 @@ export async function getInvoiceDetails(invoiceId: number) {
     auditLogs: auditLogs || []
   }
 }
+
 export async function getExchangeRateForDate(date: string) {
   const supabase = createClient()
   const { data, error } = await supabase

@@ -38,14 +38,13 @@ export async function createInvoice(formData: FormData) {
   
   enforceCompanyScope(user, companyId)
 
-  // Procesar Adjunto en Cloudflare R2 con estructura de carpetas legibles
+  // Procesar Adjunto en Cloudflare R2 (10GB Free Tier)
   const file = formData.get("attachment") as File
   let attachmentKey: string | null = null
   let attachmentName: string | null = null
 
   if (file && file.size > 0) {
     attachmentName = file.name
-    // Estructura: empresa_1_servitel/sucursal_5_centro/archivo
     attachmentKey = `empresa_${companyId}_${companyName}/sucursal_${branchId}_${branchName}/${Date.now()}-${attachmentName.replace(/\s+/g, "_")}`
     const buffer = Buffer.from(await file.arrayBuffer())
     
@@ -59,7 +58,6 @@ export async function createInvoice(formData: FormData) {
 
   const calculatedVES = validated.amountUSD * validated.exchangeRate
 
-  // Creación de Factura
   const { data: inv, error: iError } = await supabase
     .from('Invoice')
     .insert({
@@ -80,7 +78,6 @@ export async function createInvoice(formData: FormData) {
 
   if (iError || !inv) throw new Error(`Error crear factura: ${iError?.message}`)
 
-  // Actualizar Consumo
   await supabase.rpc('adjust_allocation_on_invoice', {
     p_allocation_id: validated.allocationId,
     p_amount_usd: validated.amountUSD,
@@ -124,7 +121,6 @@ export async function updateInvoice(formData: FormData) {
 
   enforceCompanyScope(user, oldInvoice.companyId)
 
-  // Obtener info de la asignación seleccionada para la carpeta correcta con nombres
   const { data: targetAlloc } = await supabase
     .from('BudgetAllocation')
     .select('*, budget:Budget(companyId, branchId, branch:Branch(name, company:Company(name)))')
@@ -137,14 +133,12 @@ export async function updateInvoice(formData: FormData) {
   const companyName = budgetInfo?.branch.company.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || 'desconocida'
   const branchName = budgetInfo?.branch.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || 'desconocida'
 
-  // 1. Manejo de archivo (Cloudflare R2 con carpetas legibles)
   const file = formData.get("attachment") as File
   let attachmentKey = oldInvoice.attachmentKey
   let attachmentName = oldInvoice.attachmentName
 
   if (file && file.size > 0) {
     attachmentName = file.name
-    // Nueva estructura organizada y legible
     attachmentKey = `empresa_${targetCompanyId}_${companyName}/sucursal_${targetBranchId}_${branchName}/${Date.now()}-${attachmentName.replace(/\s+/g, "_")}`
     const buffer = Buffer.from(await file.arrayBuffer())
     
@@ -158,25 +152,18 @@ export async function updateInvoice(formData: FormData) {
 
   const calculatedVES = validated.amountUSD * validated.exchangeRate
 
-  // 2. Revertir impacto presupuestario anterior y aplicar nuevo
-  // Revertimos oldAmount y sumamos newAmount
-  // Lo Ideal es un RPC o Transacción para evitar inconsistencias
-  
-  // Revertir OLD
   await supabase.rpc('adjust_allocation_on_invoice', {
     p_allocation_id: oldInvoice.allocationId,
     p_amount_usd: -Number(oldInvoice.amountUSD),
     p_amount_ves: -Number(oldInvoice.amountVES)
   })
 
-  // Aplicar NEW
   await supabase.rpc('adjust_allocation_on_invoice', {
     p_allocation_id: validated.allocationId,
     p_amount_usd: validated.amountUSD,
     p_amount_ves: calculatedVES
   })
 
-  // 3. Actualizar Factura
   const { error: uError } = await supabase
     .from('Invoice')
     .update({
@@ -206,6 +193,7 @@ export async function updateInvoice(formData: FormData) {
   revalidatePath('/dashboard/facturas')
   revalidatePath(`/dashboard/facturas/${invoiceId}`)
 }
+
 export async function getRateByDate(date: string) {
     const supabase = createClient()
     const { data, error } = await supabase

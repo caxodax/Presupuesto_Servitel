@@ -13,7 +13,8 @@ const routeMap: Record<string, string> = {
   "empresas": "Empresas",
   "sucursales": "Sucursales",
   "nuevo": "Nuevo Registro",
-  "categorias": "Categorías"
+  "categorias": "Categorías",
+  "ingresos": "Ingresos"
 }
 
 export function Breadcrumbs() {
@@ -27,7 +28,7 @@ export function Breadcrumbs() {
         className="text-zinc-400 hover:text-indigo-500 transition-colors flex items-center gap-1"
       >
         <Home className="w-3.5 h-3.5" />
-        <span className="hidden md:inline">Workspace</span>
+        <span className="hidden md:inline">Dashboard</span>
       </Link>
 
       {paths.length > 0 && <ChevronRight className="w-3 h-3 text-zinc-300 dark:text-zinc-700" />}

@@ -27,6 +27,16 @@ export async function getDashboardKpis(searchParams: { companyId?: number; branc
 
   if (error) throw new Error(`Error KPIs: ${error.message}`)
 
+  // 2. Obtener Ingresos
+  let incomeQuery = supabase.from('Income').select('amountUSD')
+  if (filter.companyId) incomeQuery = incomeQuery.eq('companyId', filter.companyId)
+  if (searchParams.companyId) incomeQuery = incomeQuery.eq('companyId', searchParams.companyId)
+  
+  if (branchScope.branchId) incomeQuery = incomeQuery.eq('branchId', branchScope.branchId)
+  else if (searchParams.branchId) incomeQuery = incomeQuery.eq('branchId', searchParams.branchId)
+  
+  const { data: incomesData } = await incomeQuery
+
   let totalLimit = 0
   let totalConsolidatedAllocations = 0
   let totalConsumed = 0
@@ -39,13 +49,17 @@ export async function getDashboardKpis(searchParams: { companyId?: number; branc
     })
   })
 
+  const totalIncome = incomesData?.reduce((acc, curr) => acc + Number(curr.amountUSD), 0) || 0
   const overbudgetAmount = totalConsumed > totalLimit ? totalConsumed - totalLimit : 0
   const executionPercentage = totalLimit > 0 ? (totalConsumed / totalLimit) * 100 : 0
+  const netBalance = totalIncome - totalConsumed
 
   return {
     totalLimit,
     totalAllocated: totalConsolidatedAllocations,
     totalConsumed,
+    totalIncome,
+    netBalance,
     availableCapacity: totalLimit - totalConsumed,
     overbudgetAmount,
     executionPercentage,

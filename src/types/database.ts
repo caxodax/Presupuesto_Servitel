@@ -305,6 +305,7 @@ export type Database = {
           id: number
           isActive: boolean
           name: string
+          type: Database["public"]["Enums"]["CategoryType"]
           updatedAt: string
         }
         Insert: {
@@ -313,6 +314,7 @@ export type Database = {
           id?: number
           isActive?: boolean
           name: string
+          type?: Database["public"]["Enums"]["CategoryType"]
           updatedAt?: string
         }
         Update: {
@@ -321,6 +323,7 @@ export type Database = {
           id?: number
           isActive?: boolean
           name?: string
+          type?: Database["public"]["Enums"]["CategoryType"]
           updatedAt?: string
         }
         Relationships: [
@@ -433,6 +436,102 @@ export type Database = {
           },
         ]
       }
+      Income: {
+        Row: {
+          amountUSD: number
+          amountVES: number
+          attachmentKey: string | null
+          attachmentName: string | null
+          branchId: number | null
+          categoryId: number
+          clientName: string
+          companyId: number
+          createdAt: string
+          date: string
+          exchangeRate: number
+          id: number
+          notes: string | null
+          number: string
+          registeredById: number
+          subcategoryId: number | null
+          updatedAt: string
+        }
+        Insert: {
+          amountUSD: number
+          amountVES: number
+          attachmentKey?: string | null
+          attachmentName?: string | null
+          branchId?: number | null
+          categoryId: number
+          clientName: string
+          companyId: number
+          createdAt?: string
+          date: string
+          exchangeRate: number
+          id?: number
+          notes?: string | null
+          number: string
+          registeredById: number
+          subcategoryId?: number | null
+          updatedAt?: string
+        }
+        Update: {
+          amountUSD?: number
+          amountVES?: number
+          attachmentKey?: string | null
+          attachmentName?: string | null
+          branchId?: number | null
+          categoryId?: number
+          clientName?: string
+          companyId?: number
+          createdAt?: string
+          date?: string
+          exchangeRate?: number
+          id?: number
+          notes?: string | null
+          number?: string
+          registeredById?: number
+          subcategoryId?: number | null
+          updatedAt?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "Income_branchId_fkey"
+            columns: ["branchId"]
+            isOneToOne: false
+            referencedRelation: "Branch"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Income_categoryId_fkey"
+            columns: ["categoryId"]
+            isOneToOne: false
+            referencedRelation: "Category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Income_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "Company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Income_registeredById_fkey"
+            columns: ["registeredById"]
+            isOneToOne: false
+            referencedRelation: "User"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Income_subcategoryId_fkey"
+            columns: ["subcategoryId"]
+            isOneToOne: false
+            referencedRelation: "Subcategory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       Subcategory: {
         Row: {
           categoryId: number
@@ -536,6 +635,7 @@ export type Database = {
       AlertType: "BUDGET_EXCEEDED" | "ADJUSTMENT_MADE" | "SYSTEM_WARNING"
       BudgetPeriodType: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL"
       BudgetStatus: "DRAFT" | "ACTIVE" | "CLOSED"
+      CategoryType: "EXPENSE" | "INCOME"
       InvoiceStatus: "REGISTERED" | "CANCELLED"
       Role: "SUPER_ADMIN" | "COMPANY_ADMIN" | "OPERATOR" | "AUDITOR" | "VIEWER"
     }
@@ -668,6 +768,7 @@ export const Constants = {
       AlertType: ["BUDGET_EXCEEDED", "ADJUSTMENT_MADE", "SYSTEM_WARNING"],
       BudgetPeriodType: ["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "ANNUAL"],
       BudgetStatus: ["DRAFT", "ACTIVE", "CLOSED"],
+      CategoryType: ["EXPENSE", "INCOME"],
       InvoiceStatus: ["REGISTERED", "CANCELLED"],
       Role: ["SUPER_ADMIN", "COMPANY_ADMIN", "OPERATOR", "AUDITOR", "VIEWER"],
     },
