@@ -30,8 +30,8 @@ export async function triggerBudgetAlerts(allocationId: number) {
 
   const companyId = (allocation as any).budget.companyId
   const rubroName = allocation.subcategory 
-    ? `${(allocation as any).category.name} > ${(allocation as any).subcategory.name}`
-    : (allocation as any).category.name
+    ? `${(allocation as any).category?.name} > ${(allocation as any).subcategory?.name}`
+    : (allocation as any).category?.name
 
   // 1. Alerta de Exceso (100%+)
   if (consumedUSD > limitUSD) {
@@ -111,7 +111,7 @@ export async function markAllAlertsAsRead() {
     .update({ isRead: true })
     .eq('isRead', false)
 
-  if (user.role !== 'SUPER_ADMIN') {
+  if (user.role !== 'SUPER_ADMIN' && user.companyId) {
     query = query.eq('companyId', user.companyId)
   }
 

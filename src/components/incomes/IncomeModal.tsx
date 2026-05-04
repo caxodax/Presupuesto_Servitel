@@ -4,9 +4,22 @@ import { useState, useTransition, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { incomeSchema } from "@/features/incomes/validations"
-import { createIncome, getIncomeCategories } from "@/features/incomes/server/actions"
-import { X, Loader2, DollarSign, Calendar, Hash, User, Tag, FileUp, Building2, MapPin } from "lucide-react"
+import { createIncome, updateIncome, getCompanyDataForIncome } from "@/features/incomes/server/actions"
+import { 
+    X, 
+    Loader2, 
+    Wallet, 
+    Calendar, 
+    Hash, 
+    User, 
+    Tag, 
+    Building2, 
+    MapPin,
+    PlusIcon,
+    Edit3
+} from "lucide-react"
 import { toast } from "sonner"
+import { format } from "date-fns"
 import { FileUploadInput } from "@/components/facturas/FileUploadInput"
 
 type IncomeModalProps = {
@@ -16,6 +29,7 @@ type IncomeModalProps = {
     categories: any[]
     currentBcvRate: string | number
     userRole: string
+    defaultCompanyId?: string
     onClose: () => void
 }
 
@@ -26,46 +40,62 @@ export function IncomeModal({
     categories: initialCategories, 
     currentBcvRate, 
     userRole,
+    defaultCompanyId,
     onClose 
 }: IncomeModalProps) {
     const [isPending, startTransition] = useTransition()
-    const [dynamicCategories, setDynamicCategories] = useState(initialCategories)
+    const companiesList = Array.isArray(companies) ? companies : (companies as any).items || []
+    const categoriesList = Array.isArray(initialCategories) ? initialCategories : (initialCategories as any).items || []
+    const [dynamicCategories, setDynamicCategories] = useState(categoriesList)
     const [branches, setBranches] = useState<any[]>([])
-    const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null)
+    const [isLoadingData, setIsLoadingData] = useState(false)
 
     const {
         register,
         handleSubmit,
-        setValue,
         watch,
         formState: { errors }
     } = useForm({
         resolver: zodResolver(incomeSchema),
         defaultValues: mode === 'edit' ? {
             ...income,
-            date: new Date(income.date).toISOString().split('T')[0]
+            date: income.date ? format(new Date(income.date + 'T00:00:00'), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+            incomeId: income.id
         } : {
-            date: new Date().toISOString().split('T')[0],
-            exchangeRate: Number(currentBcvRate) || 0
+            date: format(new Date(), 'yyyy-MM-dd'),
+            exchangeRate: Number(currentBcvRate) || 0,
+            companyId: defaultCompanyId || ""
         }
     })
 
     const watchCompanyId = watch("companyId" as any)
 
     useEffect(() => {
-        if (userRole === 'SUPER_ADMIN' && watchCompanyId) {
-            const company = companies.find(c => c.id === Number(watchCompanyId))
-            setBranches(company?.branches || [])
-            
-            // Recargar categorías para esa empresa
-            getIncomeCategories(Number(watchCompanyId)).then(setDynamicCategories)
-        } else if (userRole !== 'SUPER_ADMIN') {
-            // El usuario ya tiene una empresa asignada, obtener sus sucursales si el objeto company viene hidratado
-            // En este sistema, las sucursales suelen venir pre-cargadas o se obtienen aparte.
-            // Para simplificar, usaremos las sucursales de la primera empresa si no es super admin
-            // o asumiremos que categories ya viene filtrado.
+        const effectiveCompanyId = watchCompanyId || defaultCompanyId
+        
+        if (!effectiveCompanyId) {
+            setBranches([])
+            setDynamicCategories([])
+            return
         }
-    }, [watchCompanyId, userRole, companies])
+
+        const fetchData = async () => {
+            setIsLoadingData(true)
+            try {
+                const data = await getCompanyDataForIncome(Number(effectiveCompanyId))
+                const cats = Array.isArray(data.categories) ? data.categories : (data.categories as any).items || []
+                const brs = Array.isArray(data.branches) ? data.branches : (data.branches as any).items || []
+                setDynamicCategories(cats)
+                setBranches(brs)
+            } catch (error) {
+                toast.error("Error cargando datos de la empresa")
+            } finally {
+                setIsLoadingData(false)
+            }
+        }
+        
+        fetchData()
+    }, [watchCompanyId, defaultCompanyId])
 
     const onSubmit = (data: any) => {
         const formData = new FormData()
@@ -85,172 +115,197 @@ export function IncomeModal({
             try {
                 if (mode === 'create') {
                     await createIncome(formData)
-                    toast.success("Ingreso registrado correctamente")
+                    toast.success("Ingreso registrado correctamente", {
+                        description: "El flujo de caja ha sido actualizado."
+                    })
+                } else {
+                    await updateIncome(formData)
+                    toast.success("Ingreso actualizado correctamente", {
+                        description: "Los cambios han sido guardados."
+                    })
                 }
                 onClose()
             } catch (e: any) {
-                toast.error(e.message || "Error al procesar solicitud")
+                toast.error(e.message || "Error al procesar solicitud", {
+                    description: "Por favor verifique los datos e intente nuevamente."
+                })
             }
         })
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white dark:bg-zinc-900 w-full max-w-2xl rounded-[32px] shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-zinc-900 rounded-[32px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-zinc-200 dark:border-zinc-800 w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                
+                {/* Header */}
                 <div className="px-8 py-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-900/50">
-                    <div>
-                        <h2 className="text-xl font-black text-foreground tracking-tight">
-                            {mode === 'create' ? 'Registrar Nuevo Ingreso' : 'Editar Registro de Ingreso'}
-                        </h2>
-                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Completa los datos del flujo de caja entrante</p>
+                    <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-2xl ${mode === 'create' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'}`}>
+                            {mode === 'create' ? <PlusIcon className="w-6 h-6" /> : <Edit3 className="w-6 h-6" />}
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-black tracking-tight text-foreground">
+                                {mode === 'create' ? 'Nuevo Ingreso' : 'Modificar Ingreso'}
+                            </h2>
+                            <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1">
+                                {mode === 'create' ? 'Registro de entrada de capital' : `Editando registro #${income?.number}`}
+                            </p>
+                        </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full transition-colors">
-                        <X className="w-5 h-5 text-zinc-500" />
+                        <X className="w-5 h-5 text-zinc-400" />
                     </button>
                 </div>
 
                 <form onSubmit={handleSubmit(onSubmit)} className="p-8 max-h-[75vh] overflow-y-auto custom-scrollbar">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {mode === 'edit' && <input type="hidden" {...register("incomeId" as any)} />}
+                    <div className="space-y-6">
                         
-                        {/* Empresa (Solo Super Admin) */}
-                        {userRole === 'SUPER_ADMIN' && mode === 'create' && (
-                            <div className="col-span-2 space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                                    <Building2 className="w-3.5 h-3.5" /> Empresa Destino
+                        {/* Empresa (Solo SuperAdmin en Create) */}
+                        {userRole?.toUpperCase() === 'SUPER_ADMIN' && (
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2 ml-1">
+                                    <Building2 className="w-3.5 h-3.5" /> Empresa / Organización
                                 </label>
                                 <select 
                                     {...register("companyId")}
-                                    className="w-full h-12 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
+                                    disabled={isPending || mode === 'edit'} 
+                                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all disabled:opacity-50"
                                 >
                                     <option value="">Selecciona una empresa...</option>
-                                    {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    {companiesList.map((c: any) => (
+                                        <option key={c.id} value={c.id.toString()}>{c.name}</option>
+                                    ))}
                                 </select>
                             </div>
                         )}
 
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                                <Hash className="w-3.5 h-3.5" /> Nro. de Documento / Recibo
-                            </label>
-                            <input 
-                                {...register("number")}
-                                placeholder="Ej: REC-001"
-                                className="w-full h-12 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
-                            />
-                            {errors.number && <p className="text-[10px] text-rose-500 font-bold uppercase">{errors.number.message as string}</p>}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2 ml-1">
+                                    <User className="w-3.5 h-3.5" /> Cliente / Origen
+                                </label>
+                                <input 
+                                    {...register("clientName")}
+                                    placeholder="Nombre del cliente..."
+                                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                />
+                                {errors.clientName && <p className="text-[10px] font-bold text-rose-500 ml-2 uppercase">{errors.clientName.message as string}</p>}
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2 ml-1">
+                                    <Hash className="w-3.5 h-3.5" /> Nro. Documento
+                                </label>
+                                <input 
+                                    {...register("number")}
+                                    placeholder="Factura, Recibo, etc..."
+                                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                />
+                                {errors.number && <p className="text-[10px] font-bold text-rose-500 ml-2 uppercase">{errors.number.message as string}</p>}
+                            </div>
                         </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2 ml-1">
+                                    <Tag className="w-3.5 h-3.5" /> Categoría de Ingreso
+                                    {isLoadingData && <Loader2 className="w-3 h-3 animate-spin ml-2 text-indigo-500" />}
+                                </label>
+                                <select 
+                                    {...register("categoryId")}
+                                    disabled={isPending || isLoadingData || (!watchCompanyId && !defaultCompanyId)}
+                                    className={`w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border ${errors.categoryId ? 'border-rose-500 ring-2 ring-rose-500/10' : 'border-zinc-200 dark:border-zinc-800'} rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all`}
+                                >
+                                    <option value="">Selecciona categoría...</option>
+                                    {dynamicCategories.map((c: any) => (
+                                        <option key={c.id} value={c.id.toString()}>{c.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2 ml-1">
+                                    <MapPin className="w-3.5 h-3.5" /> Sucursal (Opcional)
+                                    {isLoadingData && <Loader2 className="w-3 h-3 animate-spin ml-2 text-indigo-500" />}
+                                </label>
+                                <select 
+                                    {...register("branchId")}
+                                    disabled={isPending || isLoadingData || (!watchCompanyId && !defaultCompanyId)}
+                                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                >
+                                    <option value="">GLOBAL (Sin sucursal)</option>
+                                    {branches.map(b => (
+                                        <option key={b.id} value={b.id.toString()}>{b.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-2 ml-1">
+                                    <Wallet className="w-3.5 h-3.5" /> Monto (USD)
+                                </label>
+                                <input 
+                                    type="number" step="0.01"
+                                    {...register("amountUSD")}
+                                    className="w-full h-12 px-4 bg-emerald-50/30 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/20 rounded-2xl text-sm font-black text-emerald-600 outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2 ml-1">
+                                    Tasa BCV
+                                </label>
+                                <input 
+                                    type="number" step="0.0001"
+                                    {...register("exchangeRate")}
+                                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2 ml-1">
+                                    <Calendar className="w-3.5 h-3.5" /> Fecha
+                                </label>
+                                <input 
+                                    type="date"
+                                    {...register("date")}
+                                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        <FileUploadInput name="attachment" currentFile={income?.attachmentName} />
 
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                                <User className="w-3.5 h-3.5" /> Nombre del Cliente / Origen
-                            </label>
-                            <input 
-                                {...register("clientName")}
-                                placeholder="Nombre del pagador"
-                                className="w-full h-12 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
-                            />
-                            {errors.clientName && <p className="text-[10px] text-rose-500 font-bold uppercase">{errors.clientName.message as string}</p>}
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                                <Tag className="w-3.5 h-3.5" /> Categoría de Ingreso
-                            </label>
-                            <select 
-                                {...register("categoryId")}
-                                className="w-full h-12 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
-                            >
-                                <option value="">Selecciona categoría...</option>
-                                {dynamicCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                            {errors.categoryId && <p className="text-[10px] text-rose-500 font-bold uppercase">{errors.categoryId.message as string}</p>}
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                                <MapPin className="w-3.5 h-3.5" /> Sucursal (Opcional)
-                            </label>
-                            <select 
-                                {...register("branchId")}
-                                className="w-full h-12 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
-                            >
-                                <option value="">Global / Sin sucursal</option>
-                                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                            </select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                                <DollarSign className="w-3.5 h-3.5" /> Monto en USD
-                            </label>
-                            <input 
-                                {...register("amountUSD")}
-                                type="number"
-                                step="0.01"
-                                placeholder="0.00"
-                                className="w-full h-12 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
-                            />
-                            {errors.amountUSD && <p className="text-[10px] text-rose-500 font-bold uppercase">{errors.amountUSD.message as string}</p>}
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                                <Hash className="w-3.5 h-3.5" /> Tasa BCV (VES)
-                            </label>
-                            <input 
-                                {...register("exchangeRate")}
-                                type="number"
-                                step="0.0001"
-                                className="w-full h-12 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                                <Calendar className="w-3.5 h-3.5" /> Fecha de Ingreso
-                            </label>
-                            <input 
-                                {...register("date")}
-                                type="date"
-                                className="w-full h-12 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
-                            />
-                        </div>
-
-                        <div className="col-span-2 space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                                <FileUp className="w-3.5 h-3.5" /> Soporte / Comprobante (Opcional)
-                            </label>
-                            <FileUploadInput name="attachment" />
-                        </div>
-
-                        <div className="col-span-2 space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2 ml-1">
                                 Notas adicionales
                             </label>
                             <textarea 
                                 {...register("notes")}
-                                rows={3}
-                                className="w-full bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none resize-none"
-                                placeholder="Detalles extra sobre este ingreso..."
+                                rows={2}
+                                className="w-full p-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
+                                placeholder="Detalles extra del movimiento..."
                             />
                         </div>
-
                     </div>
 
-                    <div className="mt-10 flex gap-3">
+                    <div className="flex items-center justify-end gap-4 mt-10">
                         <button 
-                            type="button"
+                            type="button" 
                             onClick={onClose}
-                            className="flex-1 h-14 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
+                            className="px-6 h-12 rounded-2xl text-xs font-black uppercase tracking-widest text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
                         >
                             Cancelar
                         </button>
                         <button 
-                            type="submit"
+                            type="submit" 
                             disabled={isPending}
-                            className="flex-[2] h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-emerald-600/20 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                            className="flex-1 md:flex-none px-10 h-12 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-black rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 shadow-xl shadow-zinc-500/10"
                         >
-                            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === 'create' ? 'Confirmar Registro' : 'Guardar Cambios'}
+                            {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : (mode === 'create' ? 'Registrar Ingreso' : 'Guardar Cambios')}
                         </button>
                     </div>
                 </form>

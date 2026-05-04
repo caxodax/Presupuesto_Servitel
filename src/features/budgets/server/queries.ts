@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope, getBranchIsolation } from "@/lib/permissions"
 
-export async function getBudgets(companyId?: string, branchId?: string, queryParam?: string, page?: number, limit: number = 10) {
+export async function getBudgets(companyId?: string, branchId?: string, queryParam?: string, page?: number, limit: number = 10, groupId?: string) {
   const user = await requireAuth()
   const supabase = createClient()
   
@@ -14,18 +14,23 @@ export async function getBudgets(companyId?: string, branchId?: string, queryPar
         *,
         category:Category(*),
         subcategory:Subcategory(*)
-      )
+      ),
+      company:Company!inner(groupId)
     `, { count: 'exact' })
     .order('initialDate', { ascending: false })
 
-  if (user.role !== 'SUPER_ADMIN') {
+  if (user.role !== 'SUPER_ADMIN' && user.companyId) {
     query = query.eq('companyId', user.companyId)
   } else if (companyId) {
-    query = query.eq('companyId', companyId)
+    query = query.eq('companyId', Number(companyId))
   }
 
   if (branchId) {
-    query = query.eq('branchId', branchId)
+    query = query.eq('branchId', Number(branchId))
+  }
+
+  if (groupId) {
+    query = query.eq('company.groupId', Number(groupId))
   }
 
   if (queryParam) {
@@ -34,7 +39,11 @@ export async function getBudgets(companyId?: string, branchId?: string, queryPar
 
   if (page === undefined) {
     const { data } = await query
-    return data || []
+    return {
+        items: data || [],
+        total: data?.length || 0,
+        pageCount: 1
+    }
   }
 
   const from = (page - 1) * limit
@@ -46,10 +55,12 @@ export async function getBudgets(companyId?: string, branchId?: string, queryPar
     throw new Error(`Error al obtener presupuestos: ${error.message}`)
   }
 
+  const total = count || 0
+
   return {
     items: items || [],
-    total: count || 0,
-    pageCount: Math.ceil((count || 0) / limit)
+    total: total,
+    pageCount: Math.ceil(total / limit)
   }
 }
 
@@ -81,7 +92,7 @@ export async function getBudgetDetails(budgetId: number) {
 
   if (error || !budget) throw new Error("Presupuesto no encontrado o error de acceso.")
 
-  // Ordenamos los ajustes manualmente si es necesario (BudgetAllocation ya trae los ajustes)
+  // Ordenamos los ajustes manualmente
   budget.allocations.forEach((alloc: any) => {
     if (alloc.adjustments) {
       alloc.adjustments.sort((a: any, b: any) => 

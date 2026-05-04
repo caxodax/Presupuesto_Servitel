@@ -25,19 +25,23 @@ export async function RecentActivity({ searchParams }: { searchParams: any }) {
                           <p className="font-bold text-sm text-foreground flex items-center gap-2">
                              {inv.supplierName} 
                              <span className="text-zinc-400 font-medium tracking-tight">#{inv.number}</span>
-                             {(inv as any)?.company?.name && (
+                             {inv.company?.name && (
                                 <span className="text-[9px] font-black uppercase tracking-wider bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-500">
-                                   {(inv as any).company.name}
+                                   {inv.company.name}
                                 </span>
                              )}
                           </p>
-                          <p className="text-xs text-zinc-500 mt-0.5">{inv.allocation.category.name} <span className="text-zinc-300 dark:text-zinc-700 mx-1">•</span> {inv.allocation.budget.branch.name}</p>
+                          <p className="text-xs text-zinc-500 mt-0.5">
+                             {inv.allocation?.category?.name || 'Gasto'} 
+                             <span className="text-zinc-300 dark:text-zinc-700 mx-1">•</span> 
+                             {inv.allocation?.budget?.branch?.name || '---'}
+                          </p>
                        </div>
                     </div>
                     <div className="text-right flex flex-col items-end">
                        <span className="font-bold tracking-tight text-foreground text-sm">${Number(inv.amountUSD).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                        <span className="text-[10px] uppercase font-semibold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded mt-1">
-                           {inv.date.toLocaleDateString()}
+                           {new Date(inv.date).toLocaleDateString()}
                        </span>
                     </div>
                  </Link>

@@ -100,25 +100,13 @@ export function CreateCategoryModal({
              {/* Form - Category */}
              {activeTab === 'category' && (
                  <form onSubmit={handleCreateCategory} className="p-6 flex flex-col gap-4 animate-in fade-in slide-in-from-left-4">
-                    {userRole === "SUPER_ADMIN" && (
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Empresa Propietaria</label>
-                        {filteredCompanyId ? (
-                        <div className="flex items-center gap-2 h-11 px-4 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium">
-                            <input type="hidden" name="companyId" value={filteredCompanyId} />
-                            <span className="text-foreground">{companies.find(c => c.id === filteredCompanyId)?.name || 'Empresa Filrtada'}</span>
-                            <span className="text-[10px] bg-indigo-500 text-white px-2 py-0.5 rounded-full uppercase font-bold tracking-widest">Fijada</span>
-                        </div>
-                        ) : (
-                        <select name="companyId" required defaultValue="" disabled={isPending} className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50">
-                            <option value="" disabled>Seleccione corporación...</option>
-                            {companies.map((company) => (
-                            <option key={company.id} value={company.id}>{company.name}</option>
-                            ))}
+                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Tipo de Clasificación</label>
+                        <select name="type" required defaultValue="EXPENSE" disabled={isPending} className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50">
+                            <option value="EXPENSE">Egreso (Gasto Operativo)</option>
+                            <option value="INCOME">Ingreso (Capital/Cobranza)</option>
                         </select>
-                        )}
                     </div>
-                    )}
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Nombre de la Categoría Principal</label>
                         <input type="text" name="name" required disabled={isPending} placeholder="Ej: Operaciones" className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all disabled:opacity-50" />
@@ -139,7 +127,7 @@ export function CreateCategoryModal({
                             <option value="" disabled>Seleccione categoría central...</option>
                             {categories.map((cat) => (
                             <option key={cat.id} value={cat.id}>
-                                {cat.name} {userRole === 'SUPER_ADMIN' && !filteredCompanyId ? `(${cat.Company?.name})` : ''}
+                                {cat.name} ({cat.type === 'INCOME' ? 'Ingreso' : 'Egreso'})
                             </option>
                             ))}
                         </select>

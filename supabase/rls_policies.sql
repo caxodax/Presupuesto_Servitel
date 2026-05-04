@@ -29,6 +29,7 @@ ALTER TABLE "BudgetAdjustment" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Invoice" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "AuditLog" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Alert" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Income" ENABLE ROW LEVEL SECURITY;
 
 -- 3. POLÍTICAS POR TABLA
 
@@ -183,4 +184,17 @@ CREATE POLICY "CompanyAdmins can manage alerts" ON "Alert"
 FOR ALL USING (
   "companyId" = public.get_auth_user_company_id() AND 
   public.get_auth_user_role() = 'COMPANY_ADMIN'
+);
+
+-- === Income ===
+CREATE POLICY "SuperAdmins can do everything on Income" ON "Income"
+FOR ALL USING (public.get_auth_user_role() = 'SUPER_ADMIN');
+
+CREATE POLICY "Users can view incomes of their company" ON "Income"
+FOR SELECT USING ("companyId" = public.get_auth_user_company_id());
+
+CREATE POLICY "CompanyAdmins and Operators can manage incomes" ON "Income"
+FOR ALL USING (
+  "companyId" = public.get_auth_user_company_id() AND 
+  public.get_auth_user_role() IN ('COMPANY_ADMIN', 'OPERATOR')
 );

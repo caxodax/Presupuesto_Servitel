@@ -3,36 +3,35 @@ import { createClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope } from "@/lib/permissions"
 import { categorySchema, subcategorySchema } from "../validations"
 import { revalidatePath } from "next/cache"
-import { recordAuditLog } from "@/lib/audit"
+
 
 export async function createCategory(formData: FormData) {
   const user = await requireAuth()
   const supabase = createClient()
   
-  const targetId = formData.get("companyId") ? Number(formData.get("companyId")) : undefined;
-  const scope = enforceCompanyScope(user, targetId)
+  if (user.role !== 'SUPER_ADMIN') {
+    throw new Error("Solo los Súper Administradores pueden crear categorías globales.")
+  }
   
   const validated = categorySchema.parse({ 
     name: formData.get("name"), 
-    companyId: scope.companyId! 
+    type: formData.get("type"),
+    companyId: undefined 
   })
   
   const { data: category, error } = await supabase
     .from('Category')
-    .insert({ name: validated.name, companyId: validated.companyId })
+    .insert({ 
+      name: validated.name, 
+      type: validated.type as any,
+      companyId: null 
+    })
     .select()
     .single()
 
   if (error || !category) throw new Error(`Error crear categoría: ${error?.message}`)
 
-  await recordAuditLog({
-    action: "CREATE_CATEGORY",
-    entity: "Clasificación Contable",
-    entityId: category.id,
-    userId: user.profileId,
-    companyId: category.companyId,
-    details: { name: category.name }
-  })
+
   
   revalidatePath("/dashboard/categorias")
 }
@@ -41,6 +40,10 @@ export async function createSubcategory(formData: FormData) {
   const user = await requireAuth()
   const supabase = createClient()
   
+  if (user.role !== 'SUPER_ADMIN') {
+    throw new Error("Solo los Súper Administradores pueden gestionar la estructura global de categorías.")
+  }
+
   const categoryId = Number(formData.get("categoryId"));
   
   const { data: parentCat, error: fetchError } = await supabase
@@ -50,8 +53,6 @@ export async function createSubcategory(formData: FormData) {
     .single()
 
   if (fetchError || !parentCat) throw new Error("La categoria no existe.")
-  
-  enforceCompanyScope(user, parentCat.companyId)
   
   const validated = subcategorySchema.parse({ 
     name: formData.get("name"), 
@@ -66,14 +67,7 @@ export async function createSubcategory(formData: FormData) {
 
   if (error || !sub) throw new Error(`Error crear subcategoría: ${error?.message}`)
 
-  await recordAuditLog({
-    action: "CREATE_SUBCATEGORY",
-    entity: "Subclasificación Contable",
-    entityId: sub.id,
-    userId: user.profileId,
-    companyId: parentCat.companyId,
-    details: { name: sub.name, parent: parentCat.name }
-  })
+
   
   revalidatePath("/dashboard/categorias")
 }
@@ -82,6 +76,10 @@ export async function updateCategory(formData: FormData) {
   const user = await requireAuth()
   const supabase = createClient()
   
+  if (user.role !== 'SUPER_ADMIN') {
+    throw new Error("Acceso denegado: Solo Súper Administradores.")
+  }
+
   const id = Number(formData.get("id"))
   const name = formData.get("name") as string
 
@@ -93,8 +91,6 @@ export async function updateCategory(formData: FormData) {
 
   if (fetchError || !category) throw new Error("La categoria no existe.")
   
-  enforceCompanyScope(user, category.companyId)
-
   const { data: updated, error } = await supabase
     .from('Category')
     .update({ name })
@@ -104,14 +100,7 @@ export async function updateCategory(formData: FormData) {
 
   if (error || !updated) throw new Error(`Error actualizar categoría: ${error?.message}`)
 
-  await recordAuditLog({
-    action: "UPDATE_CATEGORY",
-    entity: "Clasificación Contable",
-    entityId: updated.id,
-    userId: user.profileId,
-    companyId: updated.companyId,
-    details: { oldName: category.name, newName: updated.name }
-  })
+
 
   revalidatePath("/dashboard/categorias")
 }
@@ -120,6 +109,10 @@ export async function toggleCategoryStatus(id: number) {
   const user = await requireAuth()
   const supabase = createClient()
   
+  if (user.role !== 'SUPER_ADMIN') {
+    throw new Error("Acceso denegado: Solo Súper Administradores.")
+  }
+
   const { data: category, error: fetchError } = await supabase
     .from('Category')
     .select('id, name, companyId, isActive')
@@ -128,12 +121,8 @@ export async function toggleCategoryStatus(id: number) {
 
   if (fetchError || !category) throw new Error("La categoria no existe.")
   
-  enforceCompanyScope(user, category.companyId)
-
   const newStatus = !category.isActive
 
-  // Actualización: En Supabase las transacciones se pueden hacer vía RPC o simplemente secuencial si el riesgo de inconsistencia es bajo,
-  // pero aquí queremos asegurar que se actualicen las subcategorías.
   const { error: catUpdateError } = await supabase
     .from('Category')
     .update({ isActive: newStatus })
@@ -148,14 +137,7 @@ export async function toggleCategoryStatus(id: number) {
 
   if (subUpdateError) throw subUpdateError
 
-  await recordAuditLog({
-    action: "TOGGLE_CATEGORY_STATUS",
-    entity: "Clasificación Contable",
-    entityId: category.id,
-    userId: user.profileId,
-    companyId: category.companyId,
-    details: { name: category.name, newStatus: newStatus ? "ACTIVE" : "INACTIVE" }
-  })
+
 
   revalidatePath("/dashboard/categorias")
 }
@@ -164,6 +146,10 @@ export async function updateSubcategory(formData: FormData) {
   const user = await requireAuth()
   const supabase = createClient()
   
+  if (user.role !== 'SUPER_ADMIN') {
+    throw new Error("Acceso denegado.")
+  }
+
   const id = Number(formData.get("id"))
   const name = formData.get("name") as string
 
@@ -175,8 +161,6 @@ export async function updateSubcategory(formData: FormData) {
 
   if (fetchError || !sub) throw new Error("La subcategoria no existe.")
   
-  enforceCompanyScope(user, (sub as any).Category.companyId)
-
   const { data: updated, error } = await supabase
     .from('Subcategory')
     .update({ name })
@@ -186,14 +170,7 @@ export async function updateSubcategory(formData: FormData) {
 
   if (error || !updated) throw new Error(`Error actualizar subcategoría: ${error?.message}`)
 
-  await recordAuditLog({
-    action: "UPDATE_SUBCATEGORY",
-    entity: "Subclasificación Contable",
-    entityId: updated.id,
-    userId: user.profileId,
-    companyId: (sub as any).Category.companyId,
-    details: { oldName: sub.name, newName: updated.name }
-  })
+
 
   revalidatePath("/dashboard/categorias")
 }
@@ -202,6 +179,10 @@ export async function toggleSubcategoryStatus(id: number) {
   const user = await requireAuth()
   const supabase = createClient()
   
+  if (user.role !== 'SUPER_ADMIN') {
+    throw new Error("Acceso denegado.")
+  }
+
   const { data: sub, error: fetchError } = await supabase
     .from('Subcategory')
     .select('*, Category(companyId)')
@@ -210,8 +191,6 @@ export async function toggleSubcategoryStatus(id: number) {
 
   if (fetchError || !sub) throw new Error("La subcategoria no existe.")
   
-  enforceCompanyScope(user, (sub as any).Category.companyId)
-
   const newStatus = !sub.isActive
 
   const { data: updated, error } = await supabase
@@ -223,14 +202,7 @@ export async function toggleSubcategoryStatus(id: number) {
 
   if (error || !updated) throw new Error(`Error toggle subcategoría: ${error?.message}`)
 
-  await recordAuditLog({
-    action: "TOGGLE_SUBCATEGORY_STATUS",
-    entity: "Subclasificación Contable",
-    entityId: updated.id,
-    userId: user.profileId,
-    companyId: (sub as any).Category.companyId,
-    details: { name: updated.name, newStatus: newStatus ? "ACTIVE" : "INACTIVE" }
-  })
+
 
   revalidatePath("/dashboard/categorias")
 }

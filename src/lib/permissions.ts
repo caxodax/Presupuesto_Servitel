@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { Database } from "@/types/database"
 import { redirect } from "next/navigation"
 import { cache } from "react"
 
@@ -31,7 +32,9 @@ export const getSession = cache(async () => {
   return {
     user: {
       ...user,
-      profileId: profile.id, // ID numérico
+      id: profile.id.toString(), // Mantenemos compatibilidad con IDs de Supabase Auth si es necesario, o usamos el numérico.
+      profileId: profile.id, 
+      name: profile.name,
       role: profile.role,
       companyId: profile.companyId,
       branchId: profile.branchId,

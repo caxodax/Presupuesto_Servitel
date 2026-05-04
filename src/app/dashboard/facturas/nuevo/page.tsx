@@ -35,9 +35,12 @@ export default async function NewInvoiceEntryPage({
     fetchBCVRate()
   ])
   
+  const budgetsList = (budgets as any).items || []
+  const companiesList = Array.isArray(companies) ? companies : (companies as any).items || []
+  
   // Condensamos TODAS las Allocations del sistema para el Select de impacto
-  const availableAllocations = budgets.flatMap(b => 
-      b.allocations.map(a => ({ 
+  const availableAllocations = budgetsList.flatMap((b: any) => 
+      b.allocations.map((a: any) => ({ 
           id: a.id, 
           label: `${user.role === "SUPER_ADMIN" ? `[${b.branch.company.name}] ` : ''}${b.name} (${b.branch.name}) - ${a.category.name} ${a.subcategory ? `> ${a.subcategory.name}` : ''}`
       }))
@@ -55,7 +58,7 @@ export default async function NewInvoiceEntryPage({
             <p className="text-sm text-muted-foreground mt-1.5">Portal transaccional de distracción cero. El impacto será reflejado inmediatamente.</p>
          </div>
          {user.role === "SUPER_ADMIN" && (
-            <CompanyFilter companies={companies} />
+            <CompanyFilter companies={companiesList} />
          )}
       </div>
 

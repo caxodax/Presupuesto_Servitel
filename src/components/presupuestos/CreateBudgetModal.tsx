@@ -15,7 +15,8 @@ export function CreateBudgetModal({
   defaultCompanyId?: string
 }) {
    const [isOpen, setIsOpen] = useState(false)
-   const [selectedCompany, setSelectedCompany] = useState(defaultCompanyId || (companies.length === 1 ? companies[0].id : ""))
+   const companiesList = Array.isArray(companies) ? companies : (companies as any).items || []
+   const [selectedCompany, setSelectedCompany] = useState(defaultCompanyId || (companiesList.length === 1 ? companiesList[0].id : ""))
    
    useEffect(() => {
      if (defaultCompanyId) {
@@ -23,7 +24,8 @@ export function CreateBudgetModal({
      }
    }, [defaultCompanyId])
 
-   const filteredBranches = branches.filter(b => {
+   const branchesList = Array.isArray(branches) ? branches : (branches as any).items || []
+   const filteredBranches = branchesList.filter((b: any) => {
       const compId = b.company_id || b.companyId;
       return compId && compId.toString() === selectedCompany.toString();
    })
@@ -85,7 +87,7 @@ export function CreateBudgetModal({
                 <input type="text" name="name" required disabled={isPending} placeholder="Q1 2026 - Central" className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all disabled:opacity-50" />
               </div>
 
-              {companies.length > 1 && (
+              {companiesList.length > 1 && (
                  <div className="space-y-1.5 md:col-span-2">
                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Corporación / Empresa</label>
                    <select 
@@ -96,8 +98,8 @@ export function CreateBudgetModal({
                      className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all disabled:opacity-50"
                    >
                      <option value="" disabled>Selecciona la Empresa...</option>
-                     {companies.map(company => (
-                        <option key={company.id} value={company.id}>{company.name}</option>
+                     {companiesList.map((company: any) => (
+                        <option key={company.id} value={company.id.toString()}>{company.name}</option>
                      ))}
                    </select>
                  </div>
@@ -105,10 +107,10 @@ export function CreateBudgetModal({
 
               <div className="space-y-1.5 md:col-span-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Sucursal Anclada</label>
-                <select name="branchId" defaultValue="" required disabled={isPending || (!selectedCompany && companies.length > 1)} className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all disabled:opacity-50">
+                <select name="branchId" defaultValue="" required disabled={isPending || (!selectedCompany && companiesList.length > 1)} className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all disabled:opacity-50">
                   <option value="" disabled>Selecciona la Sucursal...</option>
                   {filteredBranches.map(branch => (
-                     <option key={branch.id} value={branch.id}>{branch.name}</option>
+                     <option key={branch.id} value={branch.id.toString()}>{branch.name}</option>
                   ))}
                 </select>
                 {selectedCompany && filteredBranches.length === 0 && (

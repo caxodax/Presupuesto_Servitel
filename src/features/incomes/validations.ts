@@ -10,4 +10,5 @@ export const incomeSchema = z.object({
   exchangeRate: z.coerce.number().min(0.0001, "Tasa inválida"),
   date: z.string().min(1, "Fecha requerida"),
   notes: z.string().optional(),
+  incomeId: z.coerce.number().optional(),
 });

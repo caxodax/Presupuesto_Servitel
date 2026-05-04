@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope, getBranchIsolation } from "@/lib/permissions"
 
-export async function getDashboardKpis(searchParams: { companyId?: number; branchId?: number; budgetId?: number }) {
+export async function getDashboardKpis(searchParams: { companyId?: number; branchId?: number; budgetId?: number; groupId?: number }) {
   const user = await requireAuth()
   const supabase = createClient()
   
@@ -12,6 +12,7 @@ export async function getDashboardKpis(searchParams: { companyId?: number; branc
     .from('Budget')
     .select(`
       amountLimitUSD,
+      company:Company!inner(groupId),
       allocations:BudgetAllocation(amountUSD, consumedUSD)
     `)
 
@@ -22,18 +23,26 @@ export async function getDashboardKpis(searchParams: { companyId?: number; branc
   else if (searchParams.branchId) query = query.eq('branchId', searchParams.branchId)
   
   if (searchParams.budgetId) query = query.eq('id', searchParams.budgetId)
+  
+  if (searchParams.groupId) {
+      query = query.eq('company.groupId', searchParams.groupId)
+  }
 
   const { data: budgets, error } = await query
 
   if (error) throw new Error(`Error KPIs: ${error.message}`)
 
   // 2. Obtener Ingresos
-  let incomeQuery = supabase.from('Income').select('amountUSD')
+  let incomeQuery = supabase.from('Income').select('amountUSD, company:Company!inner(groupId)')
   if (filter.companyId) incomeQuery = incomeQuery.eq('companyId', filter.companyId)
   if (searchParams.companyId) incomeQuery = incomeQuery.eq('companyId', searchParams.companyId)
   
   if (branchScope.branchId) incomeQuery = incomeQuery.eq('branchId', branchScope.branchId)
   else if (searchParams.branchId) incomeQuery = incomeQuery.eq('branchId', searchParams.branchId)
+  
+  if (searchParams.groupId) {
+      incomeQuery = incomeQuery.eq('company.groupId', searchParams.groupId)
+  }
   
   const { data: incomesData } = await incomeQuery
 
@@ -66,7 +75,7 @@ export async function getDashboardKpis(searchParams: { companyId?: number; branc
   }
 }
 
-export async function getExecutiveAnalytics(searchParams: { companyId?: number; branchId?: number; budgetId?: number }) {
+export async function getExecutiveAnalytics(searchParams: { companyId?: number; branchId?: number; budgetId?: number; groupId?: number }) {
   const user = await requireAuth()
   const supabase = createClient()
   
@@ -74,22 +83,25 @@ export async function getExecutiveAnalytics(searchParams: { companyId?: number; 
   const branchScope = getBranchIsolation(user)
   
   // 1. Ranking de Sucursales
-  let branchQuery = supabase
-    .from('Branch')
-    .select(`
+  let branchQuery = supabase.from('Branch').select(`
+    id, 
+    name, 
+    companyId, 
+    company:Company!inner(groupId),
+    budgets:Budget(
       id,
-      name,
-      budgets:Budget(
-        id,
-        allocations:BudgetAllocation(consumedUSD)
-      )
-    `)
-
+      allocations:BudgetAllocation(consumedUSD)
+    )
+  `)
   if (filter.companyId) branchQuery = branchQuery.eq('companyId', filter.companyId)
   if (searchParams.companyId) branchQuery = branchQuery.eq('companyId', searchParams.companyId)
-  
+
   if (branchScope.branchId) branchQuery = branchQuery.eq('id', branchScope.branchId)
   else if (searchParams.branchId) branchQuery = branchQuery.eq('id', searchParams.branchId)
+
+  if (searchParams.groupId) {
+      branchQuery = branchQuery.eq('company.groupId', searchParams.groupId)
+  }
 
   const { data: branchesData, error: bError } = await branchQuery
 
@@ -111,11 +123,12 @@ export async function getExecutiveAnalytics(searchParams: { companyId?: number; 
   let allocQuery = supabase
     .from('BudgetAllocation')
     .select(`
+      amountUSD,
       consumedUSD,
-      category:Category(id, name),
-      budget:Budget!inner(id, companyId, branchId)
+      category:Category(name),
+      budget:Budget!inner(id, company:Company!inner(groupId))
     `)
-
+  
   if (filter.companyId) allocQuery = allocQuery.eq('budget.companyId', filter.companyId)
   if (searchParams.companyId) allocQuery = allocQuery.eq('budget.companyId', searchParams.companyId)
   
@@ -123,6 +136,10 @@ export async function getExecutiveAnalytics(searchParams: { companyId?: number; 
   else if (searchParams.branchId) allocQuery = allocQuery.eq('budget.branchId', searchParams.branchId)
   
   if (searchParams.budgetId) allocQuery = allocQuery.eq('budget.id', searchParams.budgetId)
+
+  if (searchParams.groupId) {
+      allocQuery = allocQuery.eq('budget.company.groupId', searchParams.groupId)
+  }
 
   const { data: allocations, error: aError } = await allocQuery
 
@@ -144,7 +161,7 @@ export async function getExecutiveAnalytics(searchParams: { companyId?: number; 
   }
 }
 
-export async function getRecentActivity(searchParams: { companyId?: number; branchId?: number; budgetId?: number }) {
+export async function getRecentActivity(searchParams: { companyId?: number; branchId?: number; budgetId?: number; groupId?: number }) {
   const user = await requireAuth()
   const supabase = createClient()
   
@@ -155,13 +172,13 @@ export async function getRecentActivity(searchParams: { companyId?: number; bran
     .from('Invoice')
     .select(`
       *,
-      company:Company(name),
+      company:Company!inner(name, groupId),
+      registeredBy:User(name),
       allocation:BudgetAllocation(
-        id,
         category:Category(name),
         budget:Budget(
           id,
-          branch:Branch(name)
+          branch:Branch(id, name)
         )
       )
     `)
@@ -190,6 +207,9 @@ export async function getRecentActivity(searchParams: { companyId?: number; bran
   if (searchParams.budgetId) {
       filteredData = filteredData.filter((inv: any) => inv.allocation?.budget?.id === Number(searchParams.budgetId))
   }
+  if (searchParams.groupId) {
+      filteredData = filteredData.filter((inv: any) => Number(inv.company?.groupId) === Number(searchParams.groupId))
+  }
 
   return filteredData
 }
@@ -201,15 +221,17 @@ export async function getFilterOptions() {
   const filter = enforceCompanyScope(user)
   const branchScope = getBranchIsolation(user)
 
-  const [resComp, resBranch, resBudget] = await Promise.all([
-    supabase.from('Company').select('id, name').order('name'),
+  const [resComp, resBranch, resBudget, resGroups] = await Promise.all([
+    supabase.from('Company').select('id, name, groupId').order('name'),
     supabase.from('Branch').select('id, name, companyId').order('name'),
-    supabase.from('Budget').select('id, name, branchId, companyId').order('initialDate', { ascending: false })
+    supabase.from('Budget').select('id, name, branchId, companyId').order('initialDate', { ascending: false }),
+    supabase.from('BusinessGroup').select('id, name').eq('isActive', true).order('name')
   ])
 
   let companies = resComp.data || []
   let branches = resBranch.data || []
   let budgets = resBudget.data || []
+  const groups = resGroups.data || []
 
   if (filter.companyId) {
       companies = companies.filter(c => c.id === filter.companyId)
@@ -222,5 +244,5 @@ export async function getFilterOptions() {
       budgets = budgets.filter(b => b.branchId === branchScope.branchId)
   }
 
-  return { companies, branches, budgets }
+  return { companies, branches, budgets, groups }
 }

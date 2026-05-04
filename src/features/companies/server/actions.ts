@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { requireAuth, hasRole, enforceCompanyScope } from "@/lib/permissions"
 import { companySchema, branchSchema } from "../validations"
 import { revalidatePath } from "next/cache"
-import { recordAuditLog } from "@/lib/audit"
+
 
 export async function createCompany(formData: FormData) {
   const user = await requireAuth()
@@ -14,23 +14,21 @@ export async function createCompany(formData: FormData) {
     
   const validated = companySchema.parse({ 
     name: formData.get("name") as string,
+    groupId: formData.get("groupId") as string,
   })
   
   const { data: company, error } = await supabase
     .from('Company')
-    .insert({ name: validated.name })
+    .insert({ 
+        name: validated.name,
+        groupId: validated.groupId
+    })
     .select()
     .single()
 
   if (error || !company) throw new Error(`Error crear empresa: ${error?.message}`)
 
-  recordAuditLog({
-    action: "CREATE_COMPANY",
-    entity: "Entidad Jurídica",
-    entityId: company.id,
-    userId: user.profileId,
-    details: { name: company.name }
-  })
+
   
   revalidatePath("/dashboard/empresas")
 }
@@ -58,14 +56,7 @@ export async function createBranch(formData: FormData) {
 
   if (error || !branch) throw new Error(`Error crear sucursal: ${error?.message}`)
 
-  recordAuditLog({
-    action: "CREATE_BRANCH",
-    entity: "Sucursal Operativa",
-    entityId: branch.id,
-    userId: user.profileId,
-    companyId: branch.companyId,
-    details: { name: branch.name }
-  })
+
   
   revalidatePath("/dashboard/sucursales")
 }
@@ -75,25 +66,24 @@ export async function updateCompany(companyId: number, formData: FormData) {
   const supabase = createClient()
   if (!hasRole(user.role, ["SUPER_ADMIN"])) throw new Error("Acceso denegado. Privilegios insuficientes.")
   
-  const newName = formData.get("name") as string
-  if (!newName || newName.trim().length === 0) throw new Error("El nombre no puede estar vacío.")
+  const validated = companySchema.parse({
+    name: formData.get("name") as string,
+    groupId: formData.get("groupId") as string,
+  })
 
   const { data: company, error } = await supabase
     .from('Company')
-    .update({ name: newName })
+    .update({ 
+        name: validated.name,
+        groupId: validated.groupId
+    })
     .eq('id', companyId)
     .select()
     .single()
 
   if (error || !company) throw new Error(`Error actualizar empresa: ${error?.message}`)
 
-  recordAuditLog({
-    action: "UPDATE_COMPANY",
-    entity: "Entidad Jurídica",
-    entityId: company.id,
-    userId: user.profileId,
-    details: { newName: company.name }
-  })
+
   
   revalidatePath("/dashboard/empresas")
 }
@@ -120,13 +110,7 @@ export async function toggleCompanyStatus(companyId: number) {
 
   if (error || !updated) throw new Error(`Error toggle empresa: ${error?.message}`)
 
-  recordAuditLog({
-    action: updated.isActive ? "ACTIVATE_COMPANY" : "DEACTIVATE_COMPANY",
-    entity: "Entidad Jurídica",
-    entityId: updated.id,
-    userId: user.profileId,
-    details: { status: updated.isActive ? "ACTIVA" : "SUSPENDIDA" }
-  })
+
   
   revalidatePath("/dashboard/empresas")
 }
@@ -157,14 +141,7 @@ export async function updateBranch(branchId: number, formData: FormData) {
 
   if (error || !updatedBranch) throw new Error(`Error actualizar sucursal: ${error?.message}`)
 
-  recordAuditLog({
-    action: "UPDATE_BRANCH",
-    entity: "Sucursal Operativa",
-    entityId: updatedBranch.id,
-    userId: user.profileId,
-    companyId: updatedBranch.companyId,
-    details: { newName: updatedBranch.name }
-  })
+
   
   revalidatePath("/dashboard/sucursales")
 }
@@ -192,14 +169,91 @@ export async function toggleBranchStatus(branchId: number) {
 
   if (error || !updated) throw new Error(`Error toggle sucursal: ${error?.message}`)
 
-  recordAuditLog({
-    action: updated.isActive ? "ACTIVATE_BRANCH" : "DEACTIVATE_BRANCH",
-    entity: "Sucursal Operativa",
-    entityId: updated.id,
-    userId: user.profileId,
-    companyId: updated.companyId,
-    details: { status: updated.isActive ? "ACTIVA" : "BAJA" }
-  })
+
   
   revalidatePath("/dashboard/sucursales")
+}
+
+export async function getBusinessGroups(onlyActive: boolean = false) {
+    const user = await requireAuth()
+    const supabase = createClient()
+    
+    let query = supabase
+        .from('BusinessGroup')
+        .select('*')
+        .order('name')
+        
+    if (onlyActive) {
+        query = query.eq('isActive', true)
+    }
+
+    const { data, error } = await query
+        
+    if (error) throw new Error(`Error al obtener grupos: ${error.message}`)
+    return data || []
+}
+
+export async function createBusinessGroup(formData: FormData) {
+    const user = await requireAuth()
+    const supabase = createClient()
+    if (!hasRole(user.role, ["SUPER_ADMIN"])) throw new Error("No tienes permisos")
+
+    const name = formData.get("name") as string
+    const description = formData.get("description") as string
+
+    const { data, error } = await supabase
+        .from('BusinessGroup')
+        .insert({ name, description })
+        .select()
+        .single()
+
+    if (error) throw new Error(`Error al crear matriz: ${error.message}`)
+
+
+
+    revalidatePath("/dashboard/matrices")
+    revalidatePath("/dashboard/empresas")
+}
+
+export async function updateBusinessGroup(id: number, formData: FormData) {
+    const user = await requireAuth()
+    const supabase = createClient()
+    if (!hasRole(user.role, ["SUPER_ADMIN"])) throw new Error("No tienes permisos")
+
+    const name = formData.get("name") as string
+    const description = formData.get("description") as string
+
+    const { data, error } = await supabase
+        .from('BusinessGroup')
+        .update({ name, description })
+        .eq('id', id)
+        .select()
+        .single()
+
+    if (error) throw new Error(`Error al actualizar matriz: ${error.message}`)
+
+
+
+    revalidatePath("/dashboard/matrices")
+    revalidatePath("/dashboard/empresas")
+}
+
+export async function toggleBusinessGroupStatus(id: number, currentStatus: boolean) {
+    const user = await requireAuth()
+    const supabase = createClient()
+    if (!hasRole(user.role, ["SUPER_ADMIN"])) throw new Error("No tienes permisos")
+
+    const { data, error } = await supabase
+        .from('BusinessGroup')
+        .update({ isActive: !currentStatus })
+        .eq('id', id)
+        .select()
+        .single()
+
+    if (error) throw new Error(`Error al cambiar estado: ${error.message}`)
+
+
+
+    revalidatePath("/dashboard/matrices")
+    revalidatePath("/dashboard/empresas")
 }

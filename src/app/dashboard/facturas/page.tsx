@@ -1,55 +1,53 @@
 import { getInvoices } from "@/features/invoices/server/queries"
 import { getCompanies } from "@/features/companies/server/queries"
+import { getBusinessGroups } from "@/features/companies/server/actions"
 import { getBudgets } from "@/features/budgets/server/queries"
 import { requireAuth } from "@/lib/permissions"
 import { InvoicesClient } from "@/components/facturas/InvoicesClient"
 
-async function fetchBCVRate(): Promise<number | string> {
-  try {
-    const response = await fetch("https://ve.dolarapi.com/v1/dolares/oficial", {
-      next: { revalidate: 3600 }
-    });
-    if (!response.ok) return "";
-    const data = await response.json();
-    return data.promedio || "";
-  } catch (error) {
-    return "";
-  }
-}
+import { getBCVRate } from "@/lib/bcv"
+
+// La función fetchBCVRate local ya no es necesaria pues usamos lib/bcv centralizado con caché
 
 export default async function InvoicesListPage({ 
   searchParams 
 }: { 
-  searchParams: { companyId?: string, query?: string, page?: string } 
+  searchParams: { companyId?: string, groupId?: string, query?: string, page?: string } 
 }) {
   const user = await requireAuth()
-  const companyId = searchParams.companyId
-  const query = searchParams.query
+  const { companyId, groupId, query } = searchParams
   const page = Number(searchParams.page) || 1
 
-  const [{ items: invoices, pageCount }, budgets, companies, currentBcvRate] = await Promise.all([
-    getInvoices(companyId, query, page),
-    getBudgets(companyId),
+  const results = await Promise.all([
+    getInvoices(companyId, query, page, 10, groupId),
     user.role === "SUPER_ADMIN" ? getCompanies() : Promise.resolve([]),
-    fetchBCVRate()
+    getBusinessGroups(true),
+    getBCVRate()
   ])
 
-  const availableAllocations = budgets.flatMap(b => 
-      b.allocations.map(a => ({ 
-          id: a.id, 
-          label: `${user.role === "SUPER_ADMIN" ? `[${b.branch.company.name}] ` : ''}${b.name} (${b.branch.name}) - ${a.category.name} ${a.subcategory ? `> ${a.subcategory.name}` : ''}`
-      }))
-  )
+  const { items: invoices, pageCount, total } = results[0] as { items: any[]; pageCount: number; total: number }
+  const companies = results[1] as any[]
+  const businessGroups = results[2] as any[]
+  const bcvResult = results[3] as any
+
+  const currentBcvRate = bcvResult.rates?.usd || ""
+
+  // La carga diferida (Lazy Loading) de alocaciones ocurre ahora dentro del InvoiceModal
+  // para evitar descargar todo el ecosistema de presupuestos.
+  const initialAllocations: any[] = [] 
   
   return (
     <div className="flex flex-col gap-6 pb-12">
       <InvoicesClient 
         invoices={invoices}
         companies={companies}
-        availableAllocations={availableAllocations}
+        businessGroups={businessGroups}
+        initialAllocations={initialAllocations}
         currentBcvRate={currentBcvRate}
         userRole={user.role}
         totalPages={pageCount}
+        currentPage={page}
+        totalItems={total}
       />
     </div>
   )

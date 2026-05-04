@@ -6,13 +6,13 @@ import { MoreHorizontal, User as UserIcon, ShieldX, ShieldCheck, Edit2, X, Loade
 import { toast } from "sonner"
 
 type UserItem = {
-    id: string
+    id: number
     name: string
     email: string
     role: string
     isActive: boolean
-    company?: { id: string, name: string } | null
-    branch?: { id: string, name: string } | null
+    company?: { id: number, name: string } | null
+    branch?: { id: number, name: string } | null
 }
 
 export function UserRow({ user, companies, branches }: { user: UserItem, companies: any[], branches: any[] }) {
@@ -30,7 +30,7 @@ export function UserRow({ user, companies, branches }: { user: UserItem, compani
         startTransitionToggle(async () => {
             setOptimisticUser({ isActive: !optimisticUser.isActive })
             try {
-                await toggleUserStatus(Number(user.id))
+                await toggleUserStatus(user.id)
                 toast.success(optimisticUser.isActive ? 'Usuario suspendido' : 'Usuario reactivado')
             } catch (e: any) {
                 toast.error(e.message || "Error al cambiar el estado del usuario")
@@ -117,12 +117,15 @@ export function UserRow({ user, companies, branches }: { user: UserItem, compani
 }
 
 function UserEditModal({ user, companies, branches, onClose }: { user: UserItem, companies: any[], branches: any[], onClose: () => void }) {
-    const [selectedCompany, setSelectedCompany] = useState(user.company?.id || "")
+    const [selectedCompany, setSelectedCompany] = useState<number | "">(user.company?.id || "")
     const [selectedRole, setSelectedRole] = useState(user.role)
     const [showPassword, setShowPassword] = useState(false)
     const [isSaving, startTransitionUpdate] = useTransition()
 
-    const filteredBranches = branches.filter(b => b.companyId === selectedCompany)
+    const branchesList = Array.isArray(branches) ? branches : (branches as any).items || []
+    const companiesList = Array.isArray(companies) ? companies : (companies as any).items || []
+
+    const filteredBranches = branchesList.filter((b: any) => Number(b.companyId) === Number(selectedCompany))
 
     const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -166,7 +169,7 @@ function UserEditModal({ user, companies, branches, onClose }: { user: UserItem,
                     onSubmit={handleUpdate}
                     className="p-10 grid grid-cols-1 md:grid-cols-2 gap-8"
                 >
-                    <input type="hidden" name="userId" value={user.id} />
+                    <input type="hidden" name="userId" value={user.id.toString()} />
                     
                     <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1">Nombre Completo</label>
@@ -196,13 +199,13 @@ function UserEditModal({ user, companies, branches, onClose }: { user: UserItem,
                         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1">Empresa Corporativa</label>
                         <select 
                             name="companyId" 
-                            value={selectedCompany} 
-                            onChange={(e) => setSelectedCompany(e.target.value)}
+                            value={selectedCompany || ''} 
+                            onChange={(e) => setSelectedCompany(e.target.value ? Number(e.target.value) : "")}
                             disabled={isSaving}
                             className="w-full h-12 px-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 cursor-pointer transition-all shadow-sm disabled:opacity-50"
                         >
                             <option value="">-- Sin Empresa --</option>
-                            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            {companiesList.map((c: any) => <option key={c.id} value={c.id.toString()}>{c.name}</option>)}
                         </select>
                     </div>
 
@@ -210,12 +213,12 @@ function UserEditModal({ user, companies, branches, onClose }: { user: UserItem,
                         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1">Sucursal Asignada</label>
                         <select 
                             name="branchId" 
-                            defaultValue={user.branch?.id || ""}
+                            defaultValue={user.branch?.id?.toString() || ""}
                             disabled={isSaving || !selectedCompany || (selectedRole !== 'OPERATOR' && selectedRole !== 'AUDITOR')}
                             className="w-full h-12 px-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 disabled:opacity-40 cursor-pointer transition-all shadow-sm"
                         >
                             <option value="">-- Sin Sucursal --</option>
-                            {filteredBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            {filteredBranches.map((b: any) => <option key={b.id} value={b.id.toString()}>{b.name}</option>)}
                         </select>
                     </div>
 

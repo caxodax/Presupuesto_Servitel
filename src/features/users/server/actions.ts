@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/permissions"
 import { createUserSchema } from "../validations"
 import { revalidatePath } from "next/cache"
-import { recordAuditLog } from "@/lib/audit"
 
 export async function createUser(formData: FormData) {
   const userAdmin = await requireAuth()
@@ -62,15 +61,6 @@ export async function createUser(formData: FormData) {
     .single()
 
   if (error || !newUser) throw new Error(`Error crear perfil DB: ${error?.message}`)
-
-  await recordAuditLog({
-    action: "CREATE_USER",
-    entity: "Acceso de Usuario",
-    entityId: newUser.id,
-    userId: userAdmin.profileId,
-    companyId: newUser.companyId,
-    details: { name: newUser.name, email: newUser.email, role: newUser.role }
-  })
 
   revalidatePath('/dashboard/usuarios')
 }
@@ -139,15 +129,6 @@ export async function updateUser(formData: FormData) {
 
   if (error || !updated) throw new Error(`Error local: ${error?.message}`)
 
-  await recordAuditLog({
-    action: "UPDATE_USER",
-    entity: "Acceso de Usuario",
-    entityId: updated.id,
-    userId: userAdmin.profileId,
-    companyId: updated.companyId,
-    details: { email: updated.email, passwordChanged: !!password }
-  })
-
   revalidatePath('/dashboard/usuarios')
 }
 
@@ -172,15 +153,6 @@ export async function toggleUserStatus(userId: number) {
     .single()
 
   if (error || !updated) throw new Error(`Error toggle status: ${error?.message}`)
-
-  await recordAuditLog({
-    action: updated.isActive ? "ACTIVATE_USER" : "SUSPEND_USER",
-    entity: "Acceso de Usuario",
-    entityId: updated.id,
-    userId: userAdmin.profileId,
-    companyId: updated.companyId,
-    details: { email: updated.email, status: updated.isActive ? 'Active' : 'Suspended' }
-  })
 
   revalidatePath('/dashboard/usuarios')
 }

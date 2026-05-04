@@ -12,7 +12,10 @@ export function CreateUserModal({ companies, branches }: { companies: any[], bra
   const [selectedRole, setSelectedRole] = useState("OPERATOR")
   const [showPassword, setShowPassword] = useState(false)
 
-  const filteredBranches = branches.filter(b => {
+  const branchesList = Array.isArray(branches) ? branches : (branches as any).items || []
+  const companiesList = Array.isArray(companies) ? companies : (companies as any).items || []
+
+  const filteredBranches = branchesList.filter((b: any) => {
     const compId = b.company_id || b.companyId;
     return compId && compId.toString() === selectedCompany.toString();
   })
@@ -110,7 +113,7 @@ export function CreateUserModal({ companies, branches }: { companies: any[], bra
                   className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50"
                 >
                   <option value="" disabled>Selecciona Empresa</option>
-                  {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {companiesList.map(c => <option key={c.id} value={c.id.toString()}>{c.name}</option>)}
                 </select>
               </div>
 
@@ -124,7 +127,7 @@ export function CreateUserModal({ companies, branches }: { companies: any[], bra
                   className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50"
                 >
                   <option value="">-- Sin Sucursal --</option>
-                  {filteredBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  {filteredBranches.map(b => <option key={b.id} value={b.id.toString()}>{b.name}</option>)}
                 </select>
               </div>
 

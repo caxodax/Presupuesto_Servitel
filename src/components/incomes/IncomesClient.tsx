@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { IncomeModal } from "@/components/incomes/IncomeModal"
-import { Wallet, Plus, Search, Edit2, ExternalLink, Trash2 } from "lucide-react"
+import { Wallet, Plus, Search, Edit2, ExternalLink, Trash2, Loader2, Calendar, Layers } from "lucide-react"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { SearchInput } from "@/components/ui/SearchInput"
 import { Pagination } from "@/components/ui/Pagination"
@@ -13,44 +14,82 @@ type IncomesClientProps = {
     incomes: any[]
     companies: any[]
     categories: any[]
+    businessGroups: any[]
     currentBcvRate: string | number
     userRole: string
     totalPages: number
+    currentPage: number
+    totalItems: number
+    defaultCompanyId?: string
 }
 
 export function IncomesClient({ 
     incomes, 
     companies, 
     categories, 
+    businessGroups,
     currentBcvRate, 
     userRole,
-    totalPages
+    totalPages,
+    currentPage,
+    totalItems,
+    defaultCompanyId
 }: IncomesClientProps) {
+  const incomesList = Array.isArray(incomes) ? incomes : (incomes as any).items || []
+  const companiesList = Array.isArray(companies) ? companies : (companies as any).items || []
+  const businessGroupsList = Array.isArray(businessGroups) ? businessGroups : (businessGroups as any).items || []
+
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null)
   const [selectedIncome, setSelectedIncome] = useState<any>(null)
   const [isDeleting, setIsDeleting] = useState<number | null>(null)
+  const [localIncomes, setLocalIncomes] = useState(incomesList)
+
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  const currentGroupId = searchParams.get('groupId')
+  const currentCompanyId = searchParams.get('companyId')
+
+  useEffect(() => {
+    setLocalIncomes(Array.isArray(incomes) ? incomes : (incomes as any).items || [])
+  }, [incomes])
 
   const handleOpenCreate = () => {
     setModalMode("create")
     setSelectedIncome(null)
   }
 
+  const handleOpenEdit = (inc: any) => {
+    setSelectedIncome(inc)
+    setModalMode("edit")
+  }
+
   const handleDelete = async (id: number) => {
     if (!confirm("¿Estás seguro de eliminar este registro de ingreso?")) return
+    
+    // Optimistic Update
+    const previousIncomes = [...localIncomes]
+    setLocalIncomes((prev: any[]) => prev.filter((inc: any) => inc.id !== id))
     
     setIsDeleting(id)
     try {
         await deleteIncome(id)
-        toast.success("Ingreso eliminado correctamente")
+        toast.success("Ingreso eliminado correctamente", {
+            description: "El flujo de caja ha sido actualizado."
+        })
     } catch (e: any) {
-        toast.error(e.message || "Error al eliminar")
+        setLocalIncomes(previousIncomes) // Rollback
+        toast.error(e.message || "Error al eliminar", {
+            description: "No se pudo completar la operación en el servidor."
+        })
     } finally {
         setIsDeleting(null)
     }
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       <div className="flex w-full flex-col md:flex-row md:items-end justify-between gap-4">
          <div>
            <h1 className="text-3xl font-black tracking-tight text-foreground flex items-center gap-3">
@@ -58,70 +97,128 @@ export function IncomesClient({
            </h1>
            <p className="text-sm text-muted-foreground mt-2 font-medium">Control de entradas de capital y facturación emitida.</p>
          </div>
-         <div className="flex items-center gap-3">
-            <button 
-                onClick={handleOpenCreate}
-                className="flex items-center gap-2 bg-emerald-600 text-white px-6 h-12 rounded-2xl text-sm font-black hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all uppercase tracking-widest"
-            >
-                <Plus className="w-5 h-5" /> Nuevo Ingreso
-            </button>
-         </div>
+         <button 
+            onClick={handleOpenCreate}
+            className="h-12 px-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2 active:scale-95"
+         >
+            <Plus className="w-4 h-4" /> Nuevo Ingreso
+         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row items-center gap-4 bg-white dark:bg-zinc-900 p-4 rounded-[24px] border border-zinc-200 dark:border-zinc-800 shadow-sm">
-          <div className="w-full md:w-96">
+      <div className="flex flex-col md:flex-row gap-4 items-center">
+         <div className="w-full md:w-80">
             <SearchInput placeholder="Buscar por #Documento o Cliente..." />
-          </div>
-          <div className="flex-1" />
+         </div>
+         {userRole === 'SUPER_ADMIN' && (
+             <div className="flex flex-wrap gap-4 items-center bg-zinc-50 dark:bg-zinc-900 p-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                 <div className="flex items-center gap-2 px-3 border-r border-zinc-200 dark:border-zinc-800">
+                    <Layers className="w-4 h-4 text-indigo-500" />
+                    <select 
+                        value={currentGroupId || ''}
+                        onChange={e => {
+                            const params = new URLSearchParams(searchParams.toString())
+                            if (e.target.value) params.set('groupId', e.target.value)
+                            else params.delete('groupId')
+                            params.delete('companyId')
+                            params.delete('page')
+                            router.push(`${pathname}?${params.toString()}`)
+                        }}
+                        className="bg-transparent border-none outline-none text-[10px] font-black uppercase text-zinc-500 cursor-pointer"
+                    >
+                        <option value="">Matriz: Todas</option>
+                        {businessGroupsList.filter((g: any) => g.isActive).map((g: any) => (
+                            <option key={g.id} value={g.id.toString()}>{g.name}</option>
+                        ))}
+                    </select>
+                 </div>
+
+                 <div className="flex flex-wrap gap-2">
+                    <Link href="/dashboard/ingresos" className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!currentCompanyId ? 'bg-white dark:bg-zinc-700 shadow-sm text-foreground border border-zinc-200 dark:border-zinc-600' : 'text-zinc-500'}`}>
+                        Global
+                    </Link>
+                    {companiesList
+                        .filter((c: any) => !currentGroupId || Number(c.groupId) === Number(currentGroupId))
+                        .map((company: any) => (
+                            <Link 
+                                key={company.id} 
+                                href={`/dashboard/ingresos?companyId=${company.id}${currentGroupId ? `&groupId=${currentGroupId}` : ''}`} 
+                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${currentCompanyId === String(company.id) ? 'bg-white dark:bg-zinc-700 shadow-sm text-foreground border border-zinc-200 dark:border-zinc-600' : 'text-zinc-500 hover:text-foreground'}`}
+                            >
+                                {company.name}
+                            </Link>
+                        ))}
+                 </div>
+             </div>
+         )}
       </div>
 
-      <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-         <div className="overflow-x-auto min-h-[400px]">
+      <div className="bg-white dark:bg-zinc-900 rounded-[32px] border border-zinc-200 dark:border-zinc-800 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden">
+         <div className="overflow-x-auto">
             <table className="w-full text-sm text-left border-collapse">
-              <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800/50 text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                <tr>
-                  <th className="px-8 py-5">Identificador</th>
-                  <th className="px-8 py-5">Cliente</th>
-                  <th className="px-8 py-5">Categoría / Sucursal</th>
-                  <th className="px-8 py-5 text-right">Monto (USD)</th>
-                  <th className="px-8 py-5 text-right">Acciones</th>
+              <thead>
+                <tr className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-100 dark:border-zinc-800">
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Identificador</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Cliente</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Categoría / Sucursal</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 text-right">Monto (USD)</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
-                {incomes.map(inc => (
+                {localIncomes.map((inc: any) => (
                   <tr key={inc.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/10 transition-colors group">
                     <td className="px-8 py-5">
                        <div className="flex flex-col">
-                          <span className="font-black text-foreground text-sm tracking-tight">#{inc.number}</span>
-                          <span className="text-[10px] text-zinc-400 font-bold uppercase">{new Date(inc.date).toLocaleDateString()}</span>
+                          <span className="font-black text-foreground tracking-tight">#{inc.number}</span>
+                          <span className="text-[10px] text-zinc-400 font-bold">{new Date(inc.date).toLocaleDateString()}</span>
                        </div>
                     </td>
-                    <td className="px-8 py-5 font-bold text-zinc-700 dark:text-zinc-300">{inc.clientName}</td>
+                    <td className="px-8 py-5">
+                       <span className="font-bold text-zinc-700 dark:text-zinc-300">{inc.clientName}</span>
+                    </td>
                     <td className="px-8 py-5">
                         <div className="flex flex-col">
-                           <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">{inc.category.name}</span>
-                           <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tight">{inc.branch?.name || 'GLOBAL'}</span>
+                            <span className="text-xs font-bold text-foreground">{inc.category.name}</span>
+                            <span className="text-[10px] text-zinc-400 font-black uppercase tracking-tighter">{inc.branch?.name || 'GLOBAL'}</span>
                         </div>
                     </td>
                     <td className="px-8 py-5 text-right">
-                        <div className="font-black text-emerald-600 dark:text-emerald-400 text-sm">${Number(inc.amountUSD).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-                        <div className="text-[10px] text-zinc-400 font-bold">VES {Number(inc.amountVES).toLocaleString('es-VE')}</div>
+                        <div className="flex flex-col items-end">
+                            <span className="font-black text-emerald-600 dark:text-emerald-400">
+                                ${Number(inc.amountUSD).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </span>
+                            <span className="text-[10px] text-zinc-400 font-bold">VES {Number(inc.amountVES).toLocaleString(undefined, { minimumFractionDigits: 0 })}</span>
+                        </div>
                     </td>
                     <td className="px-8 py-5 text-right">
                         <div className="flex items-center justify-end gap-2">
+                             <button 
+                                onClick={() => handleOpenEdit(inc)}
+                                className="p-2.5 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-xl text-amber-500 transition-all active:scale-90 border border-transparent hover:border-amber-100"
+                                title="Editar Ingreso"
+                             >
+                                <Edit2 className="w-4 h-4" />
+                             </button>
+                             <Link 
+                                href={`/dashboard/ingresos/${inc.id}`}
+                                className="p-2.5 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl text-indigo-500 transition-all active:scale-90 border border-transparent hover:border-indigo-100"
+                                title="Ver Detalles"
+                             >
+                                <ExternalLink className="w-4 h-4" />
+                             </Link>
                              <button 
                                 onClick={() => handleDelete(inc.id)}
                                 disabled={isDeleting === inc.id}
                                 className="p-2.5 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl text-rose-500 transition-all active:scale-90 border border-transparent hover:border-rose-100 disabled:opacity-50"
                                 title="Eliminar Ingreso"
                              >
-                                <Trash2 className="w-4 h-4" />
+                                {isDeleting === inc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                              </button>
                         </div>
                     </td>
                   </tr>
                 ))}
-                {incomes.length === 0 && (
+                {localIncomes.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-8 py-20 text-center">
                        <div className="flex flex-col items-center gap-3">
@@ -138,7 +235,7 @@ export function IncomesClient({
          </div>
          {totalPages > 1 && (
             <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/10">
-                <Pagination totalPages={totalPages} />
+                <Pagination page={currentPage} pageCount={totalPages} total={totalItems} />
             </div>
          )}
       </div>
@@ -151,6 +248,7 @@ export function IncomesClient({
             categories={categories}
             currentBcvRate={currentBcvRate}
             userRole={userRole}
+            defaultCompanyId={defaultCompanyId}
             onClose={() => setModalMode(null)}
         />
       )}

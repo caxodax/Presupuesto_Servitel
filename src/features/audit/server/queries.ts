@@ -21,7 +21,7 @@ export async function getAuditTrail(searchParams: { page?: string, actionFilter?
        company:Company(name)
      `, { count: 'exact' })
 
-   if (user.role !== 'SUPER_ADMIN') {
+   if (user.role !== 'SUPER_ADMIN' && user.companyId) {
      query = query.eq('companyId', user.companyId)
    } else if (searchParams.companyId) {
      query = query.eq('companyId', Number(searchParams.companyId))

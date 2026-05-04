@@ -8,9 +8,9 @@ export async function getCompanies(queryParam?: string, page?: number, limit: nu
   const user = await requireAuth()
   const supabase = createClient()
   
-  let query = supabase.from('Company').select('*', { count: 'exact' })
+  let query = supabase.from('Company').select('*, businessGroup:BusinessGroup(name)', { count: 'exact' })
   
-  if (user.role !== 'SUPER_ADMIN') {
+  if (user.role !== 'SUPER_ADMIN' && user.companyId) {
     query = query.eq('id', user.companyId)
   }
 
@@ -20,7 +20,11 @@ export async function getCompanies(queryParam?: string, page?: number, limit: nu
 
   if (page === undefined) {
     const { data } = await query.order('createdAt', { ascending: false })
-    return data || []
+    return {
+      items: data || [],
+      total: data?.length || 0,
+      pageCount: 1
+    }
   }
 
   const from = (page - 1) * limit
@@ -30,10 +34,12 @@ export async function getCompanies(queryParam?: string, page?: number, limit: nu
     .order('createdAt', { ascending: false })
     .range(from, to)
   
+  const total = count || 0
+
   return {
     items: items || [],
-    total: count || 0,
-    pageCount: Math.ceil((count || 0) / limit)
+    total: total,
+    pageCount: Math.ceil(total / limit)
   }
 }
 
@@ -44,8 +50,8 @@ export async function getAllCompanies() {
   const user = await requireAuth()
   const supabase = createClient()
   
-  let query = supabase.from('Company').select('*')
-  if (user.role !== 'SUPER_ADMIN') {
+  let query = supabase.from('Company').select('*, businessGroup:BusinessGroup(name)')
+  if (user.role !== 'SUPER_ADMIN' && user.companyId) {
     query = query.eq('id', user.companyId)
   }
   
@@ -62,7 +68,7 @@ export async function getBranches(companyId?: number, queryParam?: string, page?
   
   let query = supabase.from('Branch').select('*, company:Company(*)', { count: 'exact' })
   
-  if (user.role !== 'SUPER_ADMIN') {
+  if (user.role !== 'SUPER_ADMIN' && user.companyId) {
     query = query.eq('companyId', user.companyId)
   } else if (companyId) {
     query = query.eq('companyId', companyId)
@@ -74,7 +80,11 @@ export async function getBranches(companyId?: number, queryParam?: string, page?
 
   if (page === undefined) {
     const { data } = await query.order('createdAt', { ascending: false })
-    return data || []
+    return {
+      items: data || [],
+      total: data?.length || 0,
+      pageCount: 1
+    }
   }
 
   const from = (page - 1) * limit
@@ -84,9 +94,11 @@ export async function getBranches(companyId?: number, queryParam?: string, page?
     .order('createdAt', { ascending: false })
     .range(from, to)
   
+  const total = count || 0
+
   return {
     items: items || [],
-    total: count || 0,
-    pageCount: Math.ceil((count || 0) / limit)
+    total: total,
+    pageCount: Math.ceil(total / limit)
   }
 }

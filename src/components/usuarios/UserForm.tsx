@@ -11,7 +11,10 @@ export function UserForm({ companies, branches }: { companies: any[], branches: 
    const [showPassword, setShowPassword] = useState(false)
    const [isPending, startTransition] = useTransition()
    
-   const filteredBranches = branches.filter(b => {
+   const branchesList = Array.isArray(branches) ? branches : (branches as any).items || []
+   const companiesList = Array.isArray(companies) ? companies : (companies as any).items || []
+
+   const filteredBranches = branchesList.filter((b: any) => {
       const compId = b.company_id || b.companyId;
       return compId && compId.toString() === selectedCompany.toString();
    })
@@ -71,7 +74,7 @@ export function UserForm({ companies, branches }: { companies: any[], branches: 
                  <label className="text-xs font-semibold uppercase text-zinc-500">Asignar a Empresa corporativa</label>
                  <select name="companyId" value={selectedCompany} onChange={(e) => { setSelectedCompany(e.target.value) }} required className="w-full h-9 rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 px-3 text-sm focus:ring-1 outline-none">
                     <option value="" disabled>-- Selecciona Empresa --</option>
-                    {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {companiesList.map((c: any) => <option key={c.id} value={c.id.toString()}>{c.name}</option>)}
                  </select>
               </div>
 
@@ -80,7 +83,7 @@ export function UserForm({ companies, branches }: { companies: any[], branches: 
                     <label className="text-xs font-semibold uppercase text-zinc-500">Sucursal de Asignación</label>
                     <select name="branchId" defaultValue="" required={selectedRole === 'OPERATOR'} disabled={!selectedCompany} className="w-full h-9 rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 px-3 text-sm focus:ring-1 outline-none disabled:opacity-50">
                        <option value="" disabled selected>-- Elige una Sucursal --</option>
-                       {filteredBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                       {filteredBranches.map((b: any) => <option key={b.id} value={b.id.toString()}>{b.name}</option>)}
                     </select>
                     {selectedCompany && filteredBranches.length === 0 && (
                        <p className="text-[10px] text-amber-500 mt-1">Esta empresa no tiene sucursales para asignar a este operador.</p>

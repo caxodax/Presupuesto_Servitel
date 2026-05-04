@@ -24,7 +24,8 @@ export function CreateBranchModal({ companies, userRole, filteredCompanyId }: { 
     })
   }
 
-  const selectedCompany = filteredCompanyId ? companies.find(c => c.id === filteredCompanyId) : null
+  const companiesList = Array.isArray(companies) ? companies : (companies as any).items || []
+  const selectedCompany = filteredCompanyId ? companiesList.find((c: any) => c.id.toString() === filteredCompanyId.toString()) : null
 
   return (
     <>
@@ -66,7 +67,7 @@ export function CreateBranchModal({ companies, userRole, filteredCompanyId }: { 
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-1">Empresa Dueña</label>
                   {selectedCompany ? (
                     <div className="flex items-center gap-3 h-12 px-5 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-bold text-zinc-600">
-                      <input type="hidden" name="companyId" value={selectedCompany.id} />
+                      <input type="hidden" name="companyId" value={selectedCompany.id.toString()} />
                       <Building2 className="w-4 h-4 opacity-50" />
                       {selectedCompany.name}
                       <span className="ml-auto text-[9px] bg-zinc-200 dark:bg-zinc-700 px-2 py-0.5 rounded-full uppercase tracking-tighter opacity-70">Fijada</span>
@@ -74,7 +75,7 @@ export function CreateBranchModal({ companies, userRole, filteredCompanyId }: { 
                   ) : (
                     <select name="companyId" required disabled={isPending} className="w-full h-12 px-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 appearance-none transition-all shadow-sm disabled:opacity-50">
                       <option value="" disabled selected>-- Seleccione Empresa --</option>
-                      {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {companiesList.map((c: any) => <option key={c.id} value={c.id.toString()}>{c.name}</option>)}
                     </select>
                   )}
                 </div>

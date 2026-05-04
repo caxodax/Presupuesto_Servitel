@@ -7,11 +7,11 @@ import { formatDistanceToNow } from "date-fns"
 import { es } from "date-fns/locale"
 
 type Alert = {
-    id: string
+    id: number
     type: string
     title: string
     message: string
-    createdAt: Date
+    createdAt: string
 }
 
 export function AlertCenter({ initialAlerts }: { initialAlerts: Alert[] }) {
@@ -21,7 +21,7 @@ export function AlertCenter({ initialAlerts }: { initialAlerts: Alert[] }) {
 
     const unreadCount = alerts.length
 
-    const handleMarkAsRead = async (id: string) => {
+    const handleMarkAsRead = async (id: number) => {
         setAlerts(prev => prev.filter(a => a.id !== id))
         await markAlertAsRead(id)
     }

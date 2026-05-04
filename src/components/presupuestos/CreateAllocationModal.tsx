@@ -14,6 +14,7 @@ export function CreateAllocationModal({
   availableCategories: any[], 
   userRole: string 
 }) {
+  const categoriesList = Array.isArray(availableCategories) ? availableCategories : (availableCategories as any).items || []
   const [isOpen, setIsOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -73,9 +74,9 @@ export function CreateAllocationModal({
                     <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Categoría Directa</label>
                     <select name="categoryId" required disabled={isPending} defaultValue="" className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all disabled:opacity-50 appearance-none">
                         <option value="" disabled>Selecciona categoría libre...</option>
-                        {availableCategories.map(c => (
-                            <option key={c.id} value={c.id}>
-                            {c.name} {userRole === 'SUPER_ADMIN' ? `— [${c.Company?.name || '---'}]` : ''}
+                        {categoriesList.filter((c: any) => c.type === 'EXPENSE').map((c: any) => (
+                            <option key={c.id} value={c.id.toString()}>
+                                {c.name}
                             </option>
                         ))}
                     </select>

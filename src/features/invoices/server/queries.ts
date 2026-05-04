@@ -4,7 +4,7 @@ import { r2Client, BUCKET_NAME } from "@/lib/r2"
 import { GetObjectCommand } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 
-export async function getInvoices(companyId?: string, queryParam?: string, page?: number, limit: number = 10) {
+export async function getInvoices(companyId?: string, queryParam?: string, page?: number, limit: number = 10, groupId?: string) {
   const user = await requireAuth()
   const supabase = createClient()
   
@@ -35,6 +35,10 @@ export async function getInvoices(companyId?: string, queryParam?: string, page?
 
   if (queryParam) {
     query = query.or(`number.ilike.%${queryParam}%,supplierName.ilike.%${queryParam}%`)
+  }
+
+  if (groupId) {
+    query = query.filter('company.groupId', 'eq', Number(groupId))
   }
 
   if (page === undefined) {

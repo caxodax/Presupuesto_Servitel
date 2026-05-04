@@ -14,7 +14,9 @@ export async function getBCVRate() {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       },
-      // Si el servidor es muy inestable, se puede configurar NEXT_TLS_REJECT_UNAUTHORIZED=0 en .env solo para este caso (No recomendado para prod)
+      next: { revalidate: 3600 },
+      // @ts-ignore - Para entornos donde el certificado del BCV es inválido
+      agent: typeof window === 'undefined' ? new (require('https').Agent)({ rejectUnauthorized: false }) : undefined
     });
 
     if (!response.ok) throw new Error("No se pudo conectar con el portal del BCV");

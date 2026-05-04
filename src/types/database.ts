@@ -298,32 +298,59 @@ export type Database = {
           },
         ]
       }
+      BusinessGroup: {
+        Row: {
+          createdAt: string
+          description: string | null
+          id: number
+          isActive: boolean
+          name: string
+          updatedAt: string
+        }
+        Insert: {
+          createdAt?: string
+          description?: string | null
+          id?: number
+          isActive?: boolean
+          name: string
+          updatedAt?: string
+        }
+        Update: {
+          createdAt?: string
+          description?: string | null
+          id?: number
+          isActive?: boolean
+          name?: string
+          updatedAt?: string
+        }
+        Relationships: []
+      }
       Category: {
         Row: {
-          companyId: number
+          companyId: number | null
           createdAt: string
           id: number
           isActive: boolean
           name: string
-          type: Database["public"]["Enums"]["CategoryType"]
+          type: Database["public"]["Enums"]["CategoryType"] | null
           updatedAt: string
         }
         Insert: {
-          companyId: number
+          companyId?: number | null
           createdAt?: string
           id?: number
           isActive?: boolean
           name: string
-          type?: Database["public"]["Enums"]["CategoryType"]
+          type?: Database["public"]["Enums"]["CategoryType"] | null
           updatedAt?: string
         }
         Update: {
-          companyId?: number
+          companyId?: number | null
           createdAt?: string
           id?: number
           isActive?: boolean
           name?: string
-          type?: Database["public"]["Enums"]["CategoryType"]
+          type?: Database["public"]["Enums"]["CategoryType"] | null
           updatedAt?: string
         }
         Relationships: [
@@ -339,6 +366,7 @@ export type Database = {
       Company: {
         Row: {
           createdAt: string
+          groupId: number | null
           id: number
           isActive: boolean
           name: string
@@ -346,6 +374,7 @@ export type Database = {
         }
         Insert: {
           createdAt?: string
+          groupId?: number | null
           id?: number
           isActive?: boolean
           name: string
@@ -353,88 +382,48 @@ export type Database = {
         }
         Update: {
           createdAt?: string
+          groupId?: number | null
           id?: number
           isActive?: boolean
           name?: string
           updatedAt?: string
         }
-        Relationships: []
-      }
-      Invoice: {
-        Row: {
-          allocationId: number
-          amountUSD: number
-          amountVES: number
-          attachmentKey: string | null
-          attachmentName: string | null
-          companyId: number
-          createdAt: string
-          date: string
-          exchangeRate: number
-          id: number
-          number: string
-          registeredById: number
-          status: Database["public"]["Enums"]["InvoiceStatus"]
-          supplierName: string
-          updatedAt: string
-        }
-        Insert: {
-          allocationId: number
-          amountUSD: number
-          amountVES: number
-          attachmentKey?: string | null
-          attachmentName?: string | null
-          companyId: number
-          createdAt?: string
-          date: string
-          exchangeRate: number
-          id?: number
-          number: string
-          registeredById: number
-          status?: Database["public"]["Enums"]["InvoiceStatus"]
-          supplierName: string
-          updatedAt?: string
-        }
-        Update: {
-          allocationId?: number
-          amountUSD?: number
-          amountVES?: number
-          attachmentKey?: string | null
-          attachmentName?: string | null
-          companyId?: number
-          createdAt?: string
-          date?: string
-          exchangeRate?: number
-          id?: number
-          number?: string
-          registeredById?: number
-          status?: Database["public"]["Enums"]["InvoiceStatus"]
-          supplierName?: string
-          updatedAt?: string
-        }
         Relationships: [
           {
-            foreignKeyName: "Invoice_allocationId_fkey"
-            columns: ["allocationId"]
+            foreignKeyName: "Company_groupId_fkey"
+            columns: ["groupId"]
             isOneToOne: false
-            referencedRelation: "BudgetAllocation"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "Invoice_companyId_fkey"
-            columns: ["companyId"]
-            isOneToOne: false
-            referencedRelation: "Company"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "Invoice_registeredById_fkey"
-            columns: ["registeredById"]
-            isOneToOne: false
-            referencedRelation: "User"
+            referencedRelation: "BusinessGroup"
             referencedColumns: ["id"]
           },
         ]
+      }
+      ExchangeRate: {
+        Row: {
+          createdAt: string | null
+          date: string
+          eur: number
+          id: number
+          updatedAt: string | null
+          usd: number
+        }
+        Insert: {
+          createdAt?: string | null
+          date?: string
+          eur: number
+          id?: number
+          updatedAt?: string | null
+          usd: number
+        }
+        Update: {
+          createdAt?: string | null
+          date?: string
+          eur?: number
+          id?: number
+          updatedAt?: string | null
+          usd?: number
+        }
+        Relationships: []
       }
       Income: {
         Row: {
@@ -528,6 +517,82 @@ export type Database = {
             columns: ["subcategoryId"]
             isOneToOne: false
             referencedRelation: "Subcategory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      Invoice: {
+        Row: {
+          allocationId: number
+          amountUSD: number
+          amountVES: number
+          attachmentKey: string | null
+          attachmentName: string | null
+          companyId: number
+          createdAt: string
+          date: string
+          exchangeRate: number
+          id: number
+          number: string
+          registeredById: number
+          status: Database["public"]["Enums"]["InvoiceStatus"]
+          supplierName: string
+          updatedAt: string
+        }
+        Insert: {
+          allocationId: number
+          amountUSD: number
+          amountVES: number
+          attachmentKey?: string | null
+          attachmentName?: string | null
+          companyId: number
+          createdAt?: string
+          date: string
+          exchangeRate: number
+          id?: number
+          number: string
+          registeredById: number
+          status?: Database["public"]["Enums"]["InvoiceStatus"]
+          supplierName: string
+          updatedAt?: string
+        }
+        Update: {
+          allocationId?: number
+          amountUSD?: number
+          amountVES?: number
+          attachmentKey?: string | null
+          attachmentName?: string | null
+          companyId?: number
+          createdAt?: string
+          date?: string
+          exchangeRate?: number
+          id?: number
+          number?: string
+          registeredById?: number
+          status?: Database["public"]["Enums"]["InvoiceStatus"]
+          supplierName?: string
+          updatedAt?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "Invoice_allocationId_fkey"
+            columns: ["allocationId"]
+            isOneToOne: false
+            referencedRelation: "BudgetAllocation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Invoice_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "Company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Invoice_registeredById_fkey"
+            columns: ["registeredById"]
+            isOneToOne: false
+            referencedRelation: "User"
             referencedColumns: ["id"]
           },
         ]
@@ -629,7 +694,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      adjust_allocation_on_invoice: {
+        Args: {
+          p_allocation_id: number
+          p_amount_usd: number
+          p_amount_ves: number
+        }
+        Returns: undefined
+      }
+      get_auth_user_company_id: { Args: never; Returns: number }
+      get_auth_user_id: { Args: never; Returns: number }
+      get_auth_user_role: { Args: never; Returns: string }
+      get_my_profile: {
+        Args: never
+        Returns: {
+          user_branch_id: number
+          user_company_id: number
+          user_role: Database["public"]["Enums"]["Role"]
+        }[]
+      }
     }
     Enums: {
       AlertType: "BUDGET_EXCEEDED" | "ADJUSTMENT_MADE" | "SYSTEM_WARNING"

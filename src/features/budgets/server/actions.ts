@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope, hasRole } from "@/lib/permissions"
 import { budgetSchema, allocationSchema, adjustmentSchema } from "../validations"
 import { revalidatePath } from "next/cache"
-import { recordAuditLog } from "@/lib/audit"
+
 import { triggerBudgetAlerts } from "@/features/alerts/server/actions"
 
 export async function createBudget(formData: FormData) {
@@ -46,14 +46,7 @@ export async function createBudget(formData: FormData) {
 
   if (error || !budget) throw new Error(`Error crear presupuesto: ${error?.message}`)
 
-  await recordAuditLog({
-    action: "CREATE_BUDGET",
-    entity: "Ciclo Presupuestario",
-    entityId: budget.id,
-    userId: user.profileId,
-    companyId: budget.companyId,
-    details: { name: budget.name, limit: Number(budget.amountLimitUSD) }
-  })
+
 
   revalidatePath("/dashboard/presupuestos")
 }
@@ -119,14 +112,7 @@ export async function upsertAllocation(formData: FormData) {
     allocationId = fresh.id
   }
 
-  await recordAuditLog({
-    action: "UPSERT_ALLOCATION",
-    entity: "Asignación de Rubro",
-    entityId: allocationId,
-    userId: user.profileId,
-    companyId: budget.companyId,
-    details: { budgetName: budget.name, amount: Number(validated.amountUSD) }
-  })
+
 
   revalidatePath(`/dashboard/presupuestos/${validated.budgetId}`)
 }
@@ -177,14 +163,7 @@ export async function registerAdjustment(formData: FormData) {
 
   if (allocUpdateError) throw allocUpdateError
 
-  await recordAuditLog({
-    action: "ADJUST_BUDGET",
-    entity: "Ajuste Presupuestario",
-    entityId: allocation.id,
-    userId: user.profileId,
-    companyId: (allocation as any).budget.companyId,
-    details: { reason: validated.reason, amount: Number(validated.amountUSD) }
-  })
+
 
   await triggerBudgetAlerts(validated.allocationId)
 
@@ -230,14 +209,7 @@ export async function transferFunds(formData: FormData) {
   // Increment target
   await supabase.from('BudgetAllocation').update({ amountUSD: Number(target.amountUSD) + amount }).eq('id', targetId)
 
-  await recordAuditLog({
-    action: "TRANSFER_FUNDS",
-    entity: "Transferencia Interna",
-    entityId: source.budgetId,
-    userId: user.profileId,
-    companyId: (source as any).budget.companyId,
-    details: { from: sourceId, to: targetId, amount: amount, reason: "Transferencia manual autorizada por Super Admin" }
-  })
+
 
   await Promise.all([
     triggerBudgetAlerts(sourceId),
@@ -278,15 +250,44 @@ export async function updateBudgetMaster(formData: FormData) {
 
   if (uError) throw uError
 
-  await recordAuditLog({
-    action: "UPDATE_BUDGET_MASTER",
-    entity: "Presupuesto Maestro",
-    entityId: id,
-    userId: user.profileId,
-    companyId: budget.companyId,
-    details: { oldLimit: Number(budget.amountLimitUSD), newLimit, reason: "Actualización de techo global operativa" }
-  })
+
 
   revalidatePath(`/dashboard/presupuestos/${id}`)
   revalidatePath("/dashboard/presupuestos")
+}
+
+export async function getAllocationsForCompany(companyId: number) {
+  const user = await requireAuth()
+  const supabase = createClient()
+  
+  // Validar permisos
+  if (user.role !== "SUPER_ADMIN" && Number(user.companyId) !== Number(companyId)) {
+    throw new Error("No autorizado para ver presupuestos de esta empresa")
+  }
+
+  const { data: budgets, error } = await supabase
+    .from('Budget')
+    .select(`
+      id, name,
+      branch:Branch(id, name, company:Company(name)),
+      allocations:BudgetAllocation(
+        id, amountUSD, consumedUSD,
+        category:Category(name),
+        subcategory:Subcategory(name)
+      )
+    `)
+    .eq('companyId', companyId)
+    .eq('status', 'ACTIVE')
+
+  if (error) throw new Error("Error obteniendo presupuestos")
+
+  const availableAllocations = (budgets || []).flatMap((b: any) => 
+      (b.allocations || []).map((a: any) => ({ 
+          id: a.id, 
+          label: `${user.role === "SUPER_ADMIN" ? `[${b.branch.company.name}] ` : ''}${b.name} (${b.branch.name}) - ${a.category.name} ${a.subcategory ? `> ${a.subcategory.name}` : ''}`,
+          remainingUSD: Number(a.amountUSD) - Number(a.consumedUSD)
+      }))
+  )
+
+  return availableAllocations
 }

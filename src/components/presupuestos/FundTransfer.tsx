@@ -6,12 +6,12 @@ import { useTransition } from "react"
 import { toast } from "sonner"
 
 type Allocation = {
-    id: string
+    id: number
     category: { name: string }
     amountUSD: any
 }
 
-export function FundTransfer({ allocations, budgetId }: { allocations: Allocation[], budgetId: string }) {
+export function FundTransfer({ allocations, budgetId }: { allocations: Allocation[], budgetId: number }) {
     const [isPending, startTransition] = useTransition()
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -58,7 +58,7 @@ export function FundTransfer({ allocations, budgetId }: { allocations: Allocatio
                         >
                             <option value="">Selecciona origen...</option>
                             {allocations.map(a => (
-                                <option key={a.id} value={a.id}>{a.category.name} (${Number(a.amountUSD).toLocaleString()})</option>
+                                <option key={a.id} value={a.id.toString()}>{a.category.name} (${Number(a.amountUSD).toLocaleString()})</option>
                             ))}
                         </select>
                     </div>
@@ -72,7 +72,7 @@ export function FundTransfer({ allocations, budgetId }: { allocations: Allocatio
                         >
                             <option value="">Selecciona destino...</option>
                             {allocations.map(a => (
-                                <option key={a.id} value={a.id}>{a.category.name}</option>
+                                <option key={a.id} value={a.id.toString()}>{a.category.name}</option>
                             ))}
                         </select>
                     </div>

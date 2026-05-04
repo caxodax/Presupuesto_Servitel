@@ -10,23 +10,20 @@ import { CreateCategoryModal } from "@/components/categorias/CreateCategoryModal
 export default async function CategoriesPage({ 
   searchParams 
 }: { 
-  searchParams: { companyId?: string; q?: string; page?: string } 
+  searchParams: { q?: string; page?: string } 
 }) {
   const user = await requireAuth()
-  const companyId = searchParams.companyId
   const query = searchParams.q || ""
   const page = Number(searchParams.page) || 1
   const limit = 10
 
-  const [categoriesResult, companiesResult, allCategoriesResult] = await Promise.all([
-     getCategories(companyId, query, page, limit),
-     user.role === "SUPER_ADMIN" ? getAllCompanies() : Promise.resolve([]),
-     getCategories(companyId) // Fetch all for dropdown in modal
+  const [categoriesResult, allCategoriesResult] = await Promise.all([
+     getCategories(query, page, limit),
+     getCategories() // Fetch all for dropdown in modal
   ])
 
   // types cast correctly
   const categoriesData = categoriesResult as { items: any[]; total: number; pageCount: number }
-  const companies = companiesResult as any[]
   const allCategories = allCategoriesResult as any[]
   
   const { items: categories, total, pageCount } = categoriesData
@@ -40,15 +37,11 @@ export default async function CategoriesPage({
          </div>
          
          <div className="flex flex-wrap items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500">
-            {user.role === "SUPER_ADMIN" && (
-              <CompanyFilter companies={companies} />
-            )}
             <SearchInput placeholder="Buscar clasificación..." />
             <CreateCategoryModal 
-              companies={companies} 
+              companies={[]} 
               categories={Array.isArray(allCategories) ? allCategories : []}
               userRole={user.role} 
-              filteredCompanyId={companyId} 
             />
          </div>
       </div>
@@ -60,7 +53,6 @@ export default async function CategoriesPage({
                 <CategoryItem 
                     key={cat.id} 
                     cat={cat} 
-                    showCompanyBadge={user.role === 'SUPER_ADMIN' && !companyId} 
                 />
             ))}
             {categories.length === 0 && (

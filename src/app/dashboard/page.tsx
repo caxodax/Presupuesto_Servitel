@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import { getFilterOptions } from "@/features/dashboard/server/queries"
+import { requireAuth } from "@/lib/permissions"
 import { KpiCards, KpiCardsSkeleton } from "@/components/dashboard/KpiCards"
 import { ExecutiveAnalytics, ExecutiveAnalyticsSkeleton } from "@/components/dashboard/ExecutiveAnalytics"
 import { RecentActivity, ActivitySkeleton } from "@/components/dashboard/RecentActivity"
@@ -8,8 +9,9 @@ import { DashboardFilters } from "@/components/dashboard/DashboardFilters"
 // Exportamos en dynamic permitiendo busquedas real-time del SearchParams sin cacheo agresivo global.
 export const dynamic = "force-dynamic"
 
-export default async function DashboardRootPage({ searchParams }: { searchParams: { companyId?: string, branchId?: string, budgetId?: string } }) {
+export default async function DashboardRootPage({ searchParams }: { searchParams: { companyId?: string, groupId?: string, branchId?: string, budgetId?: string } }) {
   // Opciones de filtro SSR (Se recuperan on-server para hidratar el cliente)
+  const user = await requireAuth()
   const filterOptions = await getFilterOptions()
   
   return (
@@ -28,7 +30,7 @@ export default async function DashboardRootPage({ searchParams }: { searchParams
             </p>
          </div>
          <div className="shrink-0 bg-white dark:bg-zinc-900 p-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-            <DashboardFilters options={filterOptions} />
+            <DashboardFilters options={filterOptions} userRole={user.role} />
          </div>
       </div>
       

@@ -1,53 +1,59 @@
 import { getIncomes } from "@/features/incomes/server/queries"
 import { getIncomeCategories } from "@/features/incomes/server/actions"
 import { getCompanies } from "@/features/companies/server/queries"
+import { getBusinessGroups } from "@/features/companies/server/actions"
 import { requireAuth } from "@/lib/permissions"
 import { IncomesClient } from "@/components/incomes/IncomesClient"
+import { createClient } from "@/lib/supabase/server"
 
-async function fetchBCVRate(): Promise<number | string> {
-  try {
-    const response = await fetch("https://ve.dolarapi.com/v1/dolares/oficial", {
-      next: { revalidate: 3600 }
-    });
-    if (!response.ok) return "";
-    const data = await response.json();
-    return data.promedio || "";
-  } catch (error) {
-    return "";
-  }
-}
+import { getBCVRate } from "@/lib/bcv"
 
 export default async function IncomesListPage({ 
   searchParams 
 }: { 
-  searchParams: { companyId?: string, query?: string, page?: string } 
+  searchParams: { companyId?: string, groupId?: string, query?: string, page?: string } 
 }) {
   const user = await requireAuth()
-  const companyId = searchParams.companyId
-  const query = searchParams.query
+  const supabase = createClient()
+  const { companyId, groupId, query } = searchParams
   const page = Number(searchParams.page) || 1
 
+  // Solo descargamos las empresas si es Super Admin (para pintar el selector).
+  // Ya no descargamos las branches masivamente para aliviar la carga inicial.
+  let companyQuery = supabase.from('Company').select('id, name')
+  if (user.role !== 'SUPER_ADMIN' && user.companyId) {
+    companyQuery = companyQuery.eq('id', user.companyId)
+  }
+
   const results = await Promise.all([
-    getIncomes(companyId, query, page),
-    getIncomeCategories(companyId ? Number(companyId) : undefined),
-    user.role === "SUPER_ADMIN" ? getCompanies() : Promise.resolve([]),
-    fetchBCVRate()
+    getIncomes(companyId, query, page, 10, groupId),
+    user.role === "SUPER_ADMIN" ? companyQuery.then(res => res.data || []) : Promise.resolve([]),
+    getBusinessGroups(true),
+    getBCVRate()
   ])
 
-  const { items: incomes, pageCount } = results[0] as { items: any[]; pageCount: number }
-  const incomeCategories = results[1] as any[]
-  const companies = results[2] as any[]
-  const currentBcvRate = results[3] as string | number
+  const { items: incomes, pageCount, total } = results[0] as { items: any[]; pageCount: number; total: number }
+  const companies = results[1] as any[]
+  const businessGroups = results[2] as any[]
+  const bcvResult = results[3] as any
+  const currentBcvRate = bcvResult.rates?.usd || ""
+
+  // Las categorías se cargarán de forma asíncrona (Lazy Load) en el modal
+  const initialCategories: any[] = []
 
   return (
     <div className="flex flex-col gap-6 pb-12">
       <IncomesClient 
         incomes={incomes}
         companies={companies}
-        categories={incomeCategories}
+        categories={initialCategories}
+        businessGroups={businessGroups}
         currentBcvRate={currentBcvRate}
         userRole={user.role}
         totalPages={pageCount}
+        currentPage={page}
+        totalItems={total}
+        defaultCompanyId={companyId || user.companyId?.toString()}
       />
     </div>
   )

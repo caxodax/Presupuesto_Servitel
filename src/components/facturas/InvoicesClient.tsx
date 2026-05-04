@@ -1,31 +1,68 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { InvoiceModal } from "@/components/facturas/InvoiceModal"
-import { FileText, Plus, Search, Edit2, ExternalLink } from "lucide-react"
+import { 
+    Receipt, 
+    Plus, 
+    Search, 
+    Edit2, 
+    ExternalLink, 
+    Ban,
+    Loader2,
+    Calendar,
+    UserCircle,
+    Layers
+} from "lucide-react"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { SearchInput } from "@/components/ui/SearchInput"
 import { Pagination } from "@/components/ui/Pagination"
+import { anulateInvoice } from "@/features/invoices/server/actions"
+import { toast } from "sonner"
 
 type InvoicesClientProps = {
     invoices: any[]
     companies: any[]
-    availableAllocations: any[]
+    businessGroups: any[]
+    initialAllocations: any[]
     currentBcvRate: string | number
     userRole: string
     totalPages: number
+    currentPage: number
+    totalItems: number
 }
 
 export function InvoicesClient({ 
     invoices, 
     companies, 
-    availableAllocations, 
+    businessGroups,
+    initialAllocations,
     currentBcvRate, 
     userRole,
-    totalPages
+    totalPages,
+    currentPage,
+    totalItems
 }: InvoicesClientProps) {
+  const invoicesList = Array.isArray(invoices) ? invoices : (invoices as any).items || []
+  const companiesList = Array.isArray(companies) ? companies : (companies as any).items || []
+  const businessGroupsList = Array.isArray(businessGroups) ? businessGroups : (businessGroups as any).items || []
+
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null)
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
+  const [isAnulating, setIsAnulating] = useState<number | null>(null)
+  const [localInvoices, setLocalIncomes] = useState(invoicesList)
+
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  const currentGroupId = searchParams.get('groupId')
+  const currentCompanyId = searchParams.get('companyId')
+
+  useEffect(() => {
+    setLocalIncomes(Array.isArray(invoices) ? invoices : (invoices as any).items || [])
+  }, [invoices])
 
   const handleOpenCreate = () => {
     setModalMode("create")
@@ -37,65 +74,138 @@ export function InvoicesClient({
     setModalMode("edit")
   }
 
+  const handleAnulate = async (id: number) => {
+    if (!confirm("¿Desea anular esta factura? Esta acción restaurará los fondos al presupuesto.")) return
+    
+    // Optimistic Update
+    const previousInvoices = [...localInvoices]
+    setLocalIncomes((prev: any[]) => prev.map((inv: any) => inv.id === id ? { ...inv, status: 'CANCELLED' } : inv))
+    
+    setIsAnulating(id)
+    try {
+        await anulateInvoice(id)
+        toast.success("Factura anulada con éxito", {
+            description: "Los fondos han sido reintegrados a la categoría correspondiente."
+        })
+    } catch (e: any) {
+        setLocalIncomes(previousInvoices) // Rollback
+        toast.error(e.message || "Error al anular", {
+            description: "No se pudo procesar la anulación en el servidor."
+        })
+    } finally {
+        setIsAnulating(null)
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       <div className="flex w-full flex-col md:flex-row md:items-end justify-between gap-4">
          <div>
            <h1 className="text-3xl font-black tracking-tight text-foreground flex items-center gap-3">
-              <FileText className="w-8 h-8 text-indigo-500" /> Depósito Operacional
+              <Receipt className="w-8 h-8 text-indigo-500" /> Registro de Facturas
            </h1>
-           <p className="text-sm text-muted-foreground mt-2 font-medium">Manejo central de facturas y auditoría de egresos.</p>
+           <p className="text-sm text-muted-foreground mt-2 font-medium">Gestión y control de egresos contra presupuesto operativo.</p>
          </div>
-         <div className="flex items-center gap-3">
-            <button 
-                onClick={handleOpenCreate}
-                className="flex items-center gap-2 bg-indigo-600 text-white px-6 h-12 rounded-2xl text-sm font-black hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 active:scale-95 transition-all uppercase tracking-widest"
-            >
-                <Plus className="w-5 h-5" /> Nueva Factura
-            </button>
-         </div>
+         <button 
+            onClick={handleOpenCreate}
+            className="h-12 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2 active:scale-95"
+         >
+            <Plus className="w-4 h-4" /> Nueva Factura
+         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row items-center gap-4 bg-white dark:bg-zinc-900 p-4 rounded-[24px] border border-zinc-200 dark:border-zinc-800 shadow-sm">
-          <div className="w-full md:w-96">
-            <SearchInput placeholder="Buscar por #Factura o Proveedor..." />
-          </div>
-          <div className="flex-1" />
-          {/* Aquí podrías añadir un CompanyFilter si lo prefieres en el cliente */}
+      <div className="flex flex-col md:flex-row gap-4 items-center">
+         <div className="w-full md:w-80">
+            <SearchInput placeholder="Buscar por nro. o proveedor..." />
+         </div>
+         {userRole === 'SUPER_ADMIN' && (
+             <div className="flex flex-wrap gap-4 items-center bg-zinc-50 dark:bg-zinc-900 p-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                 <div className="flex items-center gap-2 px-3 border-r border-zinc-200 dark:border-zinc-800">
+                    <Layers className="w-4 h-4 text-indigo-500" />
+                    <select 
+                        value={currentGroupId || ''}
+                        onChange={e => {
+                            const params = new URLSearchParams(searchParams.toString())
+                            if (e.target.value) params.set('groupId', e.target.value)
+                            else params.delete('groupId')
+                            params.delete('companyId')
+                            params.delete('page')
+                            router.push(`${pathname}?${params.toString()}`)
+                        }}
+                        className="bg-transparent border-none outline-none text-[10px] font-black uppercase text-zinc-500 cursor-pointer"
+                    >
+                        <option value="">Matriz: Todas</option>
+                        {businessGroupsList.filter((g: any) => g.isActive).map((g: any) => (
+                            <option key={g.id} value={g.id.toString()}>{g.name}</option>
+                        ))}
+                    </select>
+                 </div>
+                 
+                 <div className="flex flex-wrap gap-2">
+                    <Link href="/dashboard/facturas" className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!currentCompanyId ? 'bg-white dark:bg-zinc-700 shadow-sm text-foreground border border-zinc-200 dark:border-zinc-600' : 'text-zinc-500'}`}>
+                        Global
+                    </Link>
+                    {companiesList
+                        .filter((c: any) => !currentGroupId || Number(c.groupId) === Number(currentGroupId))
+                        .map((company: any) => (
+                            <Link 
+                                key={company.id} 
+                                href={`/dashboard/facturas?companyId=${company.id}${currentGroupId ? `&groupId=${currentGroupId}` : ''}`} 
+                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${currentCompanyId === String(company.id) ? 'bg-white dark:bg-zinc-700 shadow-sm text-foreground border border-zinc-200 dark:border-zinc-600' : 'text-zinc-500 hover:text-foreground'}`}
+                            >
+                                {company.name}
+                            </Link>
+                        ))}
+                 </div>
+             </div>
+         )}
       </div>
 
-      <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-         <div className="overflow-x-auto min-h-[400px]">
+      <div className="bg-white dark:bg-zinc-900 rounded-[32px] border border-zinc-200 dark:border-zinc-800 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden">
+         <div className="overflow-x-auto">
             <table className="w-full text-sm text-left border-collapse">
-              <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800/50 text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                <tr>
-                  <th className="px-8 py-5">Identificador</th>
-                  <th className="px-8 py-5">Proveedor / Origen</th>
-                  <th className="px-8 py-5">Centro de Impacto</th>
-                  <th className="px-8 py-5 text-right">Monto (USD)</th>
-                  <th className="px-8 py-5 text-center">Estado</th>
-                  <th className="px-8 py-5 text-right">Acciones</th>
+              <thead>
+                <tr className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-100 dark:border-zinc-800">
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Detalles del Documento</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 text-right">Monto USD</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 text-right">Monto VES</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 text-center">Estado</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
-                {invoices.map(inv => (
+                {localInvoices.map((inv: any) => (
                   <tr key={inv.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/10 transition-colors group">
                     <td className="px-8 py-5">
-                       <div className="flex flex-col">
-                          <span className="font-black text-foreground text-sm tracking-tight">#{inv.number}</span>
-                          <span className="text-[10px] text-zinc-400 font-bold uppercase">{new Date(inv.date).toLocaleDateString()}</span>
+                       <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${inv.status === 'CANCELLED' ? 'bg-rose-50 border-rose-100 text-rose-400 dark:bg-rose-500/5 dark:border-rose-900/30' : 'bg-indigo-50 border-indigo-100 text-indigo-500 dark:bg-indigo-500/5 dark:border-indigo-900/30'}`}>
+                                <Receipt className="w-5 h-5" />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="font-black text-foreground tracking-tight">#{inv.number}</span>
+                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">{inv.supplierName}</span>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <Calendar className="w-3 h-3 text-zinc-300" />
+                                    <span className="text-[10px] text-zinc-400 font-medium">{new Date(inv.date).toLocaleDateString()}</span>
+                                </div>
+                            </div>
                        </div>
                     </td>
-                    <td className="px-8 py-5 font-bold text-zinc-700 dark:text-zinc-300">{inv.supplierName}</td>
-                    <td className="px-8 py-5">
-                        <div className="flex flex-col">
-                           <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">{(inv.allocation as any).category.name}</span>
-                           <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tight">{(inv.allocation as any).budget.branch.name}</span>
+                    <td className="px-8 py-5 text-right">
+                        <div className="flex flex-col items-end">
+                            <span className={`font-black text-sm ${inv.status === 'CANCELLED' ? 'text-zinc-400 line-through' : 'text-foreground'}`}>
+                                ${Number(inv.amountUSD).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </span>
+                            <span className="text-[10px] text-zinc-400 font-bold uppercase">USD</span>
                         </div>
                     </td>
                     <td className="px-8 py-5 text-right">
-                        <div className="font-black text-foreground text-sm">${Number(inv.amountUSD).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-                        <div className="text-[10px] text-zinc-400 font-bold">VES {Number(inv.amountVES).toLocaleString('es-VE')}</div>
+                        <div className="flex flex-col items-end">
+                            <span className={`font-bold text-xs ${inv.status === 'CANCELLED' ? 'text-zinc-400 line-through' : 'text-zinc-500'}`}>
+                                {Number(inv.amountVES).toLocaleString(undefined, { minimumFractionDigits: 2 })} Bs
+                            </span>
+                            <span className="text-[10px] text-zinc-400 font-bold uppercase">Rate: {Number(inv.exchangeRate).toFixed(4)}</span>
+                        </div>
                     </td>
                     <td className="px-8 py-5 text-center">
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black tracking-widest ${
@@ -110,7 +220,8 @@ export function InvoicesClient({
                         <div className="flex items-center justify-end gap-2">
                              <button 
                                 onClick={() => handleOpenEdit(inv)}
-                                className="p-2.5 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-xl text-amber-500 transition-all active:scale-90 border border-transparent hover:border-amber-100"
+                                disabled={inv.status === 'CANCELLED'}
+                                className="p-2.5 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-xl text-amber-500 transition-all active:scale-90 border border-transparent hover:border-amber-100 disabled:opacity-30"
                                 title="Editar Factura"
                              >
                                 <Edit2 className="w-4 h-4" />
@@ -122,11 +233,19 @@ export function InvoicesClient({
                              >
                                 <ExternalLink className="w-4 h-4" />
                              </Link>
+                             <button 
+                                onClick={() => handleAnulate(inv.id)}
+                                disabled={inv.status === 'CANCELLED' || isAnulating === inv.id}
+                                className="p-2.5 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl text-rose-500 transition-all active:scale-90 border border-transparent hover:border-rose-100 disabled:opacity-30"
+                                title="Anular Factura"
+                             >
+                                {isAnulating === inv.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                             </button>
                         </div>
                     </td>
                   </tr>
                 ))}
-                {invoices.length === 0 && (
+                {localInvoices.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-8 py-20 text-center">
                        <div className="flex flex-col items-center gap-3">
@@ -143,7 +262,7 @@ export function InvoicesClient({
          </div>
          {totalPages > 1 && (
             <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/10">
-                <Pagination totalPages={totalPages} />
+                <Pagination page={currentPage} pageCount={totalPages} total={totalItems} />
             </div>
          )}
       </div>
@@ -152,8 +271,10 @@ export function InvoicesClient({
         <InvoiceModal 
             mode={modalMode}
             invoice={selectedInvoice}
-            availableAllocations={availableAllocations}
+            companies={companies}
+            initialAllocations={initialAllocations}
             currentBcvRate={currentBcvRate}
+            userRole={userRole}
             onClose={() => setModalMode(null)}
         />
       )}

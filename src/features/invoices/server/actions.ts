@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope } from "@/lib/permissions"
 import { invoiceSchema } from "../validations"
 import { triggerBudgetAlerts } from "@/features/alerts/server/actions"
-import { recordAuditLog } from "@/lib/audit"
 import { revalidatePath } from "next/cache"
 import { r2Client, BUCKET_NAME } from "@/lib/r2"
 import { PutObjectCommand } from "@aws-sdk/client-s3"
@@ -38,7 +37,7 @@ export async function createInvoice(formData: FormData) {
   
   enforceCompanyScope(user, companyId)
 
-  // Procesar Adjunto en Cloudflare R2 (10GB Free Tier)
+  // Procesar Adjunto en Cloudflare R2
   const file = formData.get("attachment") as File
   let attachmentKey: string | null = null
   let attachmentName: string | null = null
@@ -84,15 +83,6 @@ export async function createInvoice(formData: FormData) {
     p_amount_ves: calculatedVES
   })
 
-  await recordAuditLog({
-    action: "CREATE_INVOICE",
-    entity: "Factura Operativa",
-    entityId: inv.id,
-    companyId: (allocation as any).budget.companyId,
-    userId: user.profileId,
-    details: { number: inv.number, amount: validated.amountUSD }
-  })
-
   await triggerBudgetAlerts(validated.allocationId)
   revalidatePath('/dashboard/facturas')
 }
@@ -113,7 +103,7 @@ export async function updateInvoice(formData: FormData) {
 
   const { data: oldInvoice, error: fError } = await supabase
     .from('Invoice')
-    .select('*, allocation:BudgetAllocation(*)')
+    .select('*, allocation:BudgetAllocation(*, budget:Budget(branchId))')
     .eq('id', invoiceId)
     .single()
 
@@ -129,7 +119,7 @@ export async function updateInvoice(formData: FormData) {
 
   const budgetInfo = (targetAlloc as any)?.budget
   const targetCompanyId = budgetInfo?.companyId || oldInvoice.companyId
-  const targetBranchId = budgetInfo?.branchId || oldInvoice.branchId
+  const targetBranchId = budgetInfo?.branchId || (oldInvoice.allocation as any)?.budget?.branchId
   const companyName = budgetInfo?.branch.company.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || 'desconocida'
   const branchName = budgetInfo?.branch.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || 'desconocida'
 
@@ -181,15 +171,6 @@ export async function updateInvoice(formData: FormData) {
 
   if (uError) throw new Error(`Error al actualizar factura: ${uError.message}`)
 
-  await recordAuditLog({
-     action: "UPDATE_INVOICE",
-     entity: "Factura Operativa",
-     entityId: invoiceId,
-     companyId: oldInvoice.companyId,
-     userId: user.profileId,
-     details: { oldAmount: oldInvoice.amountUSD, newAmount: validated.amountUSD }
-  })
-
   revalidatePath('/dashboard/facturas')
   revalidatePath(`/dashboard/facturas/${invoiceId}`)
 }
@@ -200,8 +181,40 @@ export async function getRateByDate(date: string) {
       .from('ExchangeRate')
       .select('usd')
       .eq('date', date)
-      .single()
+      .maybeSingle()
   
     if (error || !data) return null
     return Number(data.usd)
+}
+
+export async function anulateInvoice(id: number) {
+  const user = await requireAuth()
+  const supabase = createClient()
+
+  const { data: invoice, error: fError } = await supabase
+    .from('Invoice')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (fError || !invoice) throw new Error("Factura no encontrada")
+  if (invoice.status === 'CANCELLED') throw new Error("La factura ya está anulada")
+
+  enforceCompanyScope(user, invoice.companyId)
+
+  // Restaurar presupuesto
+  await supabase.rpc('adjust_allocation_on_invoice', {
+    p_allocation_id: invoice.allocationId,
+    p_amount_usd: -Number(invoice.amountUSD),
+    p_amount_ves: -Number(invoice.amountVES)
+  })
+
+  const { error: uError } = await supabase
+    .from('Invoice')
+    .update({ status: 'CANCELLED' })
+    .eq('id', id)
+
+  if (uError) throw new Error(`Error al anular: ${uError.message}`)
+
+  revalidatePath('/dashboard/facturas')
 }

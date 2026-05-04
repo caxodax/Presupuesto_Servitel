@@ -18,6 +18,7 @@ export function FileUploadInput({ name, currentFile }: { name: string, currentFi
             <div className="relative group">
                 <input 
                     type="file" 
+                    id={name}
                     name={name}
                     accept="image/*,.pdf"
                     onChange={(e) => {

@@ -1,9 +1,11 @@
 import { getBudgets } from "@/features/budgets/server/queries"
-import { getBranches, getCompanies, getAllCompanies } from "@/features/companies/server/queries"
+import { getBranches, getAllCompanies } from "@/features/companies/server/queries"
+import { getBusinessGroups } from "@/features/companies/server/actions"
 import { Layers } from "lucide-react"
 import Link from "next/link"
 import { CompanyFilter } from "@/components/ui/CompanyFilter"
 import { BranchFilter } from "@/components/ui/BranchFilter"
+import { GroupFilter } from "@/components/ui/GroupFilter"
 import { SearchInput } from "@/components/ui/SearchInput"
 import { Pagination } from "@/components/ui/Pagination"
 import { CreateBudgetModal } from "@/components/presupuestos/CreateBudgetModal"
@@ -12,26 +14,32 @@ import { requireAuth } from "@/lib/permissions"
 export default async function BudgetsRootPage({ 
   searchParams 
 }: { 
-  searchParams: { companyId?: string; branchId?: string; q?: string; page?: string } 
+  searchParams: { companyId?: string; branchId?: string; groupId?: string; q?: string; page?: string } 
 }) {
   const user = await requireAuth()
-  const companyId = searchParams.companyId;
-  const branchId = searchParams.branchId;
+  const { companyId, branchId, groupId, q: query = "" } = searchParams;
   const companyIdNum = companyId ? Number(companyId) : undefined;
-  const query = searchParams.q || "";
   const page = Number(searchParams.page) || 1;
   const limit = 10;
 
-  const [budgetsResult, branchesResult, companiesResult] = await Promise.all([
-    getBudgets(companyId, branchId, query, page, limit),
+  const [budgetsResult, branchesResult, companiesResult, businessGroups] = await Promise.all([
+    getBudgets(companyId, branchId, query, page, limit, groupId),
     getBranches(companyIdNum), 
     user.role === "SUPER_ADMIN" ? getAllCompanies() : Promise.resolve([]),
+    getBusinessGroups(true)
   ])
   
   // Extraer valores paginados o listados
   const { items: budgets, total, pageCount } = budgetsResult as any
-  const branches = branchesResult as any[]
-  const companies = companiesResult as any[]
+  let branches = Array.isArray(branchesResult) ? branchesResult : (branchesResult as any).items || []
+  let companies = companiesResult as any[]
+
+  if (groupId) {
+    companies = companies.filter(c => Number(c.groupId) === Number(groupId))
+    // Filter branches of those companies
+    const companyIds = companies.map(c => c.id)
+    branches = branches.filter(b => companyIds.includes(b.companyId))
+  }
 
   return (
     <div className="flex flex-col gap-8 pb-20 max-w-7xl mx-auto w-full">
@@ -43,6 +51,7 @@ export default async function BudgetsRootPage({
          <div className="flex flex-wrap items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500">
            {user.role === "SUPER_ADMIN" && (
               <>
+                <GroupFilter groups={businessGroups} />
                 <CompanyFilter companies={companies} />
                 <BranchFilter branches={branches} selectedCompanyId={companyId} />
               </>

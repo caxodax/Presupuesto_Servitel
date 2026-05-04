@@ -5,7 +5,7 @@ import { Plus, X, Building2, Loader2, Check } from "lucide-react"
 import { createCompany } from "@/features/companies/server/actions"
 import { toast } from "sonner"
 
-export function CreateCompanyModal() {
+export function CreateCompanyModal({ businessGroups }: { businessGroups: any[] }) {
   const [isOpen, setIsOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -75,10 +75,23 @@ export function CreateCompanyModal() {
                     className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50" 
                   />
                   <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity">
-                    {/* Solo muestra el check si no esta pending */}
                     {!isPending && <Check className="w-4 h-4 text-emerald-500" />}
                   </div>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Matriz / Sector</label>
+                <select 
+                    name="groupId"
+                    disabled={isPending}
+                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+                >
+                    <option value="">Ninguna (Independiente)</option>
+                    {businessGroups.filter(g => g.isActive).map(group => (
+                        <option key={group.id} value={group.id}>{group.name}</option>
+                    ))}
+                </select>
               </div>
 
               <div className="flex gap-3 pt-4">
