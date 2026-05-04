@@ -1,5 +1,5 @@
 import { getAuditTrail } from "@/features/audit/server/queries"
-import { getCompanies } from "@/features/companies/server/queries"
+import { getCompanies, getAllCompanies } from "@/features/companies/server/queries"
 import { requireAuth } from "@/lib/permissions"
 import { CompanyFilter } from "@/components/ui/CompanyFilter"
 import { Activity, Search, ServerCog, User, Clock, Filter, ArrowLeft, ArrowRight } from "lucide-react"
@@ -7,8 +7,10 @@ import Link from "next/link"
 
 export default async function AuditForensicPage({ searchParams }: { searchParams: any }) {
   const user = await requireAuth()
-  const { logs, metadata } = await getAuditTrail(searchParams);
-  const companies = user.role === 'SUPER_ADMIN' ? await getCompanies() : []
+  const [{ logs, metadata }, companies] = await Promise.all([
+    getAuditTrail(searchParams),
+    user.role === 'SUPER_ADMIN' ? getAllCompanies() : Promise.resolve([])
+  ])
   
   const actionFilter = searchParams.actionFilter || '';
   const companyId = searchParams.companyId || '';

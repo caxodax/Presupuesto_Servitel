@@ -1,7 +1,5 @@
 import { requireAuth } from "@/lib/permissions"
-import { getAllCompanies, getBranches } from "@/features/companies/server/queries"
-import { getBusinessGroups } from "@/features/companies/server/actions"
-import { getCategories } from "@/features/categories/server/queries"
+import { getCachedCompanies, getCachedBranches, getCachedCategories, getCachedBusinessGroups } from "@/lib/cache"
 import { ReportsClient } from "@/components/reports/ReportsClient"
 import { Suspense } from "react"
 import { ReportsSkeleton } from "@/components/reports/ReportsSkeleton"
@@ -9,12 +7,12 @@ import { ReportsSkeleton } from "@/components/reports/ReportsSkeleton"
 export default async function ReportsPage() {
     const user = await requireAuth()
     
-    // Fetch initial data for filters
+    // Fetch initial data for filters using the cached layer
     const [companies, branches, categories, businessGroups] = await Promise.all([
-        getAllCompanies(),
-        getBranches(user.role !== 'SUPER_ADMIN' ? (user.companyId || undefined) : undefined),
-        getCategories(user.role !== 'SUPER_ADMIN' ? (user.companyId?.toString() || undefined) : undefined),
-        getBusinessGroups(true)
+        getCachedCompanies(),
+        getCachedBranches(user.role !== 'SUPER_ADMIN' ? (user.companyId || undefined) : undefined),
+        getCachedCategories({ companyId: user.role !== 'SUPER_ADMIN' ? (user.companyId || undefined) : undefined }),
+        getCachedBusinessGroups(true)
     ])
 
     return (

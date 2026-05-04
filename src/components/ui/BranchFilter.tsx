@@ -57,7 +57,7 @@ export function BranchFilter({ branches, selectedCompanyId }: { branches: Branch
         className="bg-transparent text-sm font-bold outline-none text-foreground cursor-pointer w-auto max-w-[140px] truncate disabled:cursor-wait"
       >
         <option value="">Todas</option>
-        {filteredBranches.map((branch) => (
+        {filteredBranches.map((branch: any) => (
           <option key={branch.id} value={branch.id}>
             {branch.name}
           </option>

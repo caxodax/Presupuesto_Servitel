@@ -11,8 +11,10 @@ export const dynamic = "force-dynamic"
 
 export default async function DashboardRootPage({ searchParams }: { searchParams: { companyId?: string, groupId?: string, branchId?: string, budgetId?: string } }) {
   // Opciones de filtro SSR (Se recuperan on-server para hidratar el cliente)
-  const user = await requireAuth()
-  const filterOptions = await getFilterOptions()
+  const [user, filterOptions] = await Promise.all([
+    requireAuth(),
+    getFilterOptions()
+  ])
   
   return (
     <div className="flex flex-col gap-6 h-full pb-10">

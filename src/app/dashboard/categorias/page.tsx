@@ -18,7 +18,7 @@ export default async function CategoriesPage({
   const limit = 10
 
   const [categoriesResult, allCategoriesResult] = await Promise.all([
-     getCategories(query, page, limit),
+     getCategories({ query, page, limit }),
      getCategories() // Fetch all for dropdown in modal
   ])
 
@@ -53,6 +53,7 @@ export default async function CategoriesPage({
                 <CategoryItem 
                     key={cat.id} 
                     cat={cat} 
+                    showCompanyBadge={user.role === 'SUPER_ADMIN'}
                 />
             ))}
             {categories.length === 0 && (

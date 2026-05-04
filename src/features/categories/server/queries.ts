@@ -5,7 +5,14 @@ import { requireAuth } from "@/lib/permissions"
  * Devuelve el catálogo jerárquico segmentado exclusivamente 
  * al ámbito visible del usuario (RLS)
  */
-export async function getCategories(queryParam?: string, page?: number, limit: number = 10, type?: 'EXPENSE' | 'INCOME') {
+export async function getCategories(options: { 
+  query?: string, 
+  page?: number, 
+  limit?: number, 
+  type?: 'EXPENSE' | 'INCOME', 
+  companyId?: number 
+} = {}) {
+  const { query: queryParam, page, limit = 10, type, companyId } = options
   const user = await requireAuth()
   const supabase = createClient()
   
@@ -24,6 +31,10 @@ export async function getCategories(queryParam?: string, page?: number, limit: n
 
   if (type) {
     query = query.eq('type', type)
+  }
+
+  if (companyId) {
+    query = query.or(`companyId.eq.${companyId},companyId.is.null`)
   }
 
   if (page === undefined) {

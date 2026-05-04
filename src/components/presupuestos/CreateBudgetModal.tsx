@@ -109,7 +109,7 @@ export function CreateBudgetModal({
                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Sucursal Anclada</label>
                 <select name="branchId" defaultValue="" required disabled={isPending || (!selectedCompany && companiesList.length > 1)} className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all disabled:opacity-50">
                   <option value="" disabled>Selecciona la Sucursal...</option>
-                  {filteredBranches.map(branch => (
+                  {filteredBranches.map((branch: any) => (
                      <option key={branch.id} value={branch.id.toString()}>{branch.name}</option>
                   ))}
                 </select>

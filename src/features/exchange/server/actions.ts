@@ -97,7 +97,10 @@ export async function getEffectiveRate() {
     // 2. No hay en DB para hoy, sincronizar
     try {
         const synced = await syncDailyExchangeRate()
-        return { usd: synced.rates.usd, eur: synced.rates.eur, source: 'BCV (Auto-sync)' }
+        if (synced.action !== 'error' && synced.rates) {
+            return { usd: synced.rates.usd, eur: synced.rates.eur, source: 'BCV (Auto-sync)' }
+        }
+        throw new Error(synced.error || "Sync failed")
     } catch (error) {
         console.error("Auto-sync failed, using latest available or fallback:", error)
         

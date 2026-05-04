@@ -26,9 +26,13 @@ export function RatesManagerClient({ initialRates }: { initialRates: any[] }) {
         setIsSyncing(true)
         try {
             const result = await syncDailyExchangeRate()
-            toast.success(`Tasa sincronizada: ${result.rates.usd} USD / ${result.rates.eur} EUR`)
-            // Recargar (o simplemente añadir al estado si es la misma fecha)
-            window.location.reload()
+            if (result.action === 'error') {
+                toast.error("Error: " + result.error)
+            } else if (result.rates) {
+                toast.success(`Tasa sincronizada: ${result.rates.usd} USD / ${result.rates.eur} EUR`)
+                // Recargar
+                window.location.reload()
+            }
         } catch (error: any) {
             toast.error("Error al sincronizar: " + error.message)
         } finally {

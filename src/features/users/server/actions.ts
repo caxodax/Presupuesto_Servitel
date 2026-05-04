@@ -46,7 +46,8 @@ export async function createUser(formData: FormData) {
   if (authError) throw new Error(`Error en Auth: ${authError.message}`)
 
   // 2. Crear en nuestra tabla 'User'
-  const { data: newUser, error } = await adminClient
+  const supabase = createClient()
+  const { data: newUser, error } = await supabase
     .from('User')
     .insert({
       authId: authUser.user.id,
@@ -115,7 +116,7 @@ export async function updateUser(formData: FormData) {
           if (authError) throw new Error(`Error Auth Creation: ${authError.message}`)
           
           // Vincular el nuevo authId al perfil
-          await adminClient.from('User').update({ authId: newAuth.user.id }).eq('id', userId)
+          await supabase.from('User').update({ authId: newAuth.user.id }).eq('id', userId)
       }
   }
 

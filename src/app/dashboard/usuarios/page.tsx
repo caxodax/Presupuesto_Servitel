@@ -1,6 +1,6 @@
 import { getUsers } from "@/features/users/server/queries"
-import { getCompanies, getAllCompanies, getBranches } from "@/features/companies/server/queries"
 import { requireAuth } from "@/lib/permissions"
+import { getCachedCompanies, getCachedBranches } from "@/lib/cache"
 import { CompanyFilter } from "@/components/ui/CompanyFilter"
 import { BranchFilter } from "@/components/ui/BranchFilter"
 import { CreateUserModal } from "@/components/usuarios/CreateUserModal"
@@ -22,13 +22,13 @@ export default async function UsuariosPage({
 
   const [usersResult, companiesResult, branchesResult] = await Promise.all([
      getUsers(companyIdNum, branchIdNum, page, limit), 
-     user.role === 'SUPER_ADMIN' ? getAllCompanies() : Promise.resolve([]),
-     getBranches()
+     user.role === 'SUPER_ADMIN' ? getCachedCompanies() : Promise.resolve([]),
+     getCachedBranches()
   ])
 
   const { items: users, total, pageCount } = usersResult
   const companies = companiesResult as any[]
-  const branches = branchesResult as any[]
+  const branches = (branchesResult as any).items || []
 
   return (
     <div className="flex flex-col gap-8 pb-20 max-w-7xl mx-auto w-full">

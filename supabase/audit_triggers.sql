@@ -15,11 +15,8 @@ BEGIN
     v_entity := TG_TABLE_NAME;
     v_userId := public.get_auth_user_id();
     
-    IF v_userId IS NULL THEN
-        -- Si no hay usuario en sesión (ej. proceso automático), no registramos o registramos como sistema
-        -- Por ahora, asumimos que todas las acciones vienen de usuarios.
-        v_userId := 1; -- Fallback seguro si se necesita, aunque idealmente no debería ocurrir si hay Auth.
-    END IF;
+    -- Si no hay usuario en sesión (ej. Service Role o proceso automático), v_userId será NULL.
+    -- Esto requiere que la columna "userId" en "AuditLog" sea NULLABLE.
 
     IF TG_OP = 'INSERT' THEN
         v_action := 'CREATE';

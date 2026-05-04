@@ -74,7 +74,7 @@ CREATE POLICY "SuperAdmins can do everything on Category" ON "Category"
 FOR ALL USING (public.get_auth_user_role() = 'SUPER_ADMIN');
 
 CREATE POLICY "Users can view categories of their company" ON "Category"
-FOR SELECT USING ("companyId" = public.get_auth_user_company_id());
+FOR SELECT USING ("companyId" = public.get_auth_user_company_id() OR "companyId" IS NULL);
 
 CREATE POLICY "CompanyAdmins can manage categories" ON "Category"
 FOR ALL USING (
@@ -199,6 +199,15 @@ FOR ALL USING (
   public.get_auth_user_role() IN ('COMPANY_ADMIN', 'OPERATOR')
 );
 
+-- === BusinessGroup ===
+ALTER TABLE "BusinessGroup" ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "SuperAdmins can do everything on BusinessGroup" ON "BusinessGroup"
+FOR ALL USING (public.get_auth_user_role() = 'SUPER_ADMIN');
+
+CREATE POLICY "Users can view BusinessGroups" ON "BusinessGroup"
+FOR SELECT USING (true); -- Permitimos ver grupos para filtros y selección
+
 -- === ExchangeRate ===
 ALTER TABLE "ExchangeRate" ENABLE ROW LEVEL SECURITY;
 
@@ -207,3 +216,4 @@ FOR SELECT USING (true);
 
 CREATE POLICY "SuperAdmins can manage exchange rates" ON "ExchangeRate"
 FOR ALL USING (public.get_auth_user_role() = 'SUPER_ADMIN');
+

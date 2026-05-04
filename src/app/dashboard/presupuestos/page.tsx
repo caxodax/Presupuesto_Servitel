@@ -1,6 +1,4 @@
 import { getBudgets } from "@/features/budgets/server/queries"
-import { getBranches, getAllCompanies } from "@/features/companies/server/queries"
-import { getBusinessGroups } from "@/features/companies/server/actions"
 import { Layers } from "lucide-react"
 import Link from "next/link"
 import { CompanyFilter } from "@/components/ui/CompanyFilter"
@@ -10,6 +8,7 @@ import { SearchInput } from "@/components/ui/SearchInput"
 import { Pagination } from "@/components/ui/Pagination"
 import { CreateBudgetModal } from "@/components/presupuestos/CreateBudgetModal"
 import { requireAuth } from "@/lib/permissions"
+import { getCachedCompanies, getCachedBranches, getCachedBusinessGroups } from "@/lib/cache"
 
 export default async function BudgetsRootPage({ 
   searchParams 
@@ -24,9 +23,9 @@ export default async function BudgetsRootPage({
 
   const [budgetsResult, branchesResult, companiesResult, businessGroups] = await Promise.all([
     getBudgets(companyId, branchId, query, page, limit, groupId),
-    getBranches(companyIdNum), 
-    user.role === "SUPER_ADMIN" ? getAllCompanies() : Promise.resolve([]),
-    getBusinessGroups(true)
+    getCachedBranches(companyIdNum), 
+    user.role === "SUPER_ADMIN" ? getCachedCompanies() : Promise.resolve([]),
+    getCachedBusinessGroups(true)
   ])
   
   // Extraer valores paginados o listados
@@ -35,10 +34,10 @@ export default async function BudgetsRootPage({
   let companies = companiesResult as any[]
 
   if (groupId) {
-    companies = companies.filter(c => Number(c.groupId) === Number(groupId))
+    companies = companies.filter((c: any) => Number(c.groupId) === Number(groupId))
     // Filter branches of those companies
-    const companyIds = companies.map(c => c.id)
-    branches = branches.filter(b => companyIds.includes(b.companyId))
+    const companyIds = companies.map((c: any) => c.id)
+    branches = branches.filter((b: any) => companyIds.includes(b.companyId))
   }
 
   return (

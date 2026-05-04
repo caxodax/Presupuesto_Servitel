@@ -1,5 +1,5 @@
 import { getBudgetDetails } from "@/features/budgets/server/queries"
-import { getCategories } from "@/features/categories/server/queries"
+import { getCachedCategories } from "@/lib/cache"
 import { ArrowLeft, Activity } from "lucide-react"
 import Link from "next/link"
 import { requireAuth } from "@/lib/permissions"
@@ -11,9 +11,16 @@ import { CreateAllocationModal } from "@/components/presupuestos/CreateAllocatio
 import { AdjustmentLogModal } from "@/components/presupuestos/AdjustmentLogModal"
 
 export default async function BudgetDetailsPage({ params }: { params: { id: string } }) {
-  const user = await requireAuth()
-  const data = await getBudgetDetails(Number(params.id))
-  const availableCategories = (await getCategories(data.budget.companyId)) as any[]
+  const [user, data] = await Promise.all([
+    requireAuth(),
+    getBudgetDetails(Number(params.id))
+  ])
+  
+  // Usamos la capa de caché para las categorías del presupuesto
+  // Si es SUPER_ADMIN, permitimos ver todas las categorías para facilitar la configuración
+  const availableCategories = await getCachedCategories({ 
+    companyId: user.role === 'SUPER_ADMIN' ? undefined : data.budget.companyId 
+  }) as any[]
   
   const { budget, stats } = data
 
@@ -45,7 +52,7 @@ export default async function BudgetDetailsPage({ params }: { params: { id: stri
          
          <div className="flex flex-wrap items-center gap-3">
              <CreateAllocationModal budgetId={budget.id.toString()} availableCategories={availableCategories} userRole={user.role} />
-             <MasterBudgetEditor budgetId={budget.id} currentLimit={stats.originalHardLimit} />
+             <MasterBudgetEditor budgetId={budget.id.toString()} currentLimit={stats.originalHardLimit} />
          </div>
       </div>
 
