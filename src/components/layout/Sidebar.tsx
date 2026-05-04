@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { auth } from "@/lib/auth"
-import { LayoutDashboard, Building2, GitBranch, Layers, FolderTree, FileText, Activity, Users, ShieldCheck, Wallet, BarChart3 } from "lucide-react"
+import { LayoutDashboard, Building2, GitBranch, Layers, FolderTree, FileText, Activity, Users, ShieldCheck, Wallet, BarChart3, TrendingUp } from "lucide-react"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -11,6 +11,7 @@ const navigation = [
   { name: "Presupuestos", href: "/dashboard/presupuestos", icon: Layers, roles: ["SUPER_ADMIN"] },
   { name: "Facturas", href: "/dashboard/facturas", icon: FileText },
   { name: "Ingresos", href: "/dashboard/ingresos", icon: Wallet },
+  { name: "Tasas BCV", href: "/dashboard/tasas", icon: TrendingUp, roles: ["SUPER_ADMIN"] },
   { name: "Reportes", href: "/dashboard/reportes", icon: BarChart3, roles: ["SUPER_ADMIN", "COMPANY_ADMIN", "AUDITOR"] },
   { name: "Auditoría", href: "/dashboard/auditoria", icon: Activity, roles: ["SUPER_ADMIN", "COMPANY_ADMIN", "AUDITOR"] },
 

@@ -7,28 +7,35 @@ export async function getBCVRate() {
   const url = "https://www.bcv.org.ve/";
   
   try {
-    // Nota: BCV a veces tiene problemas de certificados SSL. 
-    // Usamos un timeout y headers comunes para evitar bloqueos.
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      },
-      next: { revalidate: 3600 },
-      // @ts-ignore - Para entornos donde el certificado del BCV es inválido
-      agent: typeof window === 'undefined' ? new (require('https').Agent)({ rejectUnauthorized: false }) : undefined
+    const html = await new Promise<string>((resolve, reject) => {
+        const https = require('https');
+        const options = {
+            hostname: 'www.bcv.org.ve',
+            path: '/',
+            method: 'GET',
+            rejectUnauthorized: false, // Ignorar errores de certificado
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        };
+
+        const req = https.request(options, (res: any) => {
+            let data = '';
+            res.on('data', (chunk: any) => data += chunk);
+            res.on('end', () => resolve(data));
+        });
+
+        req.on('error', (e: any) => reject(e));
+        req.end();
     });
-
-    if (!response.ok) throw new Error("No se pudo conectar con el portal del BCV");
-
-    const html = await response.text();
 
     // Función simple de extracción por Regex para no depender de librerías extras si no es necesario
     const extractRate = (currencyId: string) => {
-        const regex = new RegExp(`id="${currencyId}"[^>]*>[^<]*<strong>\\s*([^<]+)\\s*</strong>`, 'i');
+        // El valor está en un <strong> cercano al div con el id de la moneda
+        // Buscamos el ID y luego el primer <strong> que aparezca después
+        const regex = new RegExp(`id="${currencyId}"[\\s\\S]*?<strong>\\s*([^<]+)\\s*</strong>`, 'i');
         const match = html.match(regex);
         if (match && match[1]) {
-            // Limpia comas por puntos para que sea un número válido en JS
             return parseFloat(match[1].replace(',', '.').trim());
         }
         return null;

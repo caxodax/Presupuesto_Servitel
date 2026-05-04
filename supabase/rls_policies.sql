@@ -198,3 +198,12 @@ FOR ALL USING (
   "companyId" = public.get_auth_user_company_id() AND 
   public.get_auth_user_role() IN ('COMPANY_ADMIN', 'OPERATOR')
 );
+
+-- === ExchangeRate ===
+ALTER TABLE "ExchangeRate" ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view exchange rates" ON "ExchangeRate"
+FOR SELECT USING (true);
+
+CREATE POLICY "SuperAdmins can manage exchange rates" ON "ExchangeRate"
+FOR ALL USING (public.get_auth_user_role() = 'SUPER_ADMIN');

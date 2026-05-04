@@ -6,7 +6,7 @@ import { requireAuth } from "@/lib/permissions"
 import { IncomesClient } from "@/components/incomes/IncomesClient"
 import { createClient } from "@/lib/supabase/server"
 
-import { getBCVRate } from "@/lib/bcv"
+import { getEffectiveRate } from "@/features/exchange/server/actions"
 
 export default async function IncomesListPage({ 
   searchParams 
@@ -29,14 +29,14 @@ export default async function IncomesListPage({
     getIncomes(companyId, query, page, 10, groupId),
     user.role === "SUPER_ADMIN" ? companyQuery.then(res => res.data || []) : Promise.resolve([]),
     getBusinessGroups(true),
-    getBCVRate()
+    getEffectiveRate()
   ])
 
   const { items: incomes, pageCount, total } = results[0] as { items: any[]; pageCount: number; total: number }
   const companies = results[1] as any[]
   const businessGroups = results[2] as any[]
   const bcvResult = results[3] as any
-  const currentBcvRate = bcvResult.rates?.usd || ""
+  const currentBcvRate = bcvResult.usd || ""
 
   // Las categorías se cargarán de forma asíncrona (Lazy Load) en el modal
   const initialCategories: any[] = []

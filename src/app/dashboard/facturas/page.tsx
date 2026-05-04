@@ -5,7 +5,7 @@ import { getBudgets } from "@/features/budgets/server/queries"
 import { requireAuth } from "@/lib/permissions"
 import { InvoicesClient } from "@/components/facturas/InvoicesClient"
 
-import { getBCVRate } from "@/lib/bcv"
+import { getEffectiveRate } from "@/features/exchange/server/actions"
 
 // La función fetchBCVRate local ya no es necesaria pues usamos lib/bcv centralizado con caché
 
@@ -22,15 +22,14 @@ export default async function InvoicesListPage({
     getInvoices(companyId, query, page, 10, groupId),
     user.role === "SUPER_ADMIN" ? getCompanies() : Promise.resolve([]),
     getBusinessGroups(true),
-    getBCVRate()
+    getEffectiveRate()
   ])
 
   const { items: invoices, pageCount, total } = results[0] as { items: any[]; pageCount: number; total: number }
   const companies = results[1] as any[]
   const businessGroups = results[2] as any[]
   const bcvResult = results[3] as any
-
-  const currentBcvRate = bcvResult.rates?.usd || ""
+  const currentBcvRate = bcvResult.usd || ""
 
   // La carga diferida (Lazy Loading) de alocaciones ocurre ahora dentro del InvoiceModal
   // para evitar descargar todo el ecosistema de presupuestos.
