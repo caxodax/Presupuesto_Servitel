@@ -114,7 +114,7 @@ export function DashboardFilters({ options, userRole }: { options: { companies: 
                 >
                    <option value="">🗺️ Todas Sucursales</option>
                    {options.branches
-                      .filter(b => !currentCompany || b.companyId === currentCompany)
+                      .filter(b => !currentCompany || b.companyId.toString() === currentCompany)
                       .map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
@@ -135,7 +135,7 @@ export function DashboardFilters({ options, userRole }: { options: { companies: 
                 >
                    <option value="">⏱️ Todos los Ciclos</option>
                    {options.budgets
-                      .filter(b => (!currentCompany || b.companyId === currentCompany) && (!currentBranch || b.branchId === currentBranch))
+                      .filter(b => (!currentCompany || b.companyId.toString() === currentCompany) && (!currentBranch || b.branchId.toString() === currentBranch))
                       .map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">

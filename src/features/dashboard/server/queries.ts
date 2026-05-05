@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope, getBranchIsolation } from "@/lib/permissions"
+import { getCachedCompanies, getCachedBranches, getCachedBusinessGroups } from "@/lib/cache"
 
 export async function getDashboardKpis(searchParams: { companyId?: number; branchId?: number; budgetId?: number; groupId?: number }) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const filter = enforceCompanyScope(user)
   const branchScope = getBranchIsolation(user)
@@ -77,7 +78,7 @@ export async function getDashboardKpis(searchParams: { companyId?: number; branc
 
 export async function getExecutiveAnalytics(searchParams: { companyId?: number; branchId?: number; budgetId?: number; groupId?: number }) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const filter = enforceCompanyScope(user)
   const branchScope = getBranchIsolation(user)
@@ -103,13 +104,12 @@ export async function getExecutiveAnalytics(searchParams: { companyId?: number; 
       branchQuery = branchQuery.eq('company.groupId', searchParams.groupId)
   }
 
-  const { data: branchesData, error: bError } = await branchQuery
+  const { data: branchesData } = await branchQuery
 
   const branchRankings = (branchesData || [])
     .map((b: any) => {
       let consumed = 0
       b.budgets?.forEach((bud: any) => {
-        // Si hay un filtro de presupuesto específico, solo sumamos ese
         if (searchParams.budgetId && bud.id !== Number(searchParams.budgetId)) return
         bud.allocations?.forEach((a: any) => (consumed += Number(a.consumedUSD)))
       })
@@ -119,13 +119,13 @@ export async function getExecutiveAnalytics(searchParams: { companyId?: number; 
     .sort((a, b) => b.consumed - a.consumed)
     .slice(0, 5)
 
-  // 2. Ranking de Categorías
+  // 2. Rankings por Clasificación
   let allocQuery = supabase
     .from('BudgetAllocation')
     .select(`
-      amountUSD,
       consumedUSD,
-      category:Category(name),
+      category:Category(id, name),
+      account:AccountingAccount(id, code, name),
       budget:Budget!inner(id, company:Company!inner(groupId))
     `)
   
@@ -141,13 +141,25 @@ export async function getExecutiveAnalytics(searchParams: { companyId?: number; 
       allocQuery = allocQuery.eq('budget.company.groupId', searchParams.groupId)
   }
 
-  const { data: allocations, error: aError } = await allocQuery
+  const { data: allocations } = await allocQuery
 
   const categoryMap = new Map<number, { name: string, consumed: number }>()
+  const accountMap = new Map<number, { name: string, code: string, consumed: number }>()
+
   allocations?.forEach((a: any) => {
-    const catId = a.category.id
-    const prev = categoryMap.get(catId) || { name: a.category.name, consumed: 0 }
-    categoryMap.set(catId, { ...prev, consumed: prev.consumed + Number(a.consumedUSD) })
+    const consumed = Number(a.consumedUSD)
+    
+    if (a.category) {
+      const catId = a.category.id
+      const prev = categoryMap.get(catId) || { name: a.category.name, consumed: 0 }
+      categoryMap.set(catId, { ...prev, consumed: prev.consumed + consumed })
+    }
+
+    if (a.account) {
+      const accId = a.account.id
+      const prev = accountMap.get(accId) || { name: a.account.name, code: a.account.code, consumed: 0 }
+      accountMap.set(accId, { ...prev, consumed: prev.consumed + consumed })
+    }
   })
 
   const categoryRankings = Array.from(categoryMap.values())
@@ -155,15 +167,21 @@ export async function getExecutiveAnalytics(searchParams: { companyId?: number; 
     .sort((a, b) => b.consumed - a.consumed)
     .slice(0, 5)
 
+  const accountRankings = Array.from(accountMap.values())
+    .filter(c => c.consumed > 0)
+    .sort((a, b) => b.consumed - a.consumed)
+    .slice(0, 5)
+
   return {
     branchRankings,
-    categoryRankings
+    categoryRankings,
+    accountRankings
   }
 }
 
 export async function getRecentActivity(searchParams: { companyId?: number; branchId?: number; budgetId?: number; groupId?: number }) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const filter = enforceCompanyScope(user)
   const branchScope = getBranchIsolation(user)
@@ -171,13 +189,21 @@ export async function getRecentActivity(searchParams: { companyId?: number; bran
   let query = supabase
     .from('Invoice')
     .select(`
-      *,
+      id,
+      number,
+      supplierName,
+      amountUSD,
+      date,
+      status,
+      companyId,
       company:Company!inner(name, groupId),
       registeredBy:User(name),
+      account:AccountingAccount(code, name),
       allocation:BudgetAllocation(
         category:Category(name),
         budget:Budget(
           id,
+          branchId,
           branch:Branch(id, name)
         )
       )
@@ -185,53 +211,35 @@ export async function getRecentActivity(searchParams: { companyId?: number; bran
 
   if (filter.companyId) query = query.eq('companyId', filter.companyId)
   if (searchParams.companyId) query = query.eq('companyId', searchParams.companyId)
-  
-  // Para filtros anidados profundos en Supabase usamos dot notation si la relación está cargada (inner join si es necesario)
-  // Pero aquí Invoice tiene companyId directo. Para branchId necesitamos filtrar por la relación.
-  // Usamos inner join para filtrar por campos de tablas relacionadas
-  if (branchScope.branchId || searchParams.branchId || searchParams.budgetId) {
-      // Re-estructuramos el select para asegurar inner joins si queremos filtrar por ellos
-      // Supabase permite filtrar relaciones anidadas así: from('Table').select('..., Relation!inner(*)').eq('Relation.field', value)
+
+  if (searchParams.groupId) {
+    query = query.eq('company.groupId', searchParams.groupId)
   }
 
-  const { data, error } = await query
+  const { data } = await query
     .order('createdAt', { ascending: false })
     .limit(6)
 
-  // Filtrado post-query para casos complejos de relaciones anidadas si no queremos usar syntax de inner joins complejos
-  let filteredData = data || []
-  if (branchScope.branchId || searchParams.branchId) {
-      const bid = branchScope.branchId || searchParams.branchId
-      filteredData = filteredData.filter((inv: any) => inv.allocation?.budget?.branch?.id === bid)
-  }
-  if (searchParams.budgetId) {
-      filteredData = filteredData.filter((inv: any) => inv.allocation?.budget?.id === Number(searchParams.budgetId))
-  }
-  if (searchParams.groupId) {
-      filteredData = filteredData.filter((inv: any) => Number(inv.company?.groupId) === Number(searchParams.groupId))
-  }
-
-  return filteredData
+  return data || []
 }
 
 export async function getFilterOptions() {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const filter = enforceCompanyScope(user)
   const branchScope = getBranchIsolation(user)
 
-  const [resComp, resBranch, resBudget, resGroups] = await Promise.all([
-    supabase.from('Company').select('id, name, groupId').order('name'),
-    supabase.from('Branch').select('id, name, companyId').order('name'),
-    supabase.from('Budget').select('id, name, branchId, companyId').order('initialDate', { ascending: false }),
-    supabase.from('BusinessGroup').select('id, name').eq('isActive', true).order('name')
+  const [companiesResult, branchesResult, budgetsResult, groups] = await Promise.all([
+    getCachedCompanies(),
+    getCachedBranches(),
+    supabase.from('Budget').select('id, name, branchId, companyId').order('initialDate', { ascending: false }).limit(200).then(res => res.data || []),
+    getCachedBusinessGroups(true)
   ])
 
-  let companies = resComp.data || []
-  let branches = resBranch.data || []
-  let budgets = resBudget.data || []
-  const groups = resGroups.data || []
+  let companies = companiesResult || []
+  let branches = branchesResult?.items || []
+  let budgets = budgetsResult || []
 
   if (filter.companyId) {
       companies = companies.filter(c => c.id === filter.companyId)

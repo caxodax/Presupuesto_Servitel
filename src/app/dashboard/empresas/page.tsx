@@ -7,11 +7,10 @@ import { Pagination } from "@/components/ui/Pagination"
 import { Layers } from "lucide-react"
 import Link from "next/link"
 
-export default async function CompaniesPage({ 
-  searchParams 
-}: { 
-  searchParams: { q?: string; page?: string } 
+export default async function CompaniesPage(props: { 
+  searchParams: Promise<{ q?: string; page?: string }>
 }) {
+  const searchParams = await props.searchParams
   const query = searchParams.q || "";
   const page = Number(searchParams.page) || 1;
   const limit = 10;
@@ -69,7 +68,7 @@ export default async function CompaniesPage({
              </table>
            </div>
            
-           <Pagination page={page} pageCount={pageCount} total={total} />
+           <Pagination page={page} pageCount={pageCount} total={total} searchParams={searchParams} />
         </div>
       </div>
     </div>

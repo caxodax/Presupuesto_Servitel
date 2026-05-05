@@ -6,11 +6,10 @@ import { Pagination } from "@/components/ui/Pagination"
 import { CreateBranchModal } from "@/components/sucursales/CreateBranchModal"
 import { BranchRow } from "@/components/sucursales/BranchRow"
 
-export default async function BranchesPage({ 
-  searchParams 
-}: { 
-  searchParams: { companyId?: string; q?: string; page?: string } 
+export default async function BranchesPage(props: { 
+  searchParams: Promise<{ companyId?: string; q?: string; page?: string }>
 }) {
+  const searchParams = await props.searchParams
   const user = await requireAuth()
   const companyId = searchParams.companyId;
   const companyIdNum = companyId ? Number(companyId) : undefined;
@@ -82,7 +81,7 @@ export default async function BranchesPage({
             </table>
           </div>
           
-          <Pagination page={page} pageCount={pageCount} total={total} />
+          <Pagination page={page} pageCount={pageCount} total={total} searchParams={searchParams} />
         </div>
       </div>
     </div>

@@ -21,6 +21,7 @@ type IncomesClientProps = {
     currentPage: number
     totalItems: number
     defaultCompanyId?: string
+    searchParams?: any
 }
 
 export function IncomesClient({ 
@@ -33,7 +34,8 @@ export function IncomesClient({
     totalPages,
     currentPage,
     totalItems,
-    defaultCompanyId
+    defaultCompanyId,
+    searchParams: propsSearchParams
 }: IncomesClientProps) {
   const incomesList = Array.isArray(incomes) ? incomes : (incomes as any).items || []
   const companiesList = Array.isArray(companies) ? companies : (companies as any).items || []
@@ -105,52 +107,69 @@ export function IncomesClient({
          </button>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 items-center">
-         <div className="w-full md:w-80">
+      <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+         <div className="w-full md:w-80 shrink-0">
             <SearchInput placeholder="Buscar por #Documento o Cliente..." />
          </div>
          {userRole === 'SUPER_ADMIN' && (
-             <div className="flex flex-wrap gap-4 items-center bg-zinc-50 dark:bg-zinc-900 p-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                 <div className="flex items-center gap-2 px-3 border-r border-zinc-200 dark:border-zinc-800">
-                    <Layers className="w-4 h-4 text-indigo-500" />
-                    <select 
-                        value={currentGroupId || ''}
-                        onChange={e => {
-                            const params = new URLSearchParams(searchParams.toString())
-                            if (e.target.value) params.set('groupId', e.target.value)
-                            else params.delete('groupId')
-                            params.delete('companyId')
-                            params.delete('page')
-                            router.push(`${pathname}?${params.toString()}`)
-                        }}
-                        className="bg-transparent border-none outline-none text-[10px] font-black uppercase text-zinc-500 cursor-pointer"
-                    >
-                        <option value="">Matriz: Todas</option>
-                        {businessGroupsList.filter((g: any) => g.isActive).map((g: any) => (
-                            <option key={g.id} value={g.id.toString()}>{g.name}</option>
-                        ))}
-                    </select>
-                 </div>
+             <div className="flex items-center gap-1.5 bg-zinc-100/80 dark:bg-zinc-800/50 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700/50 shadow-inner">
+                 {/* Filtro Matriz */}
+                 {businessGroupsList.length > 0 && (
+                     <>
+                         <div className="relative">
+                             <select
+                                 value={currentGroupId || ''}
+                                 onChange={e => {
+                                     const params = new URLSearchParams(searchParams.toString())
+                                     if (e.target.value) params.set('groupId', e.target.value)
+                                     else params.delete('groupId')
+                                     params.delete('companyId')
+                                     params.delete('page')
+                                     router.push(`${pathname}?${params.toString()}`)
+                                 }}
+                                 className={`h-8 px-3 pr-7 rounded-lg font-bold border-0 bg-transparent focus:ring-2 focus:ring-indigo-500 outline-none text-[11px] w-[150px] appearance-none cursor-pointer transition-all ${currentGroupId ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'}`}
+                             >
+                                 <option value="">🏢 Todas Matrices</option>
+                                 {businessGroupsList.filter((g: any) => g.isActive).map((g: any) => (
+                                     <option key={g.id} value={g.id.toString()}>{g.name}</option>
+                                 ))}
+                             </select>
+                             <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                                 <Layers className="w-3 h-3 text-indigo-500" />
+                             </div>
+                         </div>
+                         <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-1" />
+                     </>
+                 )}
 
-                 <div className="flex flex-wrap gap-2">
-                    <Link href="/dashboard/ingresos" className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!currentCompanyId ? 'bg-white dark:bg-zinc-700 shadow-sm text-foreground border border-zinc-200 dark:border-zinc-600' : 'text-zinc-500'}`}>
-                        Global
-                    </Link>
-                    {companiesList
-                        .filter((c: any) => !currentGroupId || Number(c.groupId) === Number(currentGroupId))
-                        .map((company: any) => (
-                            <Link 
-                                key={company.id} 
-                                href={`/dashboard/ingresos?companyId=${company.id}${currentGroupId ? `&groupId=${currentGroupId}` : ''}`} 
-                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${currentCompanyId === String(company.id) ? 'bg-white dark:bg-zinc-700 shadow-sm text-foreground border border-zinc-200 dark:border-zinc-600' : 'text-zinc-500 hover:text-foreground'}`}
-                            >
-                                {company.name}
-                            </Link>
-                        ))}
+                 {/* Filtro Empresa */}
+                 <div className="relative">
+                     <select
+                         value={currentCompanyId || ''}
+                         onChange={e => {
+                             const params = new URLSearchParams(searchParams.toString())
+                             if (e.target.value) params.set('companyId', e.target.value)
+                             else params.delete('companyId')
+                             params.delete('page')
+                             router.push(`${pathname}?${params.toString()}`)
+                         }}
+                         className={`h-8 px-3 pr-7 rounded-lg font-bold border-0 bg-transparent focus:ring-2 focus:ring-indigo-500 outline-none text-[11px] w-[160px] appearance-none cursor-pointer transition-all ${currentCompanyId ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'}`}
+                     >
+                         <option value="">🏢 Todas Empresas</option>
+                         {companiesList
+                             .filter((c: any) => !currentGroupId || Number(c.groupId) === Number(currentGroupId))
+                             .map((c: any) => (
+                                 <option key={c.id} value={String(c.id)}>{c.name}</option>
+                             ))}
+                     </select>
+                     <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                         <Layers className="w-3 h-3 text-zinc-400" />
+                     </div>
                  </div>
              </div>
          )}
       </div>
+
 
       <div className="bg-white dark:bg-zinc-900 rounded-[32px] border border-zinc-200 dark:border-zinc-800 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden">
          <div className="overflow-x-auto">
@@ -235,7 +254,7 @@ export function IncomesClient({
          </div>
          {totalPages > 1 && (
             <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/10">
-                <Pagination page={currentPage} pageCount={totalPages} total={totalItems} />
+                <Pagination page={currentPage} pageCount={totalPages} total={totalItems} searchParams={propsSearchParams} />
             </div>
          )}
       </div>

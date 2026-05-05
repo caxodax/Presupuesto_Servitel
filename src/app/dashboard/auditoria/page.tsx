@@ -5,7 +5,8 @@ import { CompanyFilter } from "@/components/ui/CompanyFilter"
 import { Activity, Search, ServerCog, User, Clock, Filter, ArrowLeft, ArrowRight } from "lucide-react"
 import Link from "next/link"
 
-export default async function AuditForensicPage({ searchParams }: { searchParams: any }) {
+export default async function AuditForensicPage(props: { searchParams: Promise<any> }) {
+  const searchParams = await props.searchParams
   const user = await requireAuth()
   const [{ logs, metadata }, companies] = await Promise.all([
     getAuditTrail(searchParams),

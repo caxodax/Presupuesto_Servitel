@@ -7,11 +7,10 @@ import { Pagination } from "@/components/ui/Pagination"
 import { CategoryItem } from "@/components/categorias/CategoryItem"
 import { CreateCategoryModal } from "@/components/categorias/CreateCategoryModal"
 
-export default async function CategoriesPage({ 
-  searchParams 
-}: { 
-  searchParams: { q?: string; page?: string } 
+export default async function CategoriesPage(props: { 
+  searchParams: Promise<{ q?: string; page?: string }>
 }) {
+  const searchParams = await props.searchParams
   const user = await requireAuth()
   const query = searchParams.q || ""
   const page = Number(searchParams.page) || 1
@@ -64,7 +63,7 @@ export default async function CategoriesPage({
           </div>
           
           <div className="mt-8 border-t border-zinc-100 dark:border-zinc-800 pt-6">
-            <Pagination page={page} pageCount={pageCount} total={total} />
+            <Pagination page={page} pageCount={pageCount} total={total} searchParams={searchParams} />
           </div>
         </div>
       </div>

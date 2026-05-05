@@ -7,7 +7,7 @@ import { getBCVRate } from "@/lib/bcv"
  * Evita duplicados para la misma fecha.
  */
 export async function syncDailyExchangeRate() {
-    const supabase = createClient()
+    const supabase = await createClient()
     const result = await getBCVRate()
 
     if (!result.success || !result.rates) {
@@ -60,7 +60,7 @@ export async function syncDailyExchangeRate() {
  * Guarda una tasa histórica específica.
  */
 export async function saveHistoricalRate(date: string, usd: number, eur: number) {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { error } = await supabase
         .from('ExchangeRate')
@@ -83,7 +83,7 @@ export async function saveHistoricalRate(date: string, usd: number, eur: number)
  */
 export async function getEffectiveRate() {
     const today = new Date().toISOString().split('T')[0]
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // 1. Intentar DB
     const { data: existing } = await supabase
@@ -118,7 +118,7 @@ export async function getEffectiveRate() {
  * Obtiene la tasa más reciente disponible.
  */
 export async function getLatestSavedRate() {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { data, error } = await supabase
         .from('ExchangeRate')
@@ -130,3 +130,4 @@ export async function getLatestSavedRate() {
     if (error) return null
     return data
 }
+

@@ -14,7 +14,7 @@ export async function getCategories(options: {
 } = {}) {
   const { query: queryParam, page, limit = 10, type, companyId } = options
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   let query = supabase
     .from('Category')
@@ -38,7 +38,7 @@ export async function getCategories(options: {
   }
 
   if (page === undefined) {
-    const { data } = await query
+    const { data } = await query.limit(500)
     return data || []
   }
 
@@ -57,3 +57,4 @@ export async function getCategories(options: {
     pageCount: Math.ceil((count || 0) / limit)
   }
 }
+

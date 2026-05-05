@@ -10,10 +10,11 @@ import { BudgetAllocationsTable } from "@/components/presupuestos/BudgetAllocati
 import { CreateAllocationModal } from "@/components/presupuestos/CreateAllocationModal"
 import { AdjustmentLogModal } from "@/components/presupuestos/AdjustmentLogModal"
 
-export default async function BudgetDetailsPage({ params }: { params: { id: string } }) {
+export default async function BudgetDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params
   const [user, data] = await Promise.all([
     requireAuth(),
-    getBudgetDetails(Number(params.id))
+    getBudgetDetails(Number(resolvedParams.id))
   ])
   
   // Usamos la capa de caché para las categorías del presupuesto
@@ -25,11 +26,11 @@ export default async function BudgetDetailsPage({ params }: { params: { id: stri
   const { budget, stats } = data
 
   const allAdjustments = budget.allocations.flatMap((a: any) => 
-    a.adjustments.map((adj: any) => ({ ...adj, categoryName: a.category.name }))
+    a.adjustments.map((adj: any) => ({ ...adj, categoryName: a.category?.name || 'S/C' }))
   ).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   
   const recentAdjustments = allAdjustments.slice(0, 5)
-
+  
   return (
     <div className="flex flex-col gap-6 pb-20 max-w-[1400px] mx-auto w-full">
       <Link href="/dashboard/presupuestos" className="flex items-center gap-2 text-sm text-zinc-500 hover:text-foreground transition-colors w-fit">
@@ -51,7 +52,12 @@ export default async function BudgetDetailsPage({ params }: { params: { id: stri
          </div>
          
          <div className="flex flex-wrap items-center gap-3">
-             <CreateAllocationModal budgetId={budget.id.toString()} availableCategories={availableCategories} userRole={user.role} />
+             <CreateAllocationModal 
+                budgetId={budget.id.toString()} 
+                availableCategories={availableCategories} 
+                userRole={user.role} 
+                companyId={budget.companyId}
+             />
              <MasterBudgetEditor budgetId={budget.id.toString()} currentLimit={stats.originalHardLimit} />
          </div>
       </div>

@@ -9,11 +9,10 @@ import { getEffectiveRate } from "@/features/exchange/server/actions"
 
 // La función fetchBCVRate local ya no es necesaria pues usamos lib/bcv centralizado con caché
 
-export default async function InvoicesListPage({ 
-  searchParams 
-}: { 
-  searchParams: { companyId?: string, groupId?: string, query?: string, page?: string } 
+export default async function InvoicesListPage(props: { 
+  searchParams: Promise<{ companyId?: string, groupId?: string, query?: string, page?: string }> 
 }) {
+  const searchParams = await props.searchParams
   const user = await requireAuth()
   const { companyId, groupId, query } = searchParams
   const page = Number(searchParams.page) || 1
@@ -47,6 +46,7 @@ export default async function InvoicesListPage({
         totalPages={pageCount}
         currentPage={page}
         totalItems={total}
+        searchParams={searchParams}
       />
     </div>
   )

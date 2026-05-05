@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache"
  * Evalúa una asignación y dispara notificaciones si se alcanzan umbrales críticos.
  */
 export async function triggerBudgetAlerts(allocationId: number) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data: allocation, error } = await supabase
     .from('BudgetAllocation')
@@ -80,7 +80,7 @@ export async function triggerBudgetAlerts(allocationId: number) {
 
 export async function markAlertAsRead(alertId: number) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data: alert } = await supabase
     .from('Alert')
@@ -104,7 +104,7 @@ export async function markAlertAsRead(alertId: number) {
 
 export async function markAllAlertsAsRead() {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   let query = supabase
     .from('Alert')
@@ -119,3 +119,4 @@ export async function markAllAlertsAsRead() {
 
   revalidatePath("/dashboard")
 }
+

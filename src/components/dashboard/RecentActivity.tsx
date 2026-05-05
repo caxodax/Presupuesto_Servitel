@@ -1,9 +1,16 @@
 import { getRecentActivity } from "@/features/dashboard/server/queries"
-import { FileText, ArrowRight } from "lucide-react"
+import { FileText, ArrowRight, BookOpen } from "lucide-react"
 import Link from "next/link"
 
-export async function RecentActivity({ searchParams }: { searchParams: any }) {
-    const invoices = await getRecentActivity(searchParams)
+type SearchParamsResolved = { companyId?: string; branchId?: string; budgetId?: string; groupId?: string }
+
+export async function RecentActivity({ searchParams }: { searchParams: SearchParamsResolved }) {
+    const invoices = await getRecentActivity({
+        companyId: searchParams.companyId ? Number(searchParams.companyId) : undefined,
+        branchId: searchParams.branchId ? Number(searchParams.branchId) : undefined,
+        budgetId: searchParams.budgetId ? Number(searchParams.budgetId) : undefined,
+        groupId: searchParams.groupId ? Number(searchParams.groupId) : undefined,
+    })
     
     return (
        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 shadow-[0_4px_40px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col">
@@ -16,7 +23,7 @@ export async function RecentActivity({ searchParams }: { searchParams: any }) {
            
            <div className="p-1 flex flex-col flex-1 pb-3">
               {invoices.map(inv => (
-                 <Link href={`/dashboard/facturas/${inv.id}`} key={inv.id} className="flex items-center justify-between p-4 border-b border-zinc-100 dark:border-zinc-800/80 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors group">
+                 <Link href={`/dashboard/facturas`} key={inv.id} className="flex items-center justify-between p-4 border-b border-zinc-100 dark:border-zinc-800/80 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors group">
                     <div className="flex items-center gap-4">
                        <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-indigo-50 dark:group-hover:bg-indigo-500/10 transition-colors">
                           <FileText className="w-4 h-4 text-zinc-400 group-hover:text-indigo-500" />
@@ -31,11 +38,24 @@ export async function RecentActivity({ searchParams }: { searchParams: any }) {
                                 </span>
                              )}
                           </p>
-                          <p className="text-xs text-zinc-500 mt-0.5">
-                             {inv.allocation?.category?.name || 'Gasto'} 
+                          <div className="flex items-center gap-2 mt-0.5">
+                             {inv.account ? (
+                                <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
+                                   <BookOpen className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+                                   <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter">
+                                      {inv.account.code}
+                                   </span>
+                                </div>
+                             ) : (
+                                <p className="text-xs text-zinc-500">
+                                   {inv.allocation?.category?.name || 'Gasto'}
+                                </p>
+                             )}
                              <span className="text-zinc-300 dark:text-zinc-700 mx-1">•</span> 
-                             {inv.allocation?.budget?.branch?.name || '---'}
-                          </p>
+                             <p className="text-xs text-zinc-500">
+                                {inv.allocation?.budget?.branch?.name || '---'}
+                             </p>
+                          </div>
                        </div>
                     </div>
                     <div className="text-right flex flex-col items-end">

@@ -18,29 +18,29 @@
     "clsx": "^2.1.0",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.365.0",
-    "next": "14.2.0",
-    "react": "^18",
-    "react-dom": "^18",
-    "react-hook-form": "^7.74.0",
+    "next": "16.2.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.54.0",
     "react-number-format": "^5.4.5",
     "recharts": "^3.8.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.2.2",
     "xlsx": "^0.18.5",
-    "zod": "^3.22.4"
+    "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.19",
     "dotenv": "^17.4.2",
-    "eslint": "^8",
-    "eslint-config-next": "14.2.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "16.2.4",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5.7.0"
   }
 }

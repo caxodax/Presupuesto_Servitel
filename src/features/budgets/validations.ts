@@ -12,9 +12,13 @@ export const budgetSchema = z.object({
 
 export const allocationSchema = z.object({
   budgetId: numericId,
-  categoryId: numericId,
+  categoryId: numericId.optional().nullable(),
   subcategoryId: z.union([z.string(), z.number()]).optional().nullable().transform(v => v ? Number(v) : null),
+  accountId: z.union([z.string(), z.number()]).optional().nullable().transform(v => v ? Number(v) : null),
   amountUSD: z.coerce.number().min(0, "Monto asignado inválido"),
+}).refine(data => data.categoryId || data.accountId, {
+  message: "Debes seleccionar una Categoría o una Cuenta Contable",
+  path: ["accountId"]
 });
 
 export const adjustmentSchema = z.object({

@@ -11,7 +11,7 @@ export async function getConsolidatedReport(filters: {
     groupId?: number
 }) {
     const user = await requireAuth()
-    const supabase = createClient()
+    const supabase = await createClient()
     const scope = enforceCompanyScope(user)
 
     const finalCompanyId = scope.companyId || filters.companyId
@@ -175,3 +175,4 @@ export async function getConsolidatedReport(filters: {
         }
     }
 }
+

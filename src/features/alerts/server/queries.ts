@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/permissions"
 
 export async function getUnreadAlerts() {
     const user = await requireAuth()
-    const supabase = createClient()
+    const supabase = await createClient()
     
     let query = supabase
         .from('Alert')
@@ -26,3 +26,4 @@ export async function getUnreadAlerts() {
 
     return data || []
 }
+

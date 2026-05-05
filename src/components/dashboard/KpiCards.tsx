@@ -1,8 +1,15 @@
 import { getDashboardKpis } from "@/features/dashboard/server/queries"
 import { DollarSign, AlertCircle, TrendingUp, Layers, CheckCircle2 } from "lucide-react"
 
-export async function KpiCards({ searchParams }: { searchParams: any }) {
-    const kpis = await getDashboardKpis(searchParams)
+type SearchParamsResolved = { companyId?: string; branchId?: string; budgetId?: string; groupId?: string }
+
+export async function KpiCards({ searchParams }: { searchParams: SearchParamsResolved }) {
+    const kpis = await getDashboardKpis({
+        companyId: searchParams.companyId ? Number(searchParams.companyId) : undefined,
+        branchId: searchParams.branchId ? Number(searchParams.branchId) : undefined,
+        budgetId: searchParams.budgetId ? Number(searchParams.budgetId) : undefined,
+        groupId: searchParams.groupId ? Number(searchParams.groupId) : undefined,
+    })
     
     return (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">

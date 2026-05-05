@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache"
 
 export async function createCompany(formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   if (!hasRole(user.role, ["SUPER_ADMIN"])) throw new Error("Acceso denegado. Privilegios insuficientes.")
     
@@ -35,7 +35,7 @@ export async function createCompany(formData: FormData) {
 
 export async function createBranch(formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const targetId = formData.get("companyId") ? Number(formData.get("companyId")) : undefined;
   const scope = enforceCompanyScope(user, targetId)
@@ -63,7 +63,7 @@ export async function createBranch(formData: FormData) {
 
 export async function updateCompany(companyId: number, formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   if (!hasRole(user.role, ["SUPER_ADMIN"])) throw new Error("Acceso denegado. Privilegios insuficientes.")
   
   const validated = companySchema.parse({
@@ -90,7 +90,7 @@ export async function updateCompany(companyId: number, formData: FormData) {
 
 export async function toggleCompanyStatus(companyId: number) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   if (!hasRole(user.role, ["SUPER_ADMIN"])) throw new Error("Acceso denegado. Privilegios insuficientes.")
 
   const { data: current, error: fError } = await supabase
@@ -117,7 +117,7 @@ export async function toggleCompanyStatus(companyId: number) {
 
 export async function updateBranch(branchId: number, formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data: branchData, error: fError } = await supabase
     .from('Branch')
@@ -148,7 +148,7 @@ export async function updateBranch(branchId: number, formData: FormData) {
 
 export async function toggleBranchStatus(branchId: number) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data: current, error: fError } = await supabase
     .from('Branch')
@@ -176,7 +176,7 @@ export async function toggleBranchStatus(branchId: number) {
 
 export async function getBusinessGroups(onlyActive: boolean = false) {
     const user = await requireAuth()
-    const supabase = createClient()
+    const supabase = await createClient()
     
     let query = supabase
         .from('BusinessGroup')
@@ -195,7 +195,7 @@ export async function getBusinessGroups(onlyActive: boolean = false) {
 
 export async function createBusinessGroup(formData: FormData) {
     const user = await requireAuth()
-    const supabase = createClient()
+    const supabase = await createClient()
     if (!hasRole(user.role, ["SUPER_ADMIN"])) throw new Error("No tienes permisos")
 
     const name = formData.get("name") as string
@@ -217,7 +217,7 @@ export async function createBusinessGroup(formData: FormData) {
 
 export async function updateBusinessGroup(id: number, formData: FormData) {
     const user = await requireAuth()
-    const supabase = createClient()
+    const supabase = await createClient()
     if (!hasRole(user.role, ["SUPER_ADMIN"])) throw new Error("No tienes permisos")
 
     const name = formData.get("name") as string
@@ -240,7 +240,7 @@ export async function updateBusinessGroup(id: number, formData: FormData) {
 
 export async function toggleBusinessGroupStatus(id: number, currentStatus: boolean) {
     const user = await requireAuth()
-    const supabase = createClient()
+    const supabase = await createClient()
     if (!hasRole(user.role, ["SUPER_ADMIN"])) throw new Error("No tienes permisos")
 
     const { data, error } = await supabase
@@ -257,3 +257,4 @@ export async function toggleBusinessGroupStatus(id: number, currentStatus: boole
     revalidatePath("/dashboard/matrices")
     revalidatePath("/dashboard/empresas")
 }
+

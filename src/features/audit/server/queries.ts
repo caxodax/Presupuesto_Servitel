@@ -6,7 +6,7 @@ import { requireAuth, enforceCompanyScope } from "@/lib/permissions"
  */
 export async function getAuditTrail(searchParams: { page?: string, actionFilter?: string, companyId?: string }) {
    const user = await requireAuth()
-   const supabase = createClient()
+   const supabase = await createClient()
    
    const currentPage = Math.max(1, Number(searchParams.page) || 1)
    const pageSize = 12 
@@ -50,3 +50,4 @@ export async function getAuditTrail(searchParams: { page?: string, actionFilter?
        } 
    }
 }
+

@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { incomeSchema } from "@/features/incomes/validations"
 import { createIncome, updateIncome, getCompanyDataForIncome } from "@/features/incomes/server/actions"
+import { AccountSelector } from "@/components/accounts/AccountSelector"
 import { 
     X, 
     Loader2, 
@@ -16,7 +17,8 @@ import {
     Building2, 
     MapPin,
     PlusIcon,
-    Edit3
+    Edit3,
+    BookOpen
 } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -54,21 +56,25 @@ export function IncomeModal({
         register,
         handleSubmit,
         watch,
+        setValue,
         formState: { errors }
     } = useForm({
         resolver: zodResolver(incomeSchema),
         defaultValues: mode === 'edit' ? {
             ...income,
             date: income.date ? format(new Date(income.date + 'T00:00:00'), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
-            incomeId: income.id
+            incomeId: income.id,
+            accountId: income.accountId || null
         } : {
             date: format(new Date(), 'yyyy-MM-dd'),
             exchangeRate: Number(currentBcvRate) || 0,
-            companyId: defaultCompanyId || ""
+            companyId: defaultCompanyId || "",
+            accountId: null
         }
     })
 
     const watchCompanyId = watch("companyId" as any)
+    const watchAccountId = watch("accountId" as any)
 
     useEffect(() => {
         const effectiveCompanyId = watchCompanyId || defaultCompanyId
@@ -88,13 +94,15 @@ export function IncomeModal({
                 setDynamicCategories(cats)
                 setBranches(brs)
             } catch (error) {
-                toast.error("Error cargando datos de la empresa")
+                // toast.error("Error cargando datos de la empresa")
             } finally {
                 setIsLoadingData(false)
             }
         }
         
-        fetchData()
+        if (mode === 'create' || (mode === 'edit' && dynamicCategories.length === 0)) {
+            fetchData()
+        }
     }, [watchCompanyId, defaultCompanyId])
 
     const onSubmit = (data: any) => {
@@ -115,20 +123,14 @@ export function IncomeModal({
             try {
                 if (mode === 'create') {
                     await createIncome(formData)
-                    toast.success("Ingreso registrado correctamente", {
-                        description: "El flujo de caja ha sido actualizado."
-                    })
+                    toast.success("Ingreso registrado correctamente")
                 } else {
                     await updateIncome(formData)
-                    toast.success("Ingreso actualizado correctamente", {
-                        description: "Los cambios han sido guardados."
-                    })
+                    toast.success("Ingreso actualizado correctamente")
                 }
                 onClose()
             } catch (e: any) {
-                toast.error(e.message || "Error al procesar solicitud", {
-                    description: "Por favor verifique los datos e intente nuevamente."
-                })
+                toast.error(e.message || "Error al procesar solicitud")
             }
         })
     }
@@ -208,8 +210,21 @@ export function IncomeModal({
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
+                                <AccountSelector 
+                                    label="Cuenta Contable (Ingreso)"
+                                    placeholder="Vincular a cuenta..."
+                                    defaultValue={watchAccountId}
+                                    onSelect={(id) => setValue("accountId" as any, id)}
+                                    type="INCOME"
+                                    isExecutable={true}
+                                    companyId={watchCompanyId ? Number(watchCompanyId) : undefined}
+                                />
+                                {errors.accountId && <p className="text-[10px] font-bold text-rose-500 ml-2 uppercase">{(errors.accountId as any).message}</p>}
+                            </div>
+
+                            <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2 ml-1">
-                                    <Tag className="w-3.5 h-3.5" /> Categoría de Ingreso
+                                    <Tag className="w-3.5 h-3.5" /> Categoría Legacy
                                     {isLoadingData && <Loader2 className="w-3 h-3 animate-spin ml-2 text-indigo-500" />}
                                 </label>
                                 <select 
@@ -223,7 +238,9 @@ export function IncomeModal({
                                     ))}
                                 </select>
                             </div>
+                        </div>
 
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2 ml-1">
                                     <MapPin className="w-3.5 h-3.5" /> Sucursal (Opcional)
@@ -240,9 +257,20 @@ export function IncomeModal({
                                     ))}
                                 </select>
                             </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2 ml-1">
+                                    <Calendar className="w-3.5 h-3.5" /> Fecha
+                                </label>
+                                <input 
+                                    type="date"
+                                    {...register("date")}
+                                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                />
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-2 ml-1">
                                     <Wallet className="w-3.5 h-3.5" /> Monto (USD)
@@ -261,17 +289,6 @@ export function IncomeModal({
                                 <input 
                                     type="number" step="0.0001"
                                     {...register("exchangeRate")}
-                                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2 ml-1">
-                                    <Calendar className="w-3.5 h-3.5" /> Fecha
-                                </label>
-                                <input 
-                                    type="date"
-                                    {...register("date")}
                                     className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
                                 />
                             </div>

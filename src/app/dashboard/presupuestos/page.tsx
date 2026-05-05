@@ -10,11 +10,10 @@ import { CreateBudgetModal } from "@/components/presupuestos/CreateBudgetModal"
 import { requireAuth } from "@/lib/permissions"
 import { getCachedCompanies, getCachedBranches, getCachedBusinessGroups } from "@/lib/cache"
 
-export default async function BudgetsRootPage({ 
-  searchParams 
-}: { 
-  searchParams: { companyId?: string; branchId?: string; groupId?: string; q?: string; page?: string } 
+export default async function BudgetsRootPage(props: { 
+  searchParams: Promise<{ companyId?: string; branchId?: string; groupId?: string; q?: string; page?: string }> 
 }) {
+  const searchParams = await props.searchParams
   const user = await requireAuth()
   const { companyId, branchId, groupId, q: query = "" } = searchParams;
   const companyIdNum = companyId ? Number(companyId) : undefined;
@@ -115,7 +114,7 @@ export default async function BudgetsRootPage({
                </table>
              </div>
              
-             <Pagination page={page} pageCount={pageCount} total={total} />
+             <Pagination page={page} pageCount={pageCount} total={total} searchParams={searchParams} />
         </div>
       </div>
     </div>

@@ -6,7 +6,7 @@ import { requireAuth } from "@/lib/permissions"
  */
 export async function getCompanies(queryParam?: string, page?: number, limit: number = 10) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   let query = supabase.from('Company').select('*, businessGroup:BusinessGroup(name)', { count: 'exact' })
   
@@ -19,7 +19,7 @@ export async function getCompanies(queryParam?: string, page?: number, limit: nu
   }
 
   if (page === undefined) {
-    const { data } = await query.order('createdAt', { ascending: false })
+    const { data } = await query.order('createdAt', { ascending: false }).limit(500)
     return {
       items: data || [],
       total: data?.length || 0,
@@ -48,7 +48,7 @@ export async function getCompanies(queryParam?: string, page?: number, limit: nu
  */
 export async function getAllCompanies() {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   let query = supabase.from('Company').select('*, businessGroup:BusinessGroup(name)')
   if (user.role !== 'SUPER_ADMIN' && user.companyId) {
@@ -64,9 +64,9 @@ export async function getAllCompanies() {
  */
 export async function getBranches(companyId?: number, queryParam?: string, page?: number, limit: number = 10) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
-  let query = supabase.from('Branch').select('*, company:Company(*)', { count: 'exact' })
+  let query = supabase.from('Branch').select('id, name, companyId, isActive, createdAt, company:Company(id, name, groupId)', { count: 'exact' })
   
   if (user.role !== 'SUPER_ADMIN' && user.companyId) {
     query = query.eq('companyId', user.companyId)
@@ -79,7 +79,7 @@ export async function getBranches(companyId?: number, queryParam?: string, page?
   }
 
   if (page === undefined) {
-    const { data } = await query.order('createdAt', { ascending: false })
+    const { data } = await query.order('createdAt', { ascending: false }).limit(500)
     return {
       items: data || [],
       total: data?.length || 0,
@@ -102,3 +102,4 @@ export async function getBranches(companyId?: number, queryParam?: string, page?
     pageCount: Math.ceil(total / limit)
   }
 }
+

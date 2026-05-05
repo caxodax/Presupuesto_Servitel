@@ -82,7 +82,7 @@ export function UserForm({ companies, branches }: { companies: any[], branches: 
                  <div className="space-y-1.5">
                     <label className="text-xs font-semibold uppercase text-zinc-500">Sucursal de Asignación</label>
                     <select name="branchId" defaultValue="" required={selectedRole === 'OPERATOR'} disabled={!selectedCompany} className="w-full h-9 rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 px-3 text-sm focus:ring-1 outline-none disabled:opacity-50">
-                       <option value="" disabled selected>-- Elige una Sucursal --</option>
+                       <option value="" disabled>-- Elige una Sucursal --</option>
                        {filteredBranches.map((b: any) => <option key={b.id} value={b.id.toString()}>{b.name}</option>)}
                     </select>
                     {selectedCompany && filteredBranches.length === 0 && (

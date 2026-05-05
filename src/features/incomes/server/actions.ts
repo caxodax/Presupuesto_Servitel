@@ -3,19 +3,22 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope } from "@/lib/permissions"
 import { incomeSchema } from "../validations"
+import { validateAccountForIncome } from "@/features/accounts/server/validations"
+import { resolveAccountFromCategory } from "@/features/accounts/server/actions"
 import { revalidatePath } from "next/cache"
 import { r2Client, BUCKET_NAME } from "@/lib/r2"
 import { PutObjectCommand } from "@aws-sdk/client-s3"
 
 export async function createIncome(formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const validated = incomeSchema.parse({
     number: formData.get("number"),
     clientName: formData.get("clientName"),
-    categoryId: Number(formData.get("categoryId")),
+    categoryId: formData.get("categoryId") ? Number(formData.get("categoryId")) : null,
     subcategoryId: formData.get("subcategoryId") ? Number(formData.get("subcategoryId")) : null,
+    accountId: formData.get("accountId") ? Number(formData.get("accountId")) : null,
     branchId: formData.get("branchId") ? Number(formData.get("branchId")) : null,
     amountUSD: Number(formData.get("amountUSD")),
     exchangeRate: Number(formData.get("exchangeRate")),
@@ -34,6 +37,20 @@ export async function createIncome(formData: FormData) {
   if (!companyId) throw new Error("No se pudo determinar la empresa.")
 
   enforceCompanyScope(user, companyId)
+
+  // Resolución automática si no viene cuenta
+  let finalAccountId = validated.accountId
+  if (!finalAccountId && validated.categoryId) {
+    finalAccountId = await resolveAccountFromCategory({
+        companyId: companyId,
+        categoryId: validated.categoryId,
+        subcategoryId: validated.subcategoryId
+    })
+  }
+
+  if (finalAccountId) {
+    await validateAccountForIncome(finalAccountId)
+  }
 
   // Procesar Adjunto en Cloudflare R2
   const file = formData.get("attachment") as File
@@ -62,6 +79,7 @@ export async function createIncome(formData: FormData) {
       clientName: validated.clientName,
       categoryId: validated.categoryId,
       subcategoryId: validated.subcategoryId,
+      accountId: finalAccountId,
       branchId: validated.branchId,
       amountUSD: validated.amountUSD,
       amountVES: calculatedVES,
@@ -78,22 +96,13 @@ export async function createIncome(formData: FormData) {
 
   if (iError || !inc) throw new Error(`Error crear ingreso: ${iError?.message}`)
 
-  /* audit log removed
-    action: "CREATE_INCOME",
-    entity: "Ingreso",
-    entityId: inc.id,
-    companyId: companyId,
-    userId: user.profileId,
-    details: { number: inc.number, amount: validated.amountUSD }
-  */
-
   revalidatePath('/dashboard/ingresos')
   revalidatePath('/dashboard')
 }
 
 export async function deleteIncome(incomeId: number) {
     const user = await requireAuth()
-    const supabase = createClient()
+    const supabase = await createClient()
 
     const { data: income, error: fError } = await supabase
         .from('Income')
@@ -112,22 +121,13 @@ export async function deleteIncome(incomeId: number) {
 
     if (dError) throw new Error(`Error al eliminar ingreso: ${dError.message}`)
 
-    /* audit log removed
-        action: "DELETE_INCOME",
-        entity: "Ingreso",
-        entityId: incomeId,
-        companyId: income.companyId,
-        userId: user.profileId,
-        details: { number: income.number }
-    */
-
     revalidatePath('/dashboard/ingresos')
     revalidatePath('/dashboard')
 }
 
 export async function updateIncome(formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const incomeId = Number(formData.get("incomeId"))
   if (!incomeId) throw new Error("ID de ingreso requerido")
@@ -144,14 +144,29 @@ export async function updateIncome(formData: FormData) {
   const validated = incomeSchema.parse({
     number: formData.get("number"),
     clientName: formData.get("clientName"),
-    categoryId: Number(formData.get("categoryId")),
+    categoryId: formData.get("categoryId") ? Number(formData.get("categoryId")) : null,
     subcategoryId: formData.get("subcategoryId") ? Number(formData.get("subcategoryId")) : null,
+    accountId: formData.get("accountId") ? Number(formData.get("accountId")) : null,
     branchId: formData.get("branchId") ? Number(formData.get("branchId")) : null,
     amountUSD: Number(formData.get("amountUSD")),
     exchangeRate: Number(formData.get("exchangeRate")),
     date: formData.get("date"),
     notes: formData.get("notes"),
   })
+
+  // Resolución automática si no viene cuenta
+  let finalAccountId = validated.accountId
+  if (!finalAccountId && validated.categoryId) {
+    finalAccountId = await resolveAccountFromCategory({
+        companyId: oldIncome.companyId,
+        categoryId: validated.categoryId,
+        subcategoryId: validated.subcategoryId
+    })
+  }
+
+  if (finalAccountId) {
+    await validateAccountForIncome(finalAccountId)
+  }
 
   // Procesar Adjunto si viene uno nuevo
   const file = formData.get("attachment") as File
@@ -180,6 +195,7 @@ export async function updateIncome(formData: FormData) {
       clientName: validated.clientName,
       categoryId: validated.categoryId,
       subcategoryId: validated.subcategoryId,
+      accountId: finalAccountId,
       branchId: validated.branchId,
       amountUSD: validated.amountUSD,
       amountVES: calculatedVES,
@@ -193,21 +209,12 @@ export async function updateIncome(formData: FormData) {
 
   if (uError) throw new Error(`Error al actualizar ingreso: ${uError.message}`)
 
-  /* audit log removed
-    action: "UPDATE_INCOME",
-    entity: "Ingreso",
-    entityId: incomeId,
-    companyId: oldIncome.companyId,
-    userId: user.profileId,
-    details: { number: validated.number, oldNumber: oldIncome.number }
-  */
-
   revalidatePath('/dashboard/ingresos')
   revalidatePath('/dashboard')
 }
 
 export async function getIncomeCategories(companyId?: number) {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     let query = supabase
         .from('Category')
@@ -234,9 +241,8 @@ export async function getIncomeCategoriesByCompany(companyId: number) {
 }
 
 export async function getCompanyDataForIncome(companyId: number) {
-    const supabase = createClient()
+    const supabase = await createClient()
     
-    // Ejecutar ambas consultas en paralelo para mayor velocidad
     const [categoriesRes, branchesRes] = await Promise.all([
         getIncomeCategories(companyId),
         supabase.from('Branch').select('id, name').eq('companyId', companyId).eq('isActive', true)

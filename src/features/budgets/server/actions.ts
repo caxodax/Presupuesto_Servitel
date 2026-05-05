@@ -3,13 +3,15 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope, hasRole } from "@/lib/permissions"
 import { budgetSchema, allocationSchema, adjustmentSchema } from "../validations"
+import { validateAccountForBudget } from "@/features/accounts/server/validations"
+import { resolveAccountFromCategory } from "@/features/accounts/server/actions"
 import { revalidatePath } from "next/cache"
 
 import { triggerBudgetAlerts } from "@/features/alerts/server/actions"
 
 export async function createBudget(formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const validated = budgetSchema.parse({
     name: formData.get("name"),
@@ -46,19 +48,18 @@ export async function createBudget(formData: FormData) {
 
   if (error || !budget) throw new Error(`Error crear presupuesto: ${error?.message}`)
 
-
-
   revalidatePath("/dashboard/presupuestos")
 }
 
 export async function upsertAllocation(formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const validated = allocationSchema.parse({
     budgetId: formData.get("budgetId"),
-    categoryId: formData.get("categoryId"),
+    categoryId: formData.get("categoryId") || null,
     subcategoryId: formData.get("subcategoryId") || null,
+    accountId: formData.get("accountId") || null,
     amountUSD: formData.get("amountUSD"),
   })
 
@@ -71,15 +72,32 @@ export async function upsertAllocation(formData: FormData) {
   if (bError || !budget) throw new Error("Presupuesto no encontrado")
   enforceCompanyScope(user, budget.companyId)
 
-  // Verificamos si ya existe
+  // Resolución automática si no viene cuenta pero sí categoría
+  let finalAccountId = validated.accountId
+  if (!finalAccountId && validated.categoryId) {
+    finalAccountId = await resolveAccountFromCategory({
+        companyId: budget.companyId,
+        categoryId: validated.categoryId
+    })
+  }
+
+  if (finalAccountId) {
+    await validateAccountForBudget(finalAccountId)
+  }
+
+  // Verificamos si ya existe por cuenta o categoría
   let q = supabase
     .from('BudgetAllocation')
     .select('id')
     .eq('budgetId', validated.budgetId)
-    .eq('categoryId', validated.categoryId)
-
-  if (validated.subcategoryId) q = q.eq('subcategoryId', validated.subcategoryId)
-  else q = q.is('subcategoryId', null)
+  
+  if (finalAccountId) {
+    q = q.eq('accountId', finalAccountId)
+  } else {
+    q = q.eq('categoryId', validated.categoryId)
+    if (validated.subcategoryId) q = q.eq('subcategoryId', validated.subcategoryId)
+    else q = q.is('subcategoryId', null)
+  }
 
   const { data: existingAllocation } = await q.maybeSingle()
 
@@ -102,6 +120,7 @@ export async function upsertAllocation(formData: FormData) {
         budgetId: validated.budgetId,
         categoryId: validated.categoryId,
         subcategoryId: validated.subcategoryId,
+        accountId: finalAccountId,
         amountUSD: validated.amountUSD,
         amountVES: 0,
       })
@@ -112,14 +131,12 @@ export async function upsertAllocation(formData: FormData) {
     allocationId = fresh.id
   }
 
-
-
   revalidatePath(`/dashboard/presupuestos/${validated.budgetId}`)
 }
 
 export async function registerAdjustment(formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const validated = adjustmentSchema.parse({
     allocationId: formData.get("allocationId"),
@@ -136,10 +153,6 @@ export async function registerAdjustment(formData: FormData) {
   if (aError || !allocation) throw new Error("Asignación no encontrada")
   enforceCompanyScope(user, (allocation as any).budget.companyId)
 
-  // En Supabase directo, si no usamos RPC para transacciones, hacemos secuencial o paralelizamos si es posible.
-  // Pero lo ideal es un RPC si queremos atomicidad exacta. 
-  // Por ahora, lo haremos secuencial para mantenerlo simple.
-
   const { error: adjError } = await supabase
     .from('BudgetAdjustment')
     .insert({
@@ -152,9 +165,6 @@ export async function registerAdjustment(formData: FormData) {
 
   if (adjError) throw adjError
 
-  // Incremento manual (Supabase no tiene increment directo en el cliente sin RPC fácilmente, 
-  // pero podemos usar rpc('increment', { ... }) si creamos la función en postgres, 
-  // o simplemente calcular y actualizar.)
   const newAmount = Number(allocation.amountUSD) + validated.amountUSD
   const { error: allocUpdateError } = await supabase
     .from('BudgetAllocation')
@@ -163,8 +173,6 @@ export async function registerAdjustment(formData: FormData) {
 
   if (allocUpdateError) throw allocUpdateError
 
-
-
   await triggerBudgetAlerts(validated.allocationId)
 
   revalidatePath(`/dashboard/presupuestos/${(allocation as any).budget.id}`)
@@ -172,7 +180,7 @@ export async function registerAdjustment(formData: FormData) {
 
 export async function transferFunds(formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   if (!hasRole(user.role, ["SUPER_ADMIN"])) {
     throw new Error("Seguridad: Solo un Super Administrador puede realizar transferencias de fondos entre rubros.")
@@ -209,8 +217,6 @@ export async function transferFunds(formData: FormData) {
   // Increment target
   await supabase.from('BudgetAllocation').update({ amountUSD: Number(target.amountUSD) + amount }).eq('id', targetId)
 
-
-
   await Promise.all([
     triggerBudgetAlerts(sourceId),
     triggerBudgetAlerts(targetId)
@@ -221,7 +227,7 @@ export async function transferFunds(formData: FormData) {
 
 export async function updateBudgetMaster(formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const id = Number(formData.get("budgetId"))
   const newLimit = Number(formData.get("amountLimitUSD"))
@@ -250,15 +256,13 @@ export async function updateBudgetMaster(formData: FormData) {
 
   if (uError) throw uError
 
-
-
   revalidatePath(`/dashboard/presupuestos/${id}`)
   revalidatePath("/dashboard/presupuestos")
 }
 
 export async function getAllocationsForCompany(companyId: number) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   // Validar permisos
   if (user.role !== "SUPER_ADMIN" && Number(user.companyId) !== Number(companyId)) {
@@ -273,7 +277,8 @@ export async function getAllocationsForCompany(companyId: number) {
       allocations:BudgetAllocation(
         id, amountUSD, consumedUSD,
         category:Category(name),
-        subcategory:Subcategory(name)
+        subcategory:Subcategory(name),
+        account:AccountingAccount(code, name)
       )
     `)
     .eq('companyId', companyId)
@@ -284,7 +289,7 @@ export async function getAllocationsForCompany(companyId: number) {
   const availableAllocations = (budgets || []).flatMap((b: any) => 
       (b.allocations || []).map((a: any) => ({ 
           id: a.id, 
-          label: `${user.role === "SUPER_ADMIN" ? `[${b.branch.company.name}] ` : ''}${b.name} (${b.branch.name}) - ${a.category.name} ${a.subcategory ? `> ${a.subcategory.name}` : ''}`,
+          label: `${user.role === "SUPER_ADMIN" ? `[${b.branch.company.name}] ` : ''}${b.name} (${b.branch.name}) - ${a.account ? `${a.account.code} ${a.account.name}` : `${a.category?.name}${a.subcategory ? ` > ${a.subcategory.name}` : ''}`}`,
           remainingUSD: Number(a.amountUSD) - Number(a.consumedUSD)
       }))
   )

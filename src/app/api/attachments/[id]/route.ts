@@ -7,12 +7,13 @@ import { enforceCompanyScope } from "@/lib/permissions"
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    props: { params: Promise<{ id: string }> }
 ) {
+    const params = await props.params
     const session = await auth()
     if (!session?.user) return new NextResponse("No autorizado", { status: 401 })
 
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: invoice, error } = await supabase
         .from('Invoice')
         .select('*')

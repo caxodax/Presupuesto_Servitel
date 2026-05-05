@@ -2,8 +2,9 @@ import { getInvoiceDetails } from "@/features/invoices/server/queries"
 import { ArrowLeft, CheckCircle2, TrendingDown, AlertTriangle, User, Clock, FileCheck, Download, Building2, MapPin, Receipt } from "lucide-react"
 import Link from "next/link"
 
-export default async function InvoiceDetailPage({ params }: { params: { id: string } }) {
-  const { invoice, analytics, auditLogs } = await getInvoiceDetails(Number(params.id))
+export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params
+  const { invoice, analytics, auditLogs } = await getInvoiceDetails(Number(resolvedParams.id))
   
   const isOverBudget = analytics.overBudgetSpill > 0;
   

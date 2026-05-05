@@ -46,7 +46,7 @@ export async function createUser(formData: FormData) {
   if (authError) throw new Error(`Error en Auth: ${authError.message}`)
 
   // 2. Crear en nuestra tabla 'User'
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: newUser, error } = await supabase
     .from('User')
     .insert({
@@ -68,7 +68,7 @@ export async function createUser(formData: FormData) {
 
 export async function updateUser(formData: FormData) {
   const userAdmin = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   if (userAdmin.role !== "SUPER_ADMIN") throw new Error("No autorizado")
 
   const userId = Number(formData.get("userId"))
@@ -135,7 +135,7 @@ export async function updateUser(formData: FormData) {
 
 export async function toggleUserStatus(userId: number) {
   const userAdmin = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   if (userAdmin.role !== "SUPER_ADMIN") throw new Error("No autorizado")
 
   const { data: current, error: fError } = await supabase
@@ -157,3 +157,4 @@ export async function toggleUserStatus(userId: number) {
 
   revalidatePath('/dashboard/usuarios')
 }
+

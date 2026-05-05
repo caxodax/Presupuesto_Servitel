@@ -5,6 +5,11 @@ const nextConfig = {
             bodySizeLimit: '10mb',
         },
     },
+    logging: {
+        fetches: {
+            fullUrl: process.env.NODE_ENV === 'development',
+        },
+    },
 };
 
 export default nextConfig;

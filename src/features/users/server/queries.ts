@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/permissions"
 
 export async function getUsers(companyId?: number, branchId?: number, page: number = 1, limit: number = 10) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   if (user.role !== "SUPER_ADMIN") {
      throw new Error("ACCCESO BLOQUEADO: Se requiere alcance global.")
@@ -37,3 +37,4 @@ export async function getUsers(companyId?: number, branchId?: number, page: numb
     pageCount: Math.ceil((count || 0) / limit)
   }
 }
+

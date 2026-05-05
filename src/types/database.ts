@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      AccountingAccount: {
+        Row: {
+          id: number
+          companyId: number
+          code: string
+          name: string
+          type: Database["public"]["Enums"]["AccountType"]
+          parentId: number | null
+          level: number
+          isBudgetable: boolean
+          isExecutable: boolean
+          isActive: boolean
+          createdAt: string
+          updatedAt: string
+        }
+        Insert: {
+          id?: number
+          companyId: number
+          code: string
+          name: string
+          type: Database["public"]["Enums"]["AccountType"]
+          parentId?: number | null
+          level?: number
+          isBudgetable?: boolean
+          isExecutable?: boolean
+          isActive?: boolean
+          createdAt?: string
+          updatedAt?: string
+        }
+        Update: {
+          id?: number
+          companyId?: number
+          code?: string
+          name?: string
+          type?: Database["public"]["Enums"]["AccountType"]
+          parentId?: number | null
+          level?: number
+          isBudgetable?: boolean
+          isExecutable?: boolean
+          isActive?: boolean
+          createdAt?: string
+          updatedAt?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "AccountingAccount_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "Company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "AccountingAccount_parentId_fkey"
+            columns: ["parentId"]
+            isOneToOne: false
+            referencedRelation: "AccountingAccount"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       Alert: {
         Row: {
           companyId: number
@@ -197,6 +257,7 @@ export type Database = {
           allocationId: number
           amountUSD: number
           amountVES: number
+          accountId: number | null
           createdAt: string
           id: number
           reason: string
@@ -206,6 +267,7 @@ export type Database = {
           allocationId: number
           amountUSD: number
           amountVES?: number
+          accountId?: number | null
           createdAt?: string
           id?: number
           reason: string
@@ -215,6 +277,7 @@ export type Database = {
           allocationId?: number
           amountUSD?: number
           amountVES?: number
+          accountId?: number | null
           createdAt?: string
           id?: number
           reason?: string
@@ -235,6 +298,13 @@ export type Database = {
             referencedRelation: "User"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "BudgetAdjustment_accountId_fkey"
+            columns: ["accountId"]
+            isOneToOne: false
+            referencedRelation: "AccountingAccount"
+            referencedColumns: ["id"]
+          },
         ]
       }
       BudgetAllocation: {
@@ -245,6 +315,7 @@ export type Database = {
           categoryId: number
           consumedUSD: number
           consumedVES: number
+          accountId: number | null
           createdAt: string
           id: number
           subcategoryId: number | null
@@ -257,6 +328,7 @@ export type Database = {
           categoryId: number
           consumedUSD?: number
           consumedVES?: number
+          accountId?: number | null
           createdAt?: string
           id?: number
           subcategoryId?: number | null
@@ -269,6 +341,7 @@ export type Database = {
           categoryId?: number
           consumedUSD?: number
           consumedVES?: number
+          accountId?: number | null
           createdAt?: string
           id?: number
           subcategoryId?: number | null
@@ -294,6 +367,13 @@ export type Database = {
             columns: ["subcategoryId"]
             isOneToOne: false
             referencedRelation: "Subcategory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "BudgetAllocation_accountId_fkey"
+            columns: ["accountId"]
+            isOneToOne: false
+            referencedRelation: "AccountingAccount"
             referencedColumns: ["id"]
           },
         ]
@@ -324,6 +404,65 @@ export type Database = {
           updatedAt?: string
         }
         Relationships: []
+      }
+      CategoryAccountMapping: {
+        Row: {
+          id: number
+          companyId: number
+          categoryId: number
+          subcategoryId: number | null
+          accountId: number
+          createdAt: string
+          updatedAt: string
+        }
+        Insert: {
+          id?: number
+          companyId: number
+          categoryId: number
+          subcategoryId?: number | null
+          accountId: number
+          createdAt?: string
+          updatedAt?: string
+        }
+        Update: {
+          id?: number
+          companyId?: number
+          categoryId?: number
+          subcategoryId?: number | null
+          accountId?: number
+          createdAt?: string
+          updatedAt?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "CategoryAccountMapping_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "Company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "CategoryAccountMapping_categoryId_fkey"
+            columns: ["categoryId"]
+            isOneToOne: false
+            referencedRelation: "Category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "CategoryAccountMapping_subcategoryId_fkey"
+            columns: ["subcategoryId"]
+            isOneToOne: false
+            referencedRelation: "Subcategory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "CategoryAccountMapping_accountId_fkey"
+            columns: ["accountId"]
+            isOneToOne: false
+            referencedRelation: "AccountingAccount"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       Category: {
         Row: {
@@ -435,6 +574,7 @@ export type Database = {
           categoryId: number
           clientName: string
           companyId: number
+          accountId: number | null
           createdAt: string
           date: string
           exchangeRate: number
@@ -454,6 +594,7 @@ export type Database = {
           categoryId: number
           clientName: string
           companyId: number
+          accountId?: number | null
           createdAt?: string
           date: string
           exchangeRate: number
@@ -473,6 +614,7 @@ export type Database = {
           categoryId?: number
           clientName?: string
           companyId?: number
+          accountId?: number | null
           createdAt?: string
           date?: string
           exchangeRate?: number
@@ -519,6 +661,13 @@ export type Database = {
             referencedRelation: "Subcategory"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "Income_accountId_fkey"
+            columns: ["accountId"]
+            isOneToOne: false
+            referencedRelation: "AccountingAccount"
+            referencedColumns: ["id"]
+          },
         ]
       }
       Invoice: {
@@ -529,6 +678,7 @@ export type Database = {
           attachmentKey: string | null
           attachmentName: string | null
           companyId: number
+          accountId: number | null
           createdAt: string
           date: string
           exchangeRate: number
@@ -546,6 +696,7 @@ export type Database = {
           attachmentKey?: string | null
           attachmentName?: string | null
           companyId: number
+          accountId?: number | null
           createdAt?: string
           date: string
           exchangeRate: number
@@ -563,6 +714,7 @@ export type Database = {
           attachmentKey?: string | null
           attachmentName?: string | null
           companyId?: number
+          accountId?: number | null
           createdAt?: string
           date?: string
           exchangeRate?: number
@@ -593,6 +745,13 @@ export type Database = {
             columns: ["registeredById"]
             isOneToOne: false
             referencedRelation: "User"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Invoice_accountId_fkey"
+            columns: ["accountId"]
+            isOneToOne: false
+            referencedRelation: "AccountingAccount"
             referencedColumns: ["id"]
           },
         ]
@@ -715,6 +874,7 @@ export type Database = {
       }
     }
     Enums: {
+      AccountType: "ASSET" | "LIABILITY" | "EQUITY" | "INCOME" | "COST" | "EXPENSE"
       AlertType: "BUDGET_EXCEEDED" | "ADJUSTMENT_MADE" | "SYSTEM_WARNING"
       BudgetPeriodType: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL"
       BudgetStatus: "DRAFT" | "ACTIVE" | "CLOSED"

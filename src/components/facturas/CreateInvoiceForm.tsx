@@ -35,8 +35,8 @@ export function CreateInvoiceForm({
     <form onSubmit={handleSubmit} encType="multipart/form-data" className="flex flex-col gap-6">
         <div className="space-y-2">
             <label className="text-sm font-semibold tracking-wide text-zinc-700 dark:text-zinc-300 uppercase">Impacto Estratégico (Destino del Gasto)</label>
-            <select name="allocationId" required disabled={isPending} className="w-full h-10 rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 px-3 text-sm focus:ring-1 focus:ring-indigo-500 transition-all outline-none disabled:opacity-50">
-            <option value="" disabled selected>Identificador Viga / Categoría / Presupuesto Maestro...</option>
+            <select name="allocationId" defaultValue="" required disabled={isPending} className="w-full h-10 rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 px-3 text-sm focus:ring-1 focus:ring-indigo-500 transition-all outline-none disabled:opacity-50">
+            <option value="" disabled>Identificador Viga / Categoría / Presupuesto Maestro...</option>
             {availableAllocations.map(alloc => (
                 <option key={alloc.id} value={alloc.id}>{alloc.label}</option>
             ))}

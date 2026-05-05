@@ -73,8 +73,8 @@ export function CreateBranchModal({ companies, userRole, filteredCompanyId }: { 
                       <span className="ml-auto text-[9px] bg-zinc-200 dark:bg-zinc-700 px-2 py-0.5 rounded-full uppercase tracking-tighter opacity-70">Fijada</span>
                     </div>
                   ) : (
-                    <select name="companyId" required disabled={isPending} className="w-full h-12 px-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 appearance-none transition-all shadow-sm disabled:opacity-50">
-                      <option value="" disabled selected>-- Seleccione Empresa --</option>
+                    <select name="companyId" required disabled={isPending} defaultValue="" className="w-full h-12 px-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 appearance-none transition-all shadow-sm disabled:opacity-50">
+                      <option value="" disabled>-- Seleccione Empresa --</option>
                       {companiesList.map((c: any) => <option key={c.id} value={c.id.toString()}>{c.name}</option>)}
                     </select>
                   )}

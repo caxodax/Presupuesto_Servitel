@@ -6,21 +6,35 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 
 export async function getInvoices(companyId?: string, queryParam?: string, page?: number, limit: number = 10, groupId?: string) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const whereClause = enforceCompanyScope(user)
 
   let query = supabase
     .from('Invoice')
     .select(`
-      *,
+      id,
+      number,
+      supplierName,
+      amountUSD,
+      amountVES,
+      exchangeRate,
+      date,
+      status,
+      companyId,
+      createdAt,
       company:Company(name),
       registeredBy:User(name),
       allocation:BudgetAllocation(
-        *,
+        id,
+        amountUSD,
+        consumedUSD,
+        categoryId,
         category:Category(name),
         budget:Budget(
-          *,
+          id,
+          name,
+          branchId,
           branch:Branch(name)
         )
       )
@@ -65,7 +79,7 @@ export async function getInvoices(companyId?: string, queryParam?: string, page?
 
 export async function getInvoiceDetails(invoiceId: number) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data: invoice, error: invoiceError } = await supabase
     .from('Invoice')
@@ -132,7 +146,7 @@ export async function getInvoiceDetails(invoiceId: number) {
 }
 
 export async function getExchangeRateForDate(date: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('ExchangeRate')
     .select('usd')
@@ -142,3 +156,4 @@ export async function getExchangeRateForDate(date: string) {
   if (error || !data) return null
   return data.usd
 }
+

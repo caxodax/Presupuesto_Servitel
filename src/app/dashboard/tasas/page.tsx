@@ -14,7 +14,7 @@ export default async function ExchangeRatesPage() {
         )
     }
 
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: rates } = await supabase
         .from('ExchangeRate')
         .select('*')
@@ -27,3 +27,4 @@ export default async function ExchangeRatesPage() {
         </div>
     )
 }
+

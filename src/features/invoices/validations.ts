@@ -19,5 +19,6 @@ export const invoiceSchema = z.object({
   date: z.string()
     .min(1, "La fecha contable es obligatoria")
     .refine(v => !isNaN(Date.parse(v)), "Fecha inválida"),
+  accountId: z.union([z.string(), z.number()]).optional().nullable().transform(v => v ? Number(v) : null),
   invoiceId: z.coerce.number().optional(),
 });

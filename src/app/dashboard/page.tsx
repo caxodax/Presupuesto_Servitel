@@ -9,7 +9,8 @@ import { DashboardFilters } from "@/components/dashboard/DashboardFilters"
 // Exportamos en dynamic permitiendo busquedas real-time del SearchParams sin cacheo agresivo global.
 export const dynamic = "force-dynamic"
 
-export default async function DashboardRootPage({ searchParams }: { searchParams: { companyId?: string, groupId?: string, branchId?: string, budgetId?: string } }) {
+export default async function DashboardRootPage(props: { searchParams: Promise<{ companyId?: string, groupId?: string, branchId?: string, budgetId?: string }> }) {
+  const searchParams = await props.searchParams
   // Opciones de filtro SSR (Se recuperan on-server para hidratar el cliente)
   const [user, filterOptions] = await Promise.all([
     requireAuth(),

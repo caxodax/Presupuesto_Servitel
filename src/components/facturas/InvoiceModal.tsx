@@ -7,6 +7,7 @@ import { invoiceSchema } from "@/features/invoices/validations"
 import { createInvoice, updateInvoice, getRateByDate } from "@/features/invoices/server/actions"
 import { getAllocationsForCompany } from "@/features/budgets/server/actions"
 import { FileUploadInput } from "@/components/facturas/FileUploadInput"
+import { AccountSelector } from "@/components/accounts/AccountSelector"
 import { 
     CheckCircle2, 
     Loader2, 
@@ -18,7 +19,8 @@ import {
     DollarSign, 
     Wallet,
     AlertCircle,
-    TrendingDown
+    TrendingDown,
+    BookOpen
 } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -52,7 +54,7 @@ export function InvoiceModal({
     const companiesList = Array.isArray(companies) ? companies : (companies as any).items || []
     const [allocations, setAllocations] = useState<any[]>(Array.isArray(initialAllocations) ? initialAllocations : (initialAllocations as any).items || [])
     const [isLoadingAllocations, setIsLoadingAllocations] = useState(false)
-    const [selectedCompanyId, setSelectedCompanyId] = useState<string>("")
+    const [selectedCompanyId, setSelectedCompanyId] = useState<string>(invoice?.companyId?.toString() || "")
     
     const {
         register,
@@ -64,17 +66,20 @@ export function InvoiceModal({
         resolver: zodResolver(invoiceSchema),
         defaultValues: mode === "edit" ? {
             ...invoice,
-            date: invoice.date ? format(new Date(invoice.date + 'T00:00:00'), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
+            date: invoice.date ? format(new Date(invoice.date + 'T00:00:00'), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+            accountId: invoice.accountId || null
         } : {
             date: format(new Date(), 'yyyy-MM-dd'),
             exchangeRate: Number(currentBcvRate) || 0,
-            amountUSD: 0
+            amountUSD: 0,
+            accountId: null
         }
     })
 
     const watchAllocationId = watch("allocationId")
     const watchAmountUSD = watch("amountUSD")
     const watchDate = watch("date")
+    const watchAccountId = watch("accountId")
 
     // Buscar tasa histórica automáticamente
     useEffect(() => {
@@ -97,30 +102,29 @@ export function InvoiceModal({
 
     // Cargar alocaciones al seleccionar una empresa
     useEffect(() => {
-        if (!selectedCompanyId) {
-            // Si no es super admin, ya tenemos las initialAllocations
-            if (userRole !== "SUPER_ADMIN" && initialAllocations.length > 0) {
-                setAllocations(initialAllocations)
-            } else {
-                setAllocations([])
-            }
+        const targetId = selectedCompanyId || (userRole !== "SUPER_ADMIN" ? "current" : "")
+        if (!targetId) {
+            setAllocations([])
             return
         }
 
         const fetchAllocations = async () => {
             setIsLoadingAllocations(true)
             try {
-                const data = await getAllocationsForCompany(Number(selectedCompanyId))
+                const idToFetch = selectedCompanyId ? Number(selectedCompanyId) : undefined
+                const data = await getAllocationsForCompany(idToFetch as any)
                 setAllocations(data)
             } catch (err) {
-                toast.error("Error al cargar presupuestos de la empresa")
+                // toast.error("Error al cargar presupuestos")
             } finally {
                 setIsLoadingAllocations(false)
             }
         }
 
-        fetchAllocations()
-    }, [selectedCompanyId, userRole, initialAllocations])
+        if (mode === "create" || (mode === "edit" && allocations.length === 0)) {
+            fetchAllocations()
+        }
+    }, [selectedCompanyId, userRole])
 
     const onSubmit = (data: any) => {
         const formData = new FormData()
@@ -211,27 +215,41 @@ export function InvoiceModal({
                             </div>
                         )}
 
-                        {/* Destino del Gasto */}
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                                <Building2 className="w-3.5 h-3.5" /> {userRole === "SUPER_ADMIN" && mode === "create" ? "2. " : ""}Impacto Estratégico (Destino)
-                                {isLoadingAllocations && <Loader2 className="w-3 h-3 animate-spin ml-2 text-indigo-500" />}
-                            </label>
-                            <select 
-                                {...register("allocationId")}
-                                disabled={isPending || isLoadingAllocations || (userRole === "SUPER_ADMIN" && mode === "create" && !selectedCompanyId)} 
-                                className={`w-full h-12 rounded-2xl border ${errors.allocationId ? 'border-rose-500 ring-2 ring-rose-500/10' : 'border-zinc-200 dark:border-zinc-800'} bg-zinc-50 dark:bg-zinc-950 px-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none`}
-                            >
-                                <option value="">Seleccione Categoría / Presupuesto...</option>
-                                {allocations.map(alloc => (
-                                    <option key={alloc.id} value={alloc.id.toString()}>{alloc.label}</option>
-                                ))}
-                            </select>
-                            {errors.allocationId && (
-                                <p className="text-[10px] text-rose-500 font-bold uppercase flex items-center gap-1">
-                                    <AlertCircle className="w-3 h-3" /> {errors.allocationId.message as string}
-                                </p>
-                            )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Destino del Gasto */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
+                                    <Building2 className="w-3.5 h-3.5" /> Impacto Presupuestario
+                                    {isLoadingAllocations && <Loader2 className="w-3 h-3 animate-spin ml-2 text-indigo-500" />}
+                                </label>
+                                <select 
+                                    {...register("allocationId")}
+                                    disabled={isPending || isLoadingAllocations || (userRole === "SUPER_ADMIN" && mode === "create" && !selectedCompanyId)} 
+                                    className={`w-full h-12 rounded-2xl border ${errors.allocationId ? 'border-rose-500 ring-2 ring-rose-500/10' : 'border-zinc-200 dark:border-zinc-800'} bg-zinc-50 dark:bg-zinc-950 px-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none`}
+                                >
+                                    <option value="">Seleccione Asignación...</option>
+                                    {allocations.map(alloc => (
+                                        <option key={alloc.id} value={alloc.id.toString()}>{alloc.label}</option>
+                                    ))}
+                                </select>
+                                {errors.allocationId && (
+                                    <p className="text-[10px] text-rose-500 font-bold uppercase flex items-center gap-1">
+                                        <AlertCircle className="w-3 h-3" /> {errors.allocationId.message as string}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Cuenta Contable */}
+                            <div className="space-y-2">
+                                <AccountSelector 
+                                    label="Cuenta Contable (Opcional)"
+                                    placeholder="Vincular a cuenta..."
+                                    defaultValue={watchAccountId}
+                                    onSelect={(id) => setValue("accountId", id)}
+                                    isExecutable={true}
+                                    companyId={selectedCompanyId ? Number(selectedCompanyId) : undefined}
+                                />
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

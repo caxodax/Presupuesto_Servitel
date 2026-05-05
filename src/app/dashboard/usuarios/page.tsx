@@ -7,11 +7,10 @@ import { CreateUserModal } from "@/components/usuarios/CreateUserModal"
 import { UserRow } from "@/components/usuarios/UserRow"
 import { Pagination } from "@/components/ui/Pagination"
 
-export default async function UsuariosPage({ 
-  searchParams 
-}: { 
-  searchParams: { companyId?: string; branchId?: string; page?: string } 
+export default async function UsuariosPage(props: { 
+  searchParams: Promise<{ companyId?: string; branchId?: string; page?: string }>
 }) {
+  const searchParams = await props.searchParams
   const user = await requireAuth()
   const companyId = searchParams.companyId
   const branchId = searchParams.branchId
@@ -77,7 +76,7 @@ export default async function UsuariosPage({
                </table>
              </div>
 
-             <Pagination page={page} pageCount={pageCount} total={total} />
+             <Pagination page={page} pageCount={pageCount} total={total} searchParams={searchParams} />
         </div>
       </div>
     </div>

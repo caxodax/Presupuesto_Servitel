@@ -2,8 +2,8 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/types/database'
 
-export function createClient() {
-  const cookieStore = cookies()
+export async function createClient() {
+  const cookieStore = await cookies()
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,6 +31,25 @@ export function createClient() {
             // user sessions.
           }
         },
+      },
+    }
+  )
+}
+
+/**
+ * Cliente estático (sin cookies) para usar dentro de unstable_cache().
+ * No tiene contexto de usuario, por lo que solo ve datos públicos o permitidos por RLS sin sesión.
+ * Si necesitas saltar RLS para cachés globales, usa el Service Role Key (si está disponible).
+ */
+export async function createStaticClient() {
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get() { return undefined },
+        set() { },
+        remove() { },
       },
     }
   )

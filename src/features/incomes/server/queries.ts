@@ -6,7 +6,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 
 export async function getIncomes(companyId?: string, queryParam?: string, page?: number, limit: number = 10, groupId?: string) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const whereClause = enforceCompanyScope(user)
 
@@ -60,7 +60,7 @@ export async function getIncomes(companyId?: string, queryParam?: string, page?:
 
 export async function getIncomeDetails(incomeId: number) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data: income, error: incomeError } = await supabase
     .from('Income')
@@ -108,4 +108,5 @@ export async function getIncomeDetails(incomeId: number) {
     auditLogs: auditLogs || []
   }
 }
+
 

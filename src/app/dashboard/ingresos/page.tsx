@@ -8,13 +8,12 @@ import { createClient } from "@/lib/supabase/server"
 
 import { getEffectiveRate } from "@/features/exchange/server/actions"
 
-export default async function IncomesListPage({ 
-  searchParams 
-}: { 
-  searchParams: { companyId?: string, groupId?: string, query?: string, page?: string } 
+export default async function IncomesListPage(props: { 
+  searchParams: Promise<{ companyId?: string, groupId?: string, query?: string, page?: string }> 
 }) {
+  const searchParams = await props.searchParams
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   const { companyId, groupId, query } = searchParams
   const page = Number(searchParams.page) || 1
 
@@ -54,7 +53,9 @@ export default async function IncomesListPage({
         currentPage={page}
         totalItems={total}
         defaultCompanyId={companyId || user.companyId?.toString()}
+        searchParams={searchParams}
       />
     </div>
   )
 }
+

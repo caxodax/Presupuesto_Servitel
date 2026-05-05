@@ -3,7 +3,7 @@ import { requireAuth, enforceCompanyScope, getBranchIsolation } from "@/lib/perm
 
 export async function getBudgets(companyId?: string, branchId?: string, queryParam?: string, page?: number, limit: number = 10, groupId?: string) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   let query = supabase
     .from('Budget')
@@ -13,7 +13,8 @@ export async function getBudgets(companyId?: string, branchId?: string, queryPar
       allocations:BudgetAllocation(
         *,
         category:Category(*),
-        subcategory:Subcategory(*)
+        subcategory:Subcategory(*),
+        account:AccountingAccount(*)
       ),
       company:Company!inner(groupId)
     `, { count: 'exact' })
@@ -66,7 +67,7 @@ export async function getBudgets(companyId?: string, branchId?: string, queryPar
 
 export async function getBudgetDetails(budgetId: number) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const filter = enforceCompanyScope(user)
   const branchScope = getBranchIsolation(user)
@@ -80,6 +81,7 @@ export async function getBudgetDetails(budgetId: number) {
         *,
         category:Category(*),
         subcategory:Subcategory(*),
+        account:AccountingAccount(*),
         adjustments:BudgetAdjustment(*)
       )
     `)
@@ -123,3 +125,4 @@ export async function getBudgetDetails(budgetId: number) {
     },
   }
 }
+

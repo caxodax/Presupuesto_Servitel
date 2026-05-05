@@ -21,11 +21,10 @@ async function fetchBCVRate(): Promise<number | string> {
   }
 }
 
-export default async function NewInvoiceEntryPage({ 
-  searchParams 
-}: { 
-  searchParams: { companyId?: string } 
+export default async function NewInvoiceEntryPage(props: { 
+  searchParams: Promise<{ companyId?: string }>
 }) {
+  const searchParams = await props.searchParams
   const user = await requireAuth()
   const companyId = searchParams.companyId
 

@@ -9,8 +9,9 @@ type Allocation = {
     id: number
     amountUSD: number
     consumedUSD: number
-    category: { name: string }
-    subcategory: { name: string } | null
+    category?: { name: string }
+    subcategory?: { name: string } | null
+    account?: { code: string, name: string } | null
 }
 
 export function BudgetAllocationsTable({ initialAllocations }: { initialAllocations: Allocation[] }) {
@@ -39,7 +40,7 @@ export function BudgetAllocationsTable({ initialAllocations }: { initialAllocati
             try {
                 await registerAdjustment(formData)
                 toast.success("Presupuesto ajustado", {
-                    description: `${amount > 0 ? '+' : ''}${amount} USD aplicados a la categoría.`
+                    description: `${amount > 0 ? '+' : ''}${amount} USD aplicados.`
                 })
             } catch (e: any) {
                 toast.error("Error al ajustar presupuesto", {
@@ -52,13 +53,13 @@ export function BudgetAllocationsTable({ initialAllocations }: { initialAllocati
     return (
         <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden w-full">
             <div className="p-5 border-b border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/50">
-                <h2 className="text-lg font-bold text-foreground">Distribución Categórica</h2>
+                <h2 className="text-lg font-bold text-foreground">Distribución Presupuestaria</h2>
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left border-collapse table-auto">
                     <thead className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold bg-zinc-50 dark:bg-zinc-900/30 border-b border-zinc-200 dark:border-zinc-800/50">
                         <tr>
-                            <th className="px-6 py-4 min-w-[240px]">Área de Gasto (Categoría)</th>
+                            <th className="px-6 py-4 min-w-[240px]">Clasificación (Cuenta / Categoría)</th>
                             <th className="px-6 py-4 text-right">Límite Aprobado</th>
                             <th className="px-6 py-4 text-right">Consumido</th>
                             <th className="px-6 py-4 text-right">Disponible</th>
@@ -69,8 +70,18 @@ export function BudgetAllocationsTable({ initialAllocations }: { initialAllocati
                         {optimisticAllocations.map((alloc) => (
                             <tr key={alloc.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/10 transition-colors">
                                 <td className="px-6 py-5">
-                                    <div className="font-bold text-foreground text-[14px] whitespace-normal">{alloc.category.name}</div>
-                                    {alloc.subcategory && <div className="text-xs text-muted-foreground mt-0.5 font-medium italic">↳ {alloc.subcategory.name}</div>}
+                                    {alloc.account ? (
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-tighter mb-0.5">{alloc.account.code}</span>
+                                            <div className="font-bold text-foreground text-[14px] whitespace-normal">{alloc.account.name}</div>
+                                            {alloc.category && <span className="text-[10px] text-zinc-400 font-medium uppercase mt-1 italic">Mapeado a: {alloc.category.name}</span>}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col">
+                                            <div className="font-bold text-foreground text-[14px] whitespace-normal">{alloc.category?.name || 'S/C'}</div>
+                                            {alloc.subcategory && <div className="text-xs text-muted-foreground mt-0.5 font-medium italic">↳ {alloc.subcategory.name}</div>}
+                                        </div>
+                                    )}
                                 </td>
                                 <td className="px-6 py-5 text-right font-black text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
                                     ${Number(alloc.amountUSD).toLocaleString(undefined, { minimumFractionDigits: 2 })}

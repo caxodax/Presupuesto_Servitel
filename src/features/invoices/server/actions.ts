@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope } from "@/lib/permissions"
 import { invoiceSchema } from "../validations"
+import { validateAccountForExpense } from "@/features/accounts/server/validations"
+import { resolveAccountFromCategory } from "@/features/accounts/server/actions"
 import { triggerBudgetAlerts } from "@/features/alerts/server/actions"
 import { revalidatePath } from "next/cache"
 import { r2Client, BUCKET_NAME } from "@/lib/r2"
@@ -10,7 +12,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3"
 
 export async function createInvoice(formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const validated = invoiceSchema.parse({
     number: formData.get("number"),
@@ -19,6 +21,7 @@ export async function createInvoice(formData: FormData) {
     amountUSD: Number(formData.get("amountUSD")),
     exchangeRate: Number(formData.get("exchangeRate")),
     date: formData.get("date"),
+    accountId: formData.get("accountId") || null,
   })
 
   const { data: allocation, error: aError } = await supabase
@@ -36,6 +39,16 @@ export async function createInvoice(formData: FormData) {
   const branchName = budgetInfo.branch.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
   
   enforceCompanyScope(user, companyId)
+  
+  // Resolución automática si no viene cuenta: heredar del rubro presupuestario
+  let finalAccountId = validated.accountId
+  if (!finalAccountId && allocation.accountId) {
+    finalAccountId = allocation.accountId
+  }
+
+  if (finalAccountId) {
+    await validateAccountForExpense(finalAccountId)
+  }
 
   // Procesar Adjunto en Cloudflare R2
   const file = formData.get("attachment") as File
@@ -68,6 +81,7 @@ export async function createInvoice(formData: FormData) {
       exchangeRate: validated.exchangeRate,
       date: new Date(validated.date).toISOString(),
       companyId: companyId,
+      accountId: finalAccountId,
       registeredById: user.profileId,
       attachmentKey,
       attachmentName,
@@ -89,7 +103,7 @@ export async function createInvoice(formData: FormData) {
 
 export async function updateInvoice(formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const invoiceId = Number(formData.get("invoiceId"))
   const validated = invoiceSchema.parse({
@@ -99,6 +113,7 @@ export async function updateInvoice(formData: FormData) {
     amountUSD: Number(formData.get("amountUSD")),
     exchangeRate: Number(formData.get("exchangeRate")),
     date: formData.get("date"),
+    accountId: formData.get("accountId") || null,
   })
 
   const { data: oldInvoice, error: fError } = await supabase
@@ -119,6 +134,17 @@ export async function updateInvoice(formData: FormData) {
 
   const budgetInfo = (targetAlloc as any)?.budget
   const targetCompanyId = budgetInfo?.companyId || oldInvoice.companyId
+  
+  // Resolución automática
+  let finalAccountId = validated.accountId
+  if (!finalAccountId && targetAlloc?.accountId) {
+    finalAccountId = targetAlloc.accountId
+  }
+
+  if (finalAccountId) {
+    await validateAccountForExpense(finalAccountId)
+  }
+
   const targetBranchId = budgetInfo?.branchId || (oldInvoice.allocation as any)?.budget?.branchId
   const companyName = budgetInfo?.branch.company.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || 'desconocida'
   const branchName = budgetInfo?.branch.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || 'desconocida'
@@ -164,6 +190,7 @@ export async function updateInvoice(formData: FormData) {
       amountVES: calculatedVES,
       exchangeRate: validated.exchangeRate,
       date: new Date(validated.date).toISOString(),
+      accountId: finalAccountId,
       attachmentKey,
       attachmentName
     })
@@ -176,7 +203,7 @@ export async function updateInvoice(formData: FormData) {
 }
 
 export async function getRateByDate(date: string) {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data, error } = await supabase
       .from('ExchangeRate')
       .select('usd')
@@ -189,7 +216,7 @@ export async function getRateByDate(date: string) {
 
 export async function anulateInvoice(id: number) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data: invoice, error: fError } = await supabase
     .from('Invoice')

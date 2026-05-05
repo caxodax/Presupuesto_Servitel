@@ -9,7 +9,7 @@ import { cache } from "react"
  * Usamos \`cache\` de React para deduplicar llamadas dentro de un mismo ciclo de renderizado.
  */
 export const getSession = cache(async () => {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data: { user }, error } = await supabase.auth.getUser()
   

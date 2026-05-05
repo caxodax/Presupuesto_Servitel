@@ -2,8 +2,9 @@ import { getIncomeDetails } from "@/features/incomes/server/queries"
 import { ArrowLeft, CheckCircle2, User, Clock, FileCheck, Download, Wallet, Building2, MapPin } from "lucide-react"
 import Link from "next/link"
 
-export default async function IncomeDetailPage({ params }: { params: { id: string } }) {
-  const { income, auditLogs } = await getIncomeDetails(Number(params.id))
+export default async function IncomeDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params
+  const { income, auditLogs } = await getIncomeDetails(Number(resolvedParams.id))
   
   return (
     <div className="max-w-5xl flex flex-col gap-8 pb-10 animate-in fade-in duration-500">

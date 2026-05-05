@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache"
 
 export async function createCategory(formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   if (user.role !== 'SUPER_ADMIN') {
     throw new Error("Solo los Súper Administradores pueden crear categorías globales.")
@@ -38,7 +38,7 @@ export async function createCategory(formData: FormData) {
 
 export async function createSubcategory(formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   if (user.role !== 'SUPER_ADMIN') {
     throw new Error("Solo los Súper Administradores pueden gestionar la estructura global de categorías.")
@@ -74,7 +74,7 @@ export async function createSubcategory(formData: FormData) {
 
 export async function updateCategory(formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   if (user.role !== 'SUPER_ADMIN') {
     throw new Error("Acceso denegado: Solo Súper Administradores.")
@@ -107,7 +107,7 @@ export async function updateCategory(formData: FormData) {
 
 export async function toggleCategoryStatus(id: number) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   if (user.role !== 'SUPER_ADMIN') {
     throw new Error("Acceso denegado: Solo Súper Administradores.")
@@ -144,7 +144,7 @@ export async function toggleCategoryStatus(id: number) {
 
 export async function updateSubcategory(formData: FormData) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   if (user.role !== 'SUPER_ADMIN') {
     throw new Error("Acceso denegado.")
@@ -177,7 +177,7 @@ export async function updateSubcategory(formData: FormData) {
 
 export async function toggleSubcategoryStatus(id: number) {
   const user = await requireAuth()
-  const supabase = createClient()
+  const supabase = await createClient()
   
   if (user.role !== 'SUPER_ADMIN') {
     throw new Error("Acceso denegado.")
@@ -206,3 +206,4 @@ export async function toggleSubcategoryStatus(id: number) {
 
   revalidatePath("/dashboard/categorias")
 }
+

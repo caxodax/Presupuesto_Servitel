@@ -1,6 +1,7 @@
 "use client"
 
-import { useFormState, useFormStatus } from "react-dom"
+import { useActionState } from "react"
+import { useFormStatus } from "react-dom"
 import { authenticate } from "@/app/actions/auth"
 import { useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
@@ -19,7 +20,7 @@ function SubmitButton() {
 }
 
 export default function LoginPage() {
-  const [errorMessage, dispatch] = useFormState(authenticate, undefined)
+  const [errorMessage, dispatch] = useActionState(authenticate, undefined)
   const [showPassword, setShowPassword] = useState(false)
 
   return (

@@ -1,15 +1,23 @@
 import { getExecutiveAnalytics } from "@/features/dashboard/server/queries"
-import { BarChart3, PieChart, ShieldAlert, Award, Zap } from "lucide-react"
+import { BarChart3, PieChart, ShieldAlert, Award, Zap, BookOpen } from "lucide-react"
 
-export async function ExecutiveAnalytics({ searchParams }: { searchParams: any }) {
-    const { branchRankings, categoryRankings } = await getExecutiveAnalytics(searchParams)
+type SearchParamsResolved = { companyId?: string; branchId?: string; budgetId?: string; groupId?: string }
+
+export async function ExecutiveAnalytics({ searchParams }: { searchParams: SearchParamsResolved }) {
+    const { branchRankings, categoryRankings, accountRankings } = await getExecutiveAnalytics({
+        companyId: searchParams.companyId ? Number(searchParams.companyId) : undefined,
+        branchId: searchParams.branchId ? Number(searchParams.branchId) : undefined,
+        budgetId: searchParams.budgetId ? Number(searchParams.budgetId) : undefined,
+        groupId: searchParams.groupId ? Number(searchParams.groupId) : undefined,
+    })
 
     // Calculamos totales para porcentajes relativos
     const totalBranchConsumed = branchRankings.reduce((acc, curr) => acc + curr.consumed, 0)
     const totalCategoryConsumed = categoryRankings.reduce((acc, curr) => acc + curr.consumed, 0)
+    const totalAccountConsumed = (accountRankings || []).reduce((acc, curr) => acc + curr.consumed, 0)
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
             
             {/* Ranking de Sucursales */}
             <div className="group relative overflow-hidden rounded-2xl border border-white/20 dark:border-zinc-800/50 bg-white dark:bg-zinc-900/40 p-8 shadow-[0_8px_32px_rgba(0,0,0,0.03)] backdrop-blur-sm transition-all duration-500 hover:shadow-[0_12px_44px_rgba(0,0,0,0.06)]">
@@ -58,6 +66,49 @@ export async function ExecutiveAnalytics({ searchParams }: { searchParams: any }
                 </div>
             </div>
 
+            {/* Ranking de Plan de Cuentas (NUEVO) */}
+            <div className="group relative overflow-hidden rounded-2xl border border-white/20 dark:border-zinc-800/50 bg-white dark:bg-zinc-900/40 p-8 shadow-[0_8px_32px_rgba(0,0,0,0.03)] backdrop-blur-sm transition-all duration-500 hover:shadow-[0_12px_44px_rgba(0,0,0,0.06)]">
+                <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
+                <div className="flex items-center justify-between mb-10">
+                    <div className="flex items-center gap-4">
+                        <div className="p-2.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl text-emerald-600 dark:text-emerald-400 shadow-sm border border-emerald-100 dark:border-emerald-500/20">
+                            <BookOpen className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-black text-zinc-900 dark:text-zinc-100 tracking-tight">Plan de Cuentas</h3>
+                            <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-[0.2em]">Ejecución por cuenta contable</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-8">
+                    {(accountRankings || []).map((acc, i) => (
+                        <div key={acc.code} className="relative group/item">
+                            <div className="flex justify-between items-end mb-2.5">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-black text-emerald-500 uppercase">{acc.code}</span>
+                                    <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 truncate max-w-[150px]">
+                                        {acc.name}
+                                    </span>
+                                </div>
+                                <span className="text-sm font-black text-zinc-900 dark:text-zinc-100">
+                                    ${acc.consumed.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                </span>
+                            </div>
+                            <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/50 rounded-full overflow-hidden p-[1px]">
+                                <div 
+                                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-1000 group-hover/item:opacity-80"
+                                    style={{ width: `${totalAccountConsumed > 0 ? (acc.consumed / accountRankings[0].consumed) * 100 : 0}%` }}
+                                />
+                            </div>
+                        </div>
+                    ))}
+                    {(accountRankings || []).length === 0 && (
+                        <EmptyState message="Sin datos contables" />
+                    )}
+                </div>
+            </div>
+
             {/* Ranking de Categorías */}
             <div className="group relative overflow-hidden rounded-2xl border border-white/20 dark:border-zinc-800/50 bg-white dark:bg-zinc-900/40 p-8 shadow-[0_8px_32px_rgba(0,0,0,0.03)] backdrop-blur-sm transition-all duration-500 hover:shadow-[0_12px_44px_rgba(0,0,0,0.06)]">
                 <div className="absolute top-0 left-0 w-1 h-full bg-rose-500" />
@@ -67,8 +118,8 @@ export async function ExecutiveAnalytics({ searchParams }: { searchParams: any }
                             <PieChart className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="font-black text-zinc-900 dark:text-zinc-100 tracking-tight">Segmentación de Gastos</h3>
-                            <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-[0.2em]">Rubros de mayor impacto</p>
+                            <h3 className="font-black text-zinc-900 dark:text-zinc-100 tracking-tight">Impacto por Categoría</h3>
+                            <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-[0.2em]">Agrupación legacy</p>
                         </div>
                     </div>
                 </div>
@@ -118,8 +169,8 @@ function EmptyState({ message }: { message: string }) {
 
 export function ExecutiveAnalyticsSkeleton() {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-            {[1, 2].map(i => (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
+            {[1, 2, 3].map(i => (
                 <div key={i} className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 animate-pulse">
                     <div className="flex items-center gap-4 mb-10">
                         <div className="h-10 w-10 bg-zinc-100 dark:bg-zinc-800 rounded-xl" />
