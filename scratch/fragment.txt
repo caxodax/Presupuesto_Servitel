@@ -1,0 +1,31 @@
+}
+
+export async function upsertAllocation(formData: FormData) {
+  const user = await requireAuth()
+  const supabase = await createClient()
+
+  const validated = allocationSchema.parse({
+    budgetId: formData.get("budgetId"),
+    categoryId: formData.get("categoryId") || null,
+    subcategoryId: formData.get("subcategoryId") || null,
+    accountId: formData.get("accountId") || null,
+    amountUSD: formData.get("amountUSD"),
+  })
+
+  const validated = allocationSchema.parse({
+    budgetId: formData.get("budgetId"),
+    categoryId: formData.get("categoryId") || null,
+    subcategoryId: formData.get("subcategoryId") || null,
+    accountId: formData.get("accountId") || null,
+    companyAccountId: formData.get("companyAccountId") || null,
+    globalAccountId: formData.get("globalAccountId") || null,
+    amountUSD: formData.get("amountUSD"),
+  })
+
+  if (bError || !budget) throw new Error("Presupuesto no encontrado")
+  enforceCompanyScope(user, budget.companyId)
+
+  // Resolución automática si no viene cuenta pero sí categoría
+  let finalAccountId = validated.accountId
+  let finalCompanyAccountId = validated.companyAccountId
+
