@@ -52,7 +52,7 @@ export function CreateInvoiceForm({
 
         <div className="space-y-2">
             <AccountSelector 
-                label="Cuenta Contable (Opcional Override)"
+                label="Cuenta Contable"
                 placeholder="Heredar del rubro presupuestario..."
                 onSelect={(id) => setSelectedCompanyAccountId(id)}
                 isExecutable={true}

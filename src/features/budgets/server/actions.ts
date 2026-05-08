@@ -102,19 +102,9 @@ export async function upsertAllocation(formData: FormData) {
   if (bError || !budget) throw new Error("Presupuesto no encontrado")
   enforceCompanyScope(user, budget.companyId)
 
-  // Resolución automática si no viene cuenta pero sí categoría
+  // Resolución automática si no viene cuenta: No aplica para categorías ahora
   let finalAccountId = validated.accountId
   let finalCompanyAccountId = validated.companyAccountId
-
-  if (!finalCompanyAccountId && !finalAccountId && validated.categoryId) {
-    const resolved = await resolveAccountFromCategory({
-        companyId: budget.companyId,
-        categoryId: validated.categoryId,
-        subcategoryId: validated.subcategoryId
-    })
-    finalAccountId = resolved.accountId
-    finalCompanyAccountId = resolved.companyAccountId
-  }
 
   if (!finalCompanyAccountId && validated.globalAccountId) {
     finalCompanyAccountId = await ensureCompanyAccount(budget.companyId, validated.globalAccountId)
@@ -126,7 +116,7 @@ export async function upsertAllocation(formData: FormData) {
   }
 
 
-  // Verificamos si ya existe por cuenta o categoría
+  // Verificamos si ya existe por cuenta
   let q = supabase
     .from('BudgetAllocation')
     .select('id')
@@ -137,17 +127,7 @@ export async function upsertAllocation(formData: FormData) {
   } else if (finalAccountId) {
     q = q.eq('accountId', finalAccountId)
   } else {
-    if (validated.categoryId) {
-      q = q.eq('categoryId', validated.categoryId)
-    } else {
-      q = q.is('categoryId', null)
-    }
-
-    if (validated.subcategoryId) {
-      q = q.eq('subcategoryId', validated.subcategoryId)
-    } else {
-      q = q.is('subcategoryId', null)
-    }
+     throw new Error("Se requiere una cuenta contable para la asignación.")
   }
 
   const { data: existingAllocation } = await q.maybeSingle()
@@ -169,8 +149,6 @@ export async function upsertAllocation(formData: FormData) {
       .from('BudgetAllocation')
       .insert({
         budgetId: validated.budgetId,
-        categoryId: validated.categoryId as any,
-        subcategoryId: validated.subcategoryId as any,
         accountId: finalAccountId,
         companyAccountId: finalCompanyAccountId,
         amountUSD: validated.amountUSD,
@@ -282,10 +260,8 @@ export async function getAllocationsForCompany(companyId: number) {
     .select(`
       id, name,
       branch:Branch(id, name, company:Company(name)),
-      allocations:BudgetAllocation(id, amountUSD, categoryId, subcategoryId, accountId, companyAccountId, 
+      allocations:BudgetAllocation(id, amountUSD, accountId, companyAccountId, 
         id, amountUSD, consumedUSD,
-        category:Category(name),
-        subcategory:Subcategory(name),
         companyAccount:CompanyAccount(
           id,
           globalAccount:GlobalAccount(code, name)
@@ -300,7 +276,7 @@ export async function getAllocationsForCompany(companyId: number) {
           const acc = a.companyAccount?.globalAccount
           return { 
               id: a.id, 
-              label: `${user.role === "SUPER_ADMIN" ? `[${b.branch.company.name}] ` : ""}${b.name} (${b.branch.name}) - ${acc ? `${acc.code} ${acc.name}` : `${a.category?.name}${a.subcategory ? ` > ${a.subcategory.name}` : ""}`}`,
+              label: `${user.role === "SUPER_ADMIN" ? `[${b.branch.company.name}] ` : ""}${b.name} (${b.branch.name}) - ${acc ? `${acc.code} ${acc.name}` : 'Sin cuenta vinculada'}`,
               remainingUSD: Number(a.amountUSD) - Number(a.consumedUSD)
           }
       })
@@ -318,7 +294,7 @@ export async function updateBudgetMaster(formData: FormData) {
 
   const { data: budget, error: bError } = await supabase
     .from('Budget')
-    .select('allocations:BudgetAllocation(id, amountUSD, categoryId, subcategoryId, accountId, companyAccountId, amountUSD)')
+    .select('companyId, allocations:BudgetAllocation(id, amountUSD, accountId, companyAccountId, amountUSD)')
     .eq('id', id)
     .single()
 

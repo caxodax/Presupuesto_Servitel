@@ -22,12 +22,10 @@ export async function getConsolidatedReport(filters: {
         .select(`
             amountUSD, 
             date, 
-            categoryId, 
-            category:Category(name),
             company:Company(name),
             branch:Branch(name),
             companyAccount:CompanyAccount(
-                globalAccount:GlobalAccount(type)
+                globalAccount:GlobalAccount(code, name, type)
             )
         `)
         .gte('date', filters.startDate)
@@ -48,7 +46,7 @@ export async function getConsolidatedReport(filters: {
                     branch:Branch(name)
                 ),
                 companyAccount:CompanyAccount(
-                    globalAccount:GlobalAccount(type)
+                    globalAccount:GlobalAccount(code, name, type)
                 )
             )
         `)
@@ -67,12 +65,9 @@ export async function getConsolidatedReport(filters: {
         expensesQuery = expensesQuery.filter('allocation.budget.branchId', 'eq', filters.branchId)
     }
     if (filters.categoryId) {
-        incomesQuery = incomesQuery.eq('categoryId', filters.categoryId)
-        expensesQuery = expensesQuery.filter('allocation.categoryId', 'eq', filters.categoryId)
-    }
-    if (filters.subcategoryId) {
-        incomesQuery = incomesQuery.eq('subcategoryId', filters.subcategoryId)
-        expensesQuery = expensesQuery.filter('allocation.subcategoryId', 'eq', filters.subcategoryId)
+        // En el nuevo mundo, categoryId ya no se usa para nuevos registros, pero si se pasa, 
+        // podríamos intentar filtrar por el nombre de la cuenta equivalente o simplemente ignorarlo si ya no hay categorías.
+        // Por ahora, asumimos que los filtros de UI también cambiarán a cuentas.
     }
     if (filters.groupId) {
         // Para filtrar por la matriz de la empresa
@@ -140,19 +135,19 @@ export async function getConsolidatedReport(filters: {
         status: row.income - row.expense >= 0 ? 'GAIN' : 'LOSS'
     })).sort((a, b) => b.period.localeCompare(a.period))
 
-    // 3. Consolidación por categoría
+    // 3. Consolidación por cuenta de alto nivel (Nivel 1 o 2)
     const categoryAnalysis: Record<string, { name: string; income: number; expense: number }> = {}
     
     incomesRes.data.forEach(inc => {
-        const catName = inc.category?.name || 'Sin Categoría'
-        if (!categoryAnalysis[catName]) categoryAnalysis[catName] = { name: catName, income: 0, expense: 0 }
-        categoryAnalysis[catName].income += Number(inc.amountUSD)
+        const accName = (inc.companyAccount as any)?.globalAccount?.name || 'Otros Ingresos'
+        if (!categoryAnalysis[accName]) categoryAnalysis[accName] = { name: accName, income: 0, expense: 0 }
+        categoryAnalysis[accName].income += Number(inc.amountUSD)
     })
-
+ 
     expensesRes.data.forEach(exp => {
-        const catName = (exp.allocation as any)?.category?.name || 'Sin Categoría'
-        if (!categoryAnalysis[catName]) categoryAnalysis[catName] = { name: catName, income: 0, expense: 0 }
-        categoryAnalysis[catName].expense += Number(exp.amountUSD)
+        const accName = (exp.allocation as any)?.companyAccount?.globalAccount?.name || 'Otros Gastos'
+        if (!categoryAnalysis[accName]) categoryAnalysis[accName] = { name: accName, income: 0, expense: 0 }
+        categoryAnalysis[accName].expense += Number(exp.amountUSD)
     })
 
     // 4. Totales por tipo de cuenta contable

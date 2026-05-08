@@ -12,14 +12,12 @@ export const budgetSchema = z.object({
 
 export const allocationSchema = z.object({
   budgetId: numericId,
-  categoryId: numericId.optional().nullable(),
-  subcategoryId: z.union([z.string(), z.number()]).optional().nullable().transform(v => v ? Number(v) : null),
   accountId: z.union([z.string(), z.number()]).optional().nullable().transform(v => v ? Number(v) : null),
   companyAccountId: z.union([z.string(), z.number()]).optional().nullable().transform(v => v ? Number(v) : null),
   globalAccountId: z.union([z.string(), z.number()]).optional().nullable().transform(v => v ? Number(v) : null),
   amountUSD: z.coerce.number().min(0, "Monto asignado inválido"),
-}).refine(data => data.categoryId || data.accountId || data.companyAccountId || data.globalAccountId, {
-  message: "Debes seleccionar una Categoría o una Cuenta Contable",
+}).refine(data => data.accountId || data.companyAccountId || data.globalAccountId, {
+  message: "Debes seleccionar una Cuenta Contable",
   path: ["companyAccountId"]
 });
 

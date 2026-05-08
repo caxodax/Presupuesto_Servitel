@@ -39,8 +39,6 @@ export async function createIncome(formData: FormData) {
   const validated = incomeSchema.parse({
     number: formData.get("number"),
     clientName: formData.get("clientName"),
-    categoryId: formData.get("categoryId") ? Number(formData.get("categoryId")) : null,
-    subcategoryId: formData.get("subcategoryId") ? Number(formData.get("subcategoryId")) : null,
     accountId: formData.get("accountId") ? Number(formData.get("accountId")) : null,
     companyAccountId: formData.get("companyAccountId") ? Number(formData.get("companyAccountId")) : null,
     globalAccountId: formData.get("globalAccountId") ? Number(formData.get("globalAccountId")) : null,
@@ -66,15 +64,6 @@ export async function createIncome(formData: FormData) {
   // Resolución automática si no viene cuenta
   let finalAccountId = validated.accountId
   let finalCompanyAccountId = validated.companyAccountId
-  if (!finalCompanyAccountId && !finalAccountId && validated.categoryId) {
-    const resolved = await resolveAccountFromCategory({
-        companyId: companyId,
-        categoryId: validated.categoryId,
-        subcategoryId: validated.subcategoryId
-    })
-    finalAccountId = resolved.accountId
-    finalCompanyAccountId = resolved.companyAccountId
-  }
 
   if (!finalCompanyAccountId && validated.globalAccountId) {
     finalCompanyAccountId = await ensureCompanyAccount(companyId, validated.globalAccountId)
@@ -113,8 +102,6 @@ export async function createIncome(formData: FormData) {
     p_income_data: {
       number: validated.number,
       clientName: validated.clientName,
-      categoryId: validated.categoryId,
-      subcategoryId: validated.subcategoryId,
       companyAccountId: finalCompanyAccountId,
       branchId: validated.branchId,
       amountUSD: validated.amountUSD,
@@ -177,8 +164,6 @@ export async function updateIncome(formData: FormData) {
   const validated = incomeSchema.parse({
     number: formData.get("number"),
     clientName: formData.get("clientName"),
-    categoryId: formData.get("categoryId") ? Number(formData.get("categoryId")) : null,
-    subcategoryId: formData.get("subcategoryId") ? Number(formData.get("subcategoryId")) : null,
     accountId: formData.get("accountId") ? Number(formData.get("accountId")) : null,
     companyAccountId: formData.get("companyAccountId") ? Number(formData.get("companyAccountId")) : null,
     branchId: formData.get("branchId") ? Number(formData.get("branchId")) : null,
@@ -192,16 +177,6 @@ export async function updateIncome(formData: FormData) {
   // Resolución automática si no viene cuenta
   let finalAccountId = validated.accountId
   let finalCompanyAccountId = validated.companyAccountId
-
-  if (!finalCompanyAccountId && !finalAccountId && validated.categoryId) {
-    const resolved = await resolveAccountFromCategory({
-        companyId: oldIncome.companyId,
-        categoryId: validated.categoryId,
-        subcategoryId: validated.subcategoryId
-    })
-    finalAccountId = resolved.accountId
-    finalCompanyAccountId = resolved.companyAccountId
-  }
 
   if (!finalCompanyAccountId && validated.globalAccountId) {
     finalCompanyAccountId = await ensureCompanyAccount(oldIncome.companyId, validated.globalAccountId)
@@ -241,8 +216,6 @@ export async function updateIncome(formData: FormData) {
     .update({
       number: validated.number,
       clientName: validated.clientName,
-      categoryId: validated.categoryId as any,
-      subcategoryId: validated.subcategoryId as any,
       accountId: finalAccountId,
       companyAccountId: finalCompanyAccountId,
       branchId: validated.branchId,
@@ -262,43 +235,12 @@ export async function updateIncome(formData: FormData) {
   revalidatePath('/dashboard')
 }
 
-export async function getIncomeCategories(companyId?: number) {
-    const supabase = await createClient()
-    
-    let query = supabase
-        .from('Category')
-        .select('*, subcategories:Subcategory(*)')
-        .eq('type', 'INCOME')
-        .eq('isActive', true)
-        .order('name')
-        
-    if (companyId) {
-        query = query.or(`companyId.eq.${companyId},companyId.is.null`)
-    } else {
-        query = query.is('companyId', null)
-    }
-    
-    const { data, error } = await query
-    
-    if (error) throw new Error(`Error al obtener categorías de ingresos: ${error.message}`)
-    
-    return data || []
-}
-
-export async function getIncomeCategoriesByCompany(companyId: number) {
-    return getIncomeCategories(companyId)
-}
-
 export async function getCompanyDataForIncome(companyId: number) {
     const supabase = await createClient()
     
-    const [categoriesRes, branchesRes] = await Promise.all([
-        getIncomeCategories(companyId),
-        supabase.from('Branch').select('id, name').eq('companyId', companyId).eq('isActive', true)
-    ])
+    const { data: branches } = await supabase.from('Branch').select('id, name').eq('companyId', companyId).eq('isActive', true)
     
     return {
-        categories: categoriesRes,
-        branches: branchesRes.data || []
+        branches: branches || []
     }
 }

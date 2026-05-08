@@ -60,7 +60,7 @@ export function BudgetAllocationsTable({ initialAllocations }: { initialAllocati
                 <table className="w-full text-sm text-left border-collapse table-auto">
                     <thead className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold bg-zinc-50 dark:bg-zinc-900/30 border-b border-zinc-200 dark:border-zinc-800/50">
                         <tr>
-                            <th className="px-6 py-4 min-w-[240px]">Clasificación (Cuenta / Categoría)</th>
+                            <th className="px-6 py-4 min-w-[240px]">Cuenta Contable</th>
                             <th className="px-6 py-4 text-right">Límite Aprobado</th>
                             <th className="px-6 py-4 text-right">Consumido</th>
                             <th className="px-6 py-4 text-right">Disponible</th>
@@ -79,13 +79,9 @@ export function BudgetAllocationsTable({ initialAllocations }: { initialAllocati
                                             <div className="font-bold text-foreground text-[14px] whitespace-normal">
                                                 {alloc.companyAccount?.globalAccount?.name || alloc.account?.name}
                                             </div>
-                                            {alloc.category && <span className="text-[10px] text-zinc-400 font-medium uppercase mt-1 italic">Mapeado a: {alloc.category.name}</span>}
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col">
-                                            <div className="font-bold text-foreground text-[14px] whitespace-normal">{alloc.category?.name || 'S/C'}</div>
-                                            {alloc.subcategory && <div className="text-xs text-muted-foreground mt-0.5 font-medium italic">↳ {alloc.subcategory.name}</div>}
-                                        </div>
+                                        <div className="font-bold text-foreground text-[14px] whitespace-normal">Sin cuenta vinculada</div>
                                     )}
                                 </td>
                                 <td className="px-6 py-5 text-right font-black text-zinc-700 dark:text-zinc-300 whitespace-nowrap">

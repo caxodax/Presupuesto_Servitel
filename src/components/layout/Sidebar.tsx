@@ -6,7 +6,6 @@ const navigation = [
   { name: "Empresas", href: "/dashboard/empresas", icon: Building2, roles: ["SUPER_ADMIN"] },
   { name: "Usuarios", href: "/dashboard/usuarios", icon: Users, roles: ["SUPER_ADMIN"] },
   { name: "Sucursales", href: "/dashboard/sucursales", icon: GitBranch, roles: ["SUPER_ADMIN"] },
-  { name: "Categorías", href: "/dashboard/categorias", icon: FolderTree, roles: ["SUPER_ADMIN"] },
   { name: "Plan de Cuentas", href: "/dashboard/cuentas/mapeo", icon: BookOpen, roles: ["SUPER_ADMIN", "COMPANY_ADMIN"] },
   { name: "Presupuestos", href: "/dashboard/presupuestos", icon: Layers, roles: ["SUPER_ADMIN"], prefetch: true },
   { name: "Facturas", href: "/dashboard/facturas", icon: FileText, prefetch: true },

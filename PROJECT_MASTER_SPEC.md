@@ -669,3 +669,25 @@ Tu primera tarea es:
 5. proponer la arquitectura final del MVP
 
 **No generes código todavía.**
+
+---
+
+# 23. Próximas Funcionalidades: Carga Masiva (Excel)
+
+Para mejorar la eficiencia operativa y facilitar la migración desde procesos manuales, se contempla la implementación de un módulo de **Carga Masiva** basado en plantillas Excel:
+
+### 23.1. Presupuestos (Distribución de Fondos)
+- Carga de rubros presupuestarios vinculando directamente `Código de Cuenta Contable` y `Monto USD`.
+- Validación automática de existencia de cuenta y suficiencia de límite en el Presupuesto Maestro.
+
+### 23.2. Facturas (Egresos)
+- Registro masivo de facturas indicando: Proveedor, Número, Fecha, Monto USD, Tasa BCV e ID de Rubro (o Cuenta Contable).
+- Procesamiento por lotes para verificar duplicados y disponibilidad de fondos.
+
+### 23.3. Ingresos
+- Registro masivo de entradas de capital: Cliente, Monto USD, Tasa y Cuenta Contable de Ingresos vinculada.
+
+**Lineamientos Técnicos:**
+- Uso de librerías como `xlsx` o `exceljs` en el servidor.
+- Interfaz de "Previsualización" antes de confirmar la inyección final en la base de datos.
+- Registro de errores detallado (ej. "Línea 45: La cuenta 5.1.02 no existe").

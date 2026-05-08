@@ -85,7 +85,7 @@ export function CreateAllocationModal({
                 
                 <div className="space-y-4">
                     <AccountSelector 
-                      label="Cuenta Contable (Prioridad)"
+                      label="Cuenta Contable"
                       placeholder="Buscar cuenta presupuestable..."
                       onSelect={(id) => {
                         setSelectedCompanyAccountId(id)
@@ -108,38 +108,12 @@ export function CreateAllocationModal({
                         type={["ASSET", "LIABILITY", "EQUITY", "COST", "EXPENSE"]}
                       />
                     )}
-
-                    <div className="relative py-2">
-                        <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t border-zinc-100 dark:border-zinc-800" />
-                        </div>
-                        <div className="relative flex justify-center text-[10px] uppercase font-black">
-                            <span className="bg-white dark:bg-zinc-900 px-2 text-zinc-400 tracking-widest">o bien usar</span>
-                        </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Categoría Legacy</label>
-                        <select 
-                          name="categoryId" 
-                          disabled={isPending || !!selectedCompanyAccountId || !!selectedGlobalAccountId} 
-                          defaultValue="" 
-                          className="w-full h-11 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all disabled:opacity-50 appearance-none"
-                        >
-                            <option value="" disabled>Selecciona categoría...</option>
-                            {categoriesList.filter((c: any) => c.type === 'EXPENSE').map((c: any) => (
-                                <option key={c.id} value={c.id.toString()}>
-                                    {c.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
                 </div>
 
                 <div className="bg-indigo-50/50 dark:bg-indigo-500/5 p-3 rounded-xl border border-indigo-100 dark:border-indigo-500/10 flex gap-3">
                     <Info className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
                     <p className="text-[10px] text-indigo-700 dark:text-indigo-400 font-medium leading-relaxed">
-                        Si seleccionas una cuenta contable, esta tendrá prioridad sobre la categoría legacy para reportes avanzados.
+                        Toda asignación presupuestaria debe estar vinculada a una cuenta contable del Plan de Cuentas.
                     </p>
                 </div>
 

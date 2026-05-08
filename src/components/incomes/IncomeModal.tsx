@@ -48,7 +48,6 @@ export function IncomeModal({
     const [isPending, startTransition] = useTransition()
     const companiesList = Array.isArray(companies) ? companies : (companies as any).items || []
     const categoriesList = Array.isArray(initialCategories) ? initialCategories : (initialCategories as any).items || []
-    const [dynamicCategories, setDynamicCategories] = useState(categoriesList)
     const [branches, setBranches] = useState<any[]>([])
     const [isLoadingData, setIsLoadingData] = useState(false)
 
@@ -82,22 +81,13 @@ export function IncomeModal({
     const watchGlobalAccountId = watch("globalAccountId" as any)
     const watchCategoryId = watch("categoryId" as any)
 
-    // Auto-heredar cuenta de la categoría seleccionada
-    useEffect(() => {
-        if (watchCategoryId && !watchCompanyAccountId && mode === 'create') {
-            const cat = dynamicCategories.find((c: any) => c.id === Number(watchCategoryId))
-            if (cat?.companyAccountId) {
-                setValue("companyAccountId" as any, cat.companyAccountId)
-            }
-        }
-    }, [watchCategoryId, watchCompanyAccountId, dynamicCategories, setValue, mode])
+    // Auto-heredar cuenta: Eliminado por migración a Plan de Cuentas único
 
     useEffect(() => {
         const effectiveCompanyId = watchCompanyId || defaultCompanyId
         
         if (!effectiveCompanyId) {
             setBranches([])
-            setDynamicCategories([])
             return
         }
 
@@ -105,9 +95,7 @@ export function IncomeModal({
             setIsLoadingData(true)
             try {
                 const data = await getCompanyDataForIncome(Number(effectiveCompanyId))
-                const cats = Array.isArray(data.categories) ? data.categories : (data.categories as any).items || []
                 const brs = Array.isArray(data.branches) ? data.branches : (data.branches as any).items || []
-                setDynamicCategories(cats)
                 setBranches(brs)
             } catch (error) {
                 // toast.error("Error cargando datos de la empresa")
@@ -116,7 +104,7 @@ export function IncomeModal({
             }
         }
         
-        if (mode === 'create' || (mode === 'edit' && dynamicCategories.length === 0)) {
+        if (mode === 'create' || (mode === 'edit' && branches.length === 0)) {
             fetchData()
         }
     }, [watchCompanyId, defaultCompanyId])
@@ -239,28 +227,6 @@ export function IncomeModal({
                                     companyId={watchCompanyId ? Number(watchCompanyId) : undefined}
                                 />
                                 {errors.companyAccountId && <p className="text-[10px] font-bold text-rose-500 ml-2 uppercase">{(errors.companyAccountId as any).message}</p>}
-                                {watchCategoryId && dynamicCategories.find((c: any) => c.id === Number(watchCategoryId))?.companyAccountId === watchCompanyAccountId && watchCompanyAccountId && (
-                                    <p className="text-[9px] text-indigo-500 font-bold uppercase flex items-center gap-1 mt-1">
-                                        <BookOpen className="w-3 h-3" /> Heredada de la categoría
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2 ml-1">
-                                    <Tag className="w-3.5 h-3.5" /> Categoría Legacy
-                                    {isLoadingData && <Loader2 className="w-3 h-3 animate-spin ml-2 text-indigo-500" />}
-                                </label>
-                                <select 
-                                    {...register("categoryId")}
-                                    disabled={isPending || isLoadingData || (!watchCompanyId && !defaultCompanyId) || !!watchCompanyAccountId || !!watchGlobalAccountId}
-                                    className={`w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border ${errors.categoryId ? 'border-rose-500 ring-2 ring-rose-500/10' : 'border-zinc-200 dark:border-zinc-800'} rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all`}
-                                >
-                                    <option value="">Selecciona categoría...</option>
-                                    {dynamicCategories.map((c: any) => (
-                                        <option key={c.id} value={c.id.toString()}>{c.name}</option>
-                                    ))}
-                                </select>
                             </div>
                         </div>
 

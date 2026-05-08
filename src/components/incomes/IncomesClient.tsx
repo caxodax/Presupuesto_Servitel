@@ -178,7 +178,7 @@ export function IncomesClient({
                 <tr className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-100 dark:border-zinc-800">
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Identificador</th>
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Cliente</th>
-                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Categoría / Sucursal</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Cuenta / Sucursal</th>
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 text-right">Monto (USD)</th>
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 text-right">Acciones</th>
                 </tr>
@@ -197,7 +197,9 @@ export function IncomesClient({
                     </td>
                     <td className="px-8 py-5">
                         <div className="flex flex-col">
-                            <span className="text-xs font-bold text-foreground">{inc.category.name}</span>
+                            <span className="text-xs font-bold text-foreground">
+                                {inc.companyAccount?.globalAccount?.name || 'Sin Cuenta'}
+                            </span>
                             <span className="text-[10px] text-zinc-400 font-black uppercase tracking-tighter">{inc.branch?.name || 'GLOBAL'}</span>
                         </div>
                     </td>

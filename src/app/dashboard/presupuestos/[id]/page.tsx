@@ -17,16 +17,16 @@ export default async function BudgetDetailsPage({ params }: { params: Promise<{ 
     getBudgetDetails(Number(resolvedParams.id))
   ])
   
-  // Usamos la capa de caché para las categorías del presupuesto
-  // Si es SUPER_ADMIN, permitimos ver todas las categorías para facilitar la configuración
-  const availableCategories = await getCachedCategories({ 
-    companyId: user.role === 'SUPER_ADMIN' ? undefined : data.budget.companyId 
-  }) as any[]
+  // No longer fetching categories as we use Plan de Cuentas directly.
+  const availableCategories: any[] = []
   
   const { budget, stats } = data
 
   const allAdjustments = budget.allocations.flatMap((a: any) => 
-    a.adjustments.map((adj: any) => ({ ...adj, categoryName: a.category?.name || 'S/C' }))
+    a.adjustments.map((adj: any) => ({ 
+      ...adj, 
+      accountName: a.companyAccount?.globalAccount?.name || a.account?.name || 'S/A' 
+    }))
   ).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   
   const recentAdjustments = allAdjustments.slice(0, 5)
@@ -95,7 +95,7 @@ export default async function BudgetDetailsPage({ params }: { params: Promise<{ 
                       <div className="text-sm font-bold text-foreground">
                           {Number(adj.amountUSD) > 0 ? '+' : ''}{Number(adj.amountUSD).toLocaleString()} USD
                       </div>
-                      <div className="text-[10px] text-zinc-400 font-bold uppercase truncate">{adj.categoryName}</div>
+                      <div className="text-[10px] text-zinc-400 font-bold uppercase truncate">{adj.accountName}</div>
                       <div className="text-xs text-zinc-500 italic mt-1 border-t border-zinc-50 dark:border-zinc-800 pt-2">
                           "{adj.reason}"
                       </div>

@@ -3,8 +3,6 @@ import { z } from "zod";
 export const incomeSchema = z.object({
   number: z.string().min(1, "El número de documento es obligatorio"),
   clientName: z.string().min(2, "Cliente requerido"),
-  categoryId: z.union([z.string(), z.number()]).optional().nullable().transform(v => v ? Number(v) : null),
-  subcategoryId: z.union([z.string(), z.number(), z.null()]).optional().transform(v => v ? Number(v) : null),
   accountId: z.union([z.string(), z.number()]).optional().nullable().transform(v => v ? Number(v) : null),
   companyAccountId: z.union([z.string(), z.number()]).optional().nullable().transform(v => v ? Number(v) : null),
   globalAccountId: z.union([z.string(), z.number()]).optional().nullable().transform(v => v ? Number(v) : null),
@@ -14,7 +12,7 @@ export const incomeSchema = z.object({
   date: z.string().min(1, "Fecha requerida"),
   notes: z.string().optional(),
   incomeId: z.coerce.number().optional(),
-}).refine(data => data.companyAccountId || data.globalAccountId || data.categoryId, {
-  message: "Asignación contable obligatoria (Cuenta o Categoría mapeada)",
+}).refine(data => data.companyAccountId || data.globalAccountId, {
+  message: "Asignación contable obligatoria (Plan de Cuentas)",
   path: ["companyAccountId"]
 });
