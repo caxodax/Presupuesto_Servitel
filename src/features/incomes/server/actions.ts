@@ -109,6 +109,7 @@ export async function createIncome(formData: FormData) {
       exchangeRate: validated.exchangeRate,
       date: new Date(validated.date).toISOString(),
       notes: validated.notes,
+      companyId: companyId,
       attachmentKey,
       attachmentName,
     }

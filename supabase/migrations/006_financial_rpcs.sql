@@ -88,21 +88,35 @@ DECLARE
     v_allocation_id BIGINT;
     v_amount_usd DECIMAL;
 BEGIN
-    v_company_id := public.get_auth_user_company_id();
-    v_user_id := public.get_auth_user_id();
-    
-    v_company_account_id := (p_invoice_data->>'companyAccountId')::BIGINT;
     v_allocation_id := (p_invoice_data->>'allocationId')::BIGINT;
+    v_company_account_id := (p_invoice_data->>'companyAccountId')::BIGINT;
     v_amount_usd := (p_invoice_data->>'amountUSD')::DECIMAL;
 
-    -- 1. Validar Cuenta Contable
+    -- 1. Obtener contexto de empresa desde la asignación
+    SELECT b."companyId" INTO v_company_id
+    FROM "BudgetAllocation" ba
+    JOIN "Budget" b ON b.id = ba."budgetId"
+    WHERE ba.id = v_allocation_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Asignación presupuestaria no encontrada.';
+    END IF;
+
+    -- 2. Validar Seguridad
+    IF public.get_auth_user_role() != 'SUPER_ADMIN' AND v_company_id != public.get_auth_user_company_id() THEN
+        RAISE EXCEPTION 'Seguridad: No tiene permisos para operar en esta empresa.';
+    END IF;
+
+    v_user_id := public.get_auth_user_id();
+
+    -- 3. Validar Cuenta Contable
     SELECT ga.type INTO v_account_type
     FROM "CompanyAccount" ca
     JOIN "GlobalAccount" ga ON ga.id = ca."globalAccountId"
     WHERE ca.id = v_company_account_id AND ca."companyId" = v_company_id AND ca."isActive" = true;
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'Cuenta contable inválida, inactiva o no pertenece a su empresa.';
+        RAISE EXCEPTION 'Cuenta contable inválida, inactiva o no pertenece a la empresa del presupuesto.';
     END IF;
 
     IF v_account_type NOT IN ('COST', 'EXPENSE') THEN
@@ -162,7 +176,7 @@ BEGIN
     INTO v_company_id, v_allocation_id, v_amount_usd, v_amount_ves, v_status
     FROM "Invoice" WHERE id = p_invoice_id;
 
-    IF NOT FOUND OR v_company_id != public.get_auth_user_company_id() THEN
+    IF NOT FOUND OR (v_company_id != public.get_auth_user_company_id() AND public.get_auth_user_role() != 'SUPER_ADMIN') THEN
         RAISE EXCEPTION 'Factura no encontrada o no autorizada.';
     END IF;
 
@@ -198,8 +212,17 @@ DECLARE
     v_account_type "AccountType";
     v_income_id BIGINT;
 BEGIN
-    v_company_id := public.get_auth_user_company_id();
-    v_user_id := public.get_auth_user_id();
+	IF public.get_auth_user_role() = 'SUPER_ADMIN' THEN
+		v_company_id := (p_income_data->>'companyId')::BIGINT;
+	ELSE
+		v_company_id := public.get_auth_user_company_id();
+	END IF;
+
+	IF v_company_id IS NULL THEN
+		RAISE EXCEPTION 'Contexto de empresa no encontrado.';
+	END IF;
+
+	v_user_id := public.get_auth_user_id();
     
     v_company_account_id := (p_income_data->>'companyAccountId')::BIGINT;
 
@@ -314,15 +337,18 @@ DECLARE
     v_new_amount_usd DECIMAL;
     v_new_amount_ves DECIMAL;
 BEGIN
-    v_company_id := public.get_auth_user_company_id();
-
-    -- 1. Obtener datos viejos y validar empresa
-    SELECT "allocationId", "amountUSD", "amountVES" 
-    INTO v_old_allocation_id, v_old_amount_usd, v_old_amount_ves
-    FROM "Invoice" WHERE id = p_invoice_id AND "companyId" = v_company_id;
+    -- 1. Obtener datos viejos y validar seguridad
+    SELECT "companyId", "allocationId", "amountUSD", "amountVES" 
+    INTO v_company_id, v_old_allocation_id, v_old_amount_usd, v_old_amount_ves
+    FROM "Invoice" WHERE id = p_invoice_id;
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'Factura no encontrada o no autorizada.';
+        RAISE EXCEPTION 'Factura no encontrada.';
+    END IF;
+
+    -- Validar Seguridad
+    IF public.get_auth_user_role() != 'SUPER_ADMIN' AND v_company_id != public.get_auth_user_company_id() THEN
+        RAISE EXCEPTION 'Seguridad: No tiene permisos para modificar esta factura.';
     END IF;
 
     v_new_allocation_id := (p_invoice_data->>'allocationId')::BIGINT;

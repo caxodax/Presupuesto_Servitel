@@ -277,7 +277,12 @@ export async function getAllocationsForCompany(companyId: number) {
           return { 
               id: a.id, 
               label: `${user.role === "SUPER_ADMIN" ? `[${b.branch.company.name}] ` : ""}${b.name} (${b.branch.name}) - ${acc ? `${acc.code} ${acc.name}` : 'Sin cuenta vinculada'}`,
-              remainingUSD: Number(a.amountUSD) - Number(a.consumedUSD)
+              remainingUSD: Number(a.amountUSD) - Number(a.consumedUSD),
+              companyAccountId: a.companyAccountId,
+              budgetId: b.id,
+              budgetName: b.name,
+              branchName: b.branch.name,
+              companyName: b.branch.company.name
           }
       })
   )

@@ -15,9 +15,10 @@ export async function getAccounts(options: {
   isBudgetable?: boolean,
   isExecutable?: boolean,
   companyId?: number,
-  includeGlobal?: boolean
+  includeGlobal?: boolean,
+  allowedIds?: number[]
 } = {}) {
-  const { query: queryParam, page, limit = 50, type, isBudgetable, isExecutable, companyId, includeGlobal } = options
+  const { query: queryParam, page, limit = 50, type, isBudgetable, isExecutable, companyId, includeGlobal, allowedIds } = options
   const user = await requireAuth()
   const supabase = await createClient()
   
@@ -55,6 +56,11 @@ export async function getAccounts(options: {
     `, { count: 'exact' })
     .eq('companyId', targetCompanyId)
     .eq('isActive', true)
+
+  if (allowedIds) {
+    if (allowedIds.length === 0) return []
+    queryBuilder = queryBuilder.in('id', allowedIds)
+  }
 
   if (queryParam) {
     queryBuilder = queryBuilder.or(`name.ilike.%${queryParam}%,code.ilike.%${queryParam}%`, { foreignTable: 'GlobalAccount' })

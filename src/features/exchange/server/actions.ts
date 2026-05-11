@@ -100,17 +100,22 @@ export async function getEffectiveRate() {
         if (synced.action !== 'error' && synced.rates) {
             return { usd: synced.rates.usd, eur: synced.rates.eur, source: 'BCV (Auto-sync)' }
         }
-        throw new Error(synced.error || "Sync failed")
+        // No lanzamos error aquí, procedemos al catch para buscar alternativas
+        console.warn("Sync failed, looking for alternatives:", synced.error)
     } catch (error) {
-        console.error("Auto-sync failed, using latest available or fallback:", error)
-        
-        // 3. Si falla el sync, buscar la más reciente que tengamos
-        const latest = await getLatestSavedRate()
-        if (latest) return { usd: latest.usd, eur: latest.eur, source: 'Database (Last available)' }
-        
-        // 4. Si ni siquiera hay históricos, usar scraping directo (que tiene el fallback a DolarAPI)
-        const direct = await getBCVRate()
-        return { usd: direct.rates?.usd || 0, eur: direct.rates?.eur || 0, source: direct.source }
+        console.error("Auto-sync failed:", error)
+    }
+
+    // 3. Si falla el sync o no hubo resultados, buscar la más reciente que tengamos
+    const latest = await getLatestSavedRate()
+    if (latest) return { usd: latest.usd, eur: latest.eur, source: 'Database (Last available)' }
+    
+    // 4. Si ni siquiera hay históricos, usar scraping directo (que tiene el fallback a DolarAPI)
+    const direct = await getBCVRate()
+    return { 
+        usd: direct.rates?.usd || 0, 
+        eur: direct.rates?.eur || 0, 
+        source: direct.source || 'No source' 
     }
 }
 

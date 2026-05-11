@@ -89,6 +89,7 @@ export async function createInvoice(formData: FormData) {
       exchangeRate: validated.exchangeRate,
       date: new Date(validated.date).toISOString(),
       companyAccountId: finalCompanyAccountId,
+      companyId: companyId,
       attachmentKey,
       attachmentName,
     }
@@ -188,6 +189,7 @@ export async function updateInvoice(formData: FormData) {
       exchangeRate: validated.exchangeRate,
       date: new Date(validated.date).toISOString(),
       companyAccountId: finalCompanyAccountId,
+      companyId: targetCompanyId,
       attachmentKey,
       attachmentName
     }

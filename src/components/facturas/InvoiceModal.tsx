@@ -55,6 +55,7 @@ export function InvoiceModal({
     const [allocations, setAllocations] = useState<any[]>(Array.isArray(initialAllocations) ? initialAllocations : (initialAllocations as any).items || [])
     const [isLoadingAllocations, setIsLoadingAllocations] = useState(false)
     const [selectedCompanyId, setSelectedCompanyId] = useState<string>(invoice?.companyId?.toString() || "")
+    const [selectedBudgetId, setSelectedBudgetId] = useState<number | null>(null)
     
     const {
         register,
@@ -134,6 +135,32 @@ export function InvoiceModal({
             fetchAllocations()
         }
     }, [selectedCompanyId, userRole])
+
+    // Calcular presupuestos únicos para el desplegable
+    const uniqueBudgets = Array.from(new Map(allocations.map(a => [a.budgetId, {
+        id: a.budgetId,
+        label: `${userRole === "SUPER_ADMIN" ? `[${a.companyName}] ` : ""}${a.budgetName} (${a.branchName})`
+    }])).values())
+
+    // Auto-seleccionar primer presupuesto si solo hay uno
+    useEffect(() => {
+        if (uniqueBudgets.length === 1 && !selectedBudgetId) {
+            setSelectedBudgetId(uniqueBudgets[0].id)
+        }
+    }, [uniqueBudgets, selectedBudgetId])
+
+    // Vincular cuenta seleccionada con el ID de alocación real
+    const handleAccountSelect = (accountId: number | null) => {
+        setValue("companyAccountId", accountId)
+        if (accountId && selectedBudgetId) {
+            const matchingAlloc = allocations.find(a => a.budgetId === selectedBudgetId && a.companyAccountId === accountId)
+            if (matchingAlloc) {
+                setValue("allocationId", matchingAlloc.id.toString())
+            }
+        } else {
+            setValue("allocationId", "")
+        }
+    }
 
     const onSubmit = (data: any) => {
         const formData = new FormData()
@@ -231,15 +258,22 @@ export function InvoiceModal({
                                     {isLoadingAllocations && <Loader2 className="w-3 h-3 animate-spin ml-2 text-indigo-500" />}
                                 </label>
                                 <select 
-                                    {...register("allocationId")}
+                                    value={selectedBudgetId || ""}
+                                    onChange={(e) => {
+                                        const bId = Number(e.target.value)
+                                        setSelectedBudgetId(bId)
+                                        setValue("allocationId", "") // Reset allocation till account is picked
+                                        setValue("companyAccountId", null) // Reset account
+                                    }}
                                     disabled={isPending || isLoadingAllocations || (userRole === "SUPER_ADMIN" && mode === "create" && !selectedCompanyId)} 
                                     className={`w-full h-12 rounded-2xl border ${errors.allocationId ? 'border-rose-500 ring-2 ring-rose-500/10' : 'border-zinc-200 dark:border-zinc-800'} bg-zinc-50 dark:bg-zinc-950 px-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none`}
                                 >
-                                    <option value="">Seleccione Asignación...</option>
-                                    {allocations.map(alloc => (
-                                        <option key={alloc.id} value={alloc.id.toString()}>{alloc.label}</option>
+                                    <option value="">Seleccione Presupuesto...</option>
+                                    {uniqueBudgets.map(b => (
+                                        <option key={b.id} value={b.id}>{b.label}</option>
                                     ))}
                                 </select>
+                                <input type="hidden" {...register("allocationId")} />
                                 {errors.allocationId && (
                                     <p className="text-[10px] text-rose-500 font-bold uppercase flex items-center gap-1">
                                         <AlertCircle className="w-3 h-3" /> {errors.allocationId.message as string}
@@ -253,9 +287,10 @@ export function InvoiceModal({
                                     label="Cuenta Contable (Obligatoria)"
                                     placeholder="Vincular a cuenta..."
                                     defaultValue={watchCompanyAccountId}
-                                    onSelect={(id) => setValue("companyAccountId", id)}
+                                    onSelect={handleAccountSelect}
                                     isExecutable={true}
                                     companyId={selectedCompanyId ? Number(selectedCompanyId) : undefined}
+                                    restrictToIds={selectedBudgetId ? allocations.filter(a => a.budgetId === selectedBudgetId).map(a => a.companyAccountId).filter(Boolean) : []}
                                 />
                                 {errors.companyAccountId && <p className="text-[10px] font-bold text-rose-500 ml-2 uppercase">{(errors.companyAccountId as any).message}</p>}
                                 {selectedAlloc?.companyAccountId && watchCompanyAccountId === selectedAlloc.companyAccountId && (

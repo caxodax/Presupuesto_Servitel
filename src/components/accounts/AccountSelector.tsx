@@ -23,6 +23,7 @@ interface AccountSelectorProps {
   companyId?: number
   error?: string
   includeGlobal?: boolean
+  restrictToIds?: number[]
 }
 
 export function AccountSelector({
@@ -35,7 +36,8 @@ export function AccountSelector({
   isExecutable,
   companyId,
   error,
-  includeGlobal
+  includeGlobal,
+  restrictToIds
 }: AccountSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -72,6 +74,7 @@ export function AccountSelector({
           isExecutable,
           companyId,
           includeGlobal,
+          allowedIds: restrictToIds,
           limit: 10
         })
         setAccounts(Array.isArray(results) ? results : (results as any).items || [])
@@ -85,7 +88,7 @@ export function AccountSelector({
     if (isOpen) {
       fetchAccounts()
     }
-  }, [debouncedQuery, isOpen, type, isBudgetable, isExecutable, companyId])
+  }, [debouncedQuery, isOpen, type, isBudgetable, isExecutable, companyId, restrictToIds])
 
   // Cerrar al hacer click fuera
   useEffect(() => {
