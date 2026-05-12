@@ -84,7 +84,7 @@ export async function getBudgetDetails(budgetId: number) {
         subcategory:Subcategory(name),
         account:AccountingAccount(name),
         companyAccount:CompanyAccount(globalAccount:GlobalAccount(name, code, type)),
-        adjustments:BudgetAdjustment(*)
+        adjustments:BudgetAdjustment(*, recordedBy:User(name))
       )
     `)
     .eq('id', budgetId)

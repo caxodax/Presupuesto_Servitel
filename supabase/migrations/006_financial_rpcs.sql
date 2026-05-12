@@ -18,38 +18,29 @@ DECLARE
     v_source_amount DECIMAL;
     v_user_id BIGINT;
 BEGIN
-    -- Obtener empresa del usuario autenticado
-    v_company_id := public.get_auth_user_company_id();
-    v_user_id := public.get_auth_user_id();
-
-    -- Validar SuperAdmin (según regla del negocio previa)
-    IF public.get_auth_user_role() != 'SUPER_ADMIN' THEN
-        RAISE EXCEPTION 'Seguridad: Solo Super Administradores pueden realizar transferencias.';
-    END IF;
-
-    -- Validar monto
-    IF p_amount <= 0 THEN
-        RAISE EXCEPTION 'El monto debe ser mayor a cero.';
-    END IF;
-
-    -- Obtener datos de origen y validar empresa
-    SELECT ba."budgetId", ba."amountUSD" INTO v_source_budget_id, v_source_amount
+    -- 1. Obtener contexto de empresa desde el presupuesto de origen
+    SELECT b."companyId", ba."budgetId", ba."amountUSD" 
+    INTO v_company_id, v_source_budget_id, v_source_amount
     FROM "BudgetAllocation" ba
     JOIN "Budget" b ON b.id = ba."budgetId"
-    WHERE ba.id = p_source_allocation_id AND b."companyId" = v_company_id;
+    WHERE ba.id = p_source_allocation_id;
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'Rubro de origen no encontrado o no pertenece a su empresa.';
+        RAISE EXCEPTION 'Rubro de origen no encontrado.';
     END IF;
 
-    -- Obtener datos de destino y validar empresa y mismo presupuesto
+    -- 2. Validar Seguridad
+    IF public.get_auth_user_role() != 'SUPER_ADMIN' AND v_company_id != public.get_auth_user_company_id() THEN
+        RAISE EXCEPTION 'Seguridad: No tiene permisos para realizar transferencias en esta empresa.';
+    END IF;
+
+    -- 3. Obtener datos de destino y validar mismo presupuesto
     SELECT ba."budgetId" INTO v_target_budget_id
     FROM "BudgetAllocation" ba
-    JOIN "Budget" b ON b.id = ba."budgetId"
-    WHERE ba.id = p_target_allocation_id AND b."companyId" = v_company_id;
+    WHERE ba.id = p_target_allocation_id;
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'Rubro de destino no encontrado o no pertenece a su empresa.';
+        RAISE EXCEPTION 'Rubro de destino no encontrado.';
     END IF;
 
     IF v_source_budget_id != v_target_budget_id THEN
@@ -283,16 +274,21 @@ DECLARE
     v_user_id BIGINT;
     v_adjustment_id BIGINT;
 BEGIN
-    v_company_id := public.get_auth_user_company_id();
+    -- Obtener contexto de empresa desde el presupuesto
+    SELECT b."companyId" INTO v_company_id
+    FROM "BudgetAllocation" ba
+    JOIN "Budget" b ON b.id = ba."budgetId"
+    WHERE ba.id = p_allocation_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Asignación presupuestaria no encontrada.';
+    END IF;
+
     v_user_id := public.get_auth_user_id();
 
-    -- Validar que la asignación pertenezca a la empresa
-    IF NOT EXISTS (
-        SELECT 1 FROM "BudgetAllocation" ba
-        JOIN "Budget" b ON b.id = ba."budgetId"
-        WHERE ba.id = p_allocation_id AND b."companyId" = v_company_id
-    ) THEN
-        RAISE EXCEPTION 'Asignación presupuestaria no encontrada.';
+    -- Validar Seguridad
+    IF public.get_auth_user_role() != 'SUPER_ADMIN' AND v_company_id != public.get_auth_user_company_id() THEN
+        RAISE EXCEPTION 'Seguridad: No tiene permisos para realizar ajustes en esta empresa.';
     END IF;
 
     -- Insertar Ajuste

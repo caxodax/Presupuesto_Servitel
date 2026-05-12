@@ -75,17 +75,17 @@ export function BudgetAllocationsTable({ initialAllocations }: { initialAllocati
                 </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800">
                 <table className="w-full text-sm text-left border-collapse min-w-[1000px]">
                     <thead className="text-[10px] uppercase tracking-[0.1em] text-zinc-400 font-black bg-white dark:bg-zinc-900 sticky top-0 z-10">
                         <tr>
-                            <th className="px-8 py-5">Cuenta Contable</th>
-                            <th className="px-6 py-5 text-center">Peso</th>
-                            <th className="px-6 py-5 text-right">Límite Aprobado</th>
-                            <th className="px-6 py-5">Ejecución</th>
-                            <th className="px-6 py-5 text-right">Consumido</th>
-                            <th className="px-6 py-5 text-right">Disponible</th>
-                            <th className="px-8 py-5 text-right min-w-[320px]">Ajuste de Saldo</th>
+                            <th className="px-8 py-3">Cuenta Contable</th>
+                            <th className="px-6 py-3 text-center">Peso</th>
+                            <th className="px-6 py-3 text-right">Límite Aprobado</th>
+                            <th className="px-6 py-3">Ejecución</th>
+                            <th className="px-6 py-3 text-right">Consumido</th>
+                            <th className="px-6 py-3 text-right">Disponible</th>
+                            <th className="px-8 py-3 text-right min-w-[320px]">Ajuste de Saldo</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
@@ -100,7 +100,7 @@ export function BudgetAllocationsTable({ initialAllocations }: { initialAllocati
 
                             return (
                                 <tr key={alloc.id} className={`${idx % 2 === 0 ? 'bg-transparent' : 'bg-zinc-50/30 dark:bg-zinc-800/10'} hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-all group`}>
-                                    <td className="px-8 py-4">
+                                    <td className="px-8 py-2">
                                         <div className="flex flex-col gap-1">
                                             <span className="text-[9px] font-black text-indigo-500/70 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-500/10 w-fit px-1.5 py-0.5 rounded">
                                                 {alloc.companyAccount?.globalAccount?.code || alloc.account?.code || 'S/C'}
@@ -115,18 +115,18 @@ export function BudgetAllocationsTable({ initialAllocations }: { initialAllocati
                                             {weight.toFixed(1)}%
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="px-6 py-2 text-right">
                                         <span className="font-black text-foreground tabular-nums">
                                             ${formatNumber(alloc.amountUSD)}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-2">
                                         <div className="flex flex-col gap-1.5 min-w-[120px]">
-                                            <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-tighter">
-                                                <span className={statusText}>{execution.toFixed(1)}%</span>
-                                                <span className="text-zinc-400">Utilizado</span>
+                                            <div className="flex items-baseline gap-1">
+                                                <span className={`${statusText} text-lg font-black tracking-tighter`}>{execution.toFixed(0)}%</span>
+                                                <span className="text-zinc-400 text-[10px] font-bold uppercase">Ejecutado</span>
                                             </div>
-                                            <div className="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                            <div className="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden flex">
                                                 <div 
                                                     className={`h-full ${statusColor} transition-all duration-500 ease-out`}
                                                     style={{ width: `${Math.min(execution, 100)}%` }}
@@ -134,16 +134,16 @@ export function BudgetAllocationsTable({ initialAllocations }: { initialAllocati
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-right tabular-nums text-zinc-500 font-bold text-xs">
+                                    <td className="px-6 py-2 text-right tabular-nums text-zinc-500 font-bold text-xs">
                                         ${formatNumber(alloc.consumedUSD)}
                                     </td>
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="px-6 py-2 text-right">
                                         <div className={`inline-flex flex-col items-end px-3 py-1 rounded-xl ${statusBg} ${statusText}`}>
                                             <span className="text-xs font-black tabular-nums">${formatNumber(available)}</span>
                                             <span className="text-[8px] font-black uppercase tracking-widest opacity-70">Saldo</span>
                                         </div>
                                     </td>
-                                    <td className="px-8 py-4">
+                                    <td className="px-8 py-2">
                                         <InlineAdjustmentForm 
                                             allocationId={alloc.id.toString()} 
                                             onSubmit={handleApplyAdjustment} 

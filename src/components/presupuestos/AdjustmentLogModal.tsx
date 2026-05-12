@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Activity, X, List } from "lucide-react"
+import { Activity, X, List, Calendar } from "lucide-react"
 
 export function AdjustmentLogModal({ adjustments }: { adjustments: any[] }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -51,9 +51,23 @@ export function AdjustmentLogModal({ adjustments }: { adjustments: any[] }) {
                                {Number(adj.amountUSD) > 0 ? '+' : ''}{Number(adj.amountUSD)}
                            </span>
                        </div>
-                       <div className="pt-2 mt-2 border-t border-zinc-100 dark:border-zinc-800/50 flex justify-between items-center text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
-                          <span>{new Date(adj.createdAt).toLocaleDateString()}</span>
-                          <span>{new Date(adj.createdAt).toLocaleTimeString()}</span>
+                       <div className="pt-3 mt-3 border-t border-zinc-100 dark:border-zinc-800/50 flex justify-between items-end">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+                               <Calendar className="w-3 h-3" />
+                               <span>{new Date(adj.createdAt).toLocaleDateString()} - {new Date(adj.createdAt).toLocaleTimeString()}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                               <div className="w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[8px] font-black">
+                                  {adj.recordedBy?.name?.substring(0, 2).toUpperCase() || 'S'}
+                               </div>
+                               <span className="text-[10px] font-black text-foreground uppercase tracking-tight">{adj.recordedBy?.name || 'Sistema'}</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                             <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest block mb-0.5">Estado</span>
+                             <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20 uppercase">Auditado</span>
+                          </div>
                        </div>
                     </div>
                   ))}
