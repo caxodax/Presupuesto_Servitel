@@ -3,7 +3,7 @@ import { getCachedCategories } from "@/lib/cache"
 import { ArrowLeft, Activity } from "lucide-react"
 import Link from "next/link"
 import { requireAuth } from "@/lib/permissions"
-import { FundTransfer } from "@/components/presupuestos/FundTransfer"
+import { FundTransferModal } from "@/components/presupuestos/FundTransferModal"
 import { MasterBudgetEditor } from "@/components/presupuestos/MasterBudgetEditor"
 import { InlineAdjustmentForm } from "@/components/presupuestos/AllocationForms"
 import { BudgetAllocationsTable } from "@/components/presupuestos/BudgetAllocationsTable"
@@ -52,19 +52,20 @@ export default async function BudgetDetailsPage({ params }: { params: Promise<{ 
          </div>
          
          <div className="flex flex-wrap items-center gap-3">
-             <CreateAllocationModal 
-                budgetId={budget.id.toString()} 
-                availableCategories={availableCategories} 
-                userRole={user.role} 
-                companyId={budget.companyId}
-             />
-             <MasterBudgetEditor budgetId={budget.id.toString()} currentLimit={stats.originalHardLimit} />
-         </div>
+              <CreateAllocationModal 
+                 budgetId={budget.id.toString()} 
+                 availableCategories={availableCategories} 
+                 userRole={user.role} 
+                 companyId={budget.companyId}
+              />
+              <MasterBudgetEditor budgetId={budget.id.toString()} currentLimit={stats.originalHardLimit} />
+              {user.role === 'SUPER_ADMIN' && budget.allocations.length > 1 && (
+                <FundTransferModal allocations={budget.allocations} budgetId={budget.id} />
+              )}
+          </div>
       </div>
 
-      {user.role === 'SUPER_ADMIN' && budget.allocations.length > 1 && (
-        <FundTransfer allocations={budget.allocations} budgetId={budget.id} />
-      )}
+
       
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-2 -mt-2">
          <MetricBox label="Distribuido Neto" value={stats.netAllocated} color="text-indigo-600 dark:text-indigo-400" />

@@ -31,6 +31,7 @@ type IncomeModalProps = {
     categories: any[]
     currentBcvRate: string | number
     userRole: string
+    userBranchId?: string | number | null
     defaultCompanyId?: string
     onClose: () => void
 }
@@ -42,6 +43,7 @@ export function IncomeModal({
     categories: initialCategories, 
     currentBcvRate, 
     userRole,
+    userBranchId,
     defaultCompanyId,
     onClose 
 }: IncomeModalProps) {
@@ -71,7 +73,8 @@ export function IncomeModal({
             companyId: defaultCompanyId || "",
             accountId: null,
             companyAccountId: null,
-            globalAccountId: null
+            globalAccountId: null,
+            branchId: userRole?.toUpperCase() === 'OPERATOR' && userBranchId ? userBranchId.toString() : ""
         }
     })
 
@@ -83,31 +86,43 @@ export function IncomeModal({
 
     // Auto-heredar cuenta: Eliminado por migración a Plan de Cuentas único
 
+    const [lastFetchedCompanyId, setLastFetchedCompanyId] = useState<string | null>(null)
+    
     useEffect(() => {
-        const effectiveCompanyId = watchCompanyId || defaultCompanyId
+        const effectiveCompanyId = (watchCompanyId || defaultCompanyId)?.toString()
         
         if (!effectiveCompanyId) {
             setBranches([])
+            setLastFetchedCompanyId(null)
             return
         }
 
+        // Evitar re-fetch si es la misma empresa
+        if (effectiveCompanyId === lastFetchedCompanyId && branches.length > 0) {
+            return
+        }
+    
         const fetchData = async () => {
             setIsLoadingData(true)
             try {
                 const data = await getCompanyDataForIncome(Number(effectiveCompanyId))
                 const brs = Array.isArray(data.branches) ? data.branches : (data.branches as any).items || []
                 setBranches(brs)
+                setLastFetchedCompanyId(effectiveCompanyId)
             } catch (error) {
-                // toast.error("Error cargando datos de la empresa")
+                // Silently handle
             } finally {
                 setIsLoadingData(false)
             }
         }
         
-        if (mode === 'create' || (mode === 'edit' && branches.length === 0)) {
-            fetchData()
-        }
-    }, [watchCompanyId, defaultCompanyId])
+        fetchData()
+    }, [watchCompanyId, defaultCompanyId, lastFetchedCompanyId])
+
+    const isOperator = userRole?.toUpperCase() === 'OPERATOR'
+    const displayBranches = isOperator && userBranchId 
+        ? branches.filter(b => b.id.toString() === userBranchId.toString())
+        : branches
 
     const onSubmit = (data: any) => {
         const formData = new FormData()
@@ -238,11 +253,11 @@ export function IncomeModal({
                                 </label>
                                 <select 
                                     {...register("branchId")}
-                                    disabled={isPending || isLoadingData || (!watchCompanyId && !defaultCompanyId)}
-                                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                    disabled={isPending || isLoadingData || (!watchCompanyId && !defaultCompanyId) || isOperator}
+                                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all disabled:opacity-60"
                                 >
-                                    <option value="">GLOBAL (Sin sucursal)</option>
-                                    {branches.map(b => (
+                                    {!isOperator && <option value="">GLOBAL (Sin sucursal)</option>}
+                                    {displayBranches.map(b => (
                                         <option key={b.id} value={b.id.toString()}>{b.name}</option>
                                     ))}
                                 </select>

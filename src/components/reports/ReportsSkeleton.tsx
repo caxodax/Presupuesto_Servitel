@@ -2,8 +2,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export function ReportsSkeleton() {
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="space-y-8 animate-in fade-in duration-500" suppressHydrationWarning>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6" suppressHydrationWarning>
                 {[1, 2, 3].map(i => (
                     <div key={i} className="h-32 bg-white dark:bg-zinc-900 rounded-[32px] border border-zinc-100 dark:border-zinc-800 p-6 flex flex-col justify-between">
                         <Skeleton className="h-3 w-20" />
@@ -22,7 +22,11 @@ export function ReportsSkeleton() {
                 </div>
                 <div className="w-full h-full flex items-end gap-4 pb-8">
                     {[...Array(12)].map((_, i) => (
-                        <Skeleton key={i} className="flex-1" style={{ height: `${20 + Math.random() * 60}%` }} />
+                        <Skeleton 
+                            key={i} 
+                            className="flex-1" 
+                            style={{ height: `${30 + ((i * 13) % 40)}%` }} 
+                        />
                     ))}
                 </div>
             </div>

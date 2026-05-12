@@ -83,22 +83,23 @@ export async function getConsolidatedReport(filters: {
     if (incomesRes.error) throw new Error(`Error en ingresos: ${incomesRes.error.message}`)
     if (expensesRes.error) throw new Error(`Error en gastos: ${expensesRes.error.message}`)
 
-    // 1. Procesamiento para Gráficos Mensuales
-    const monthlyData: Record<string, { income: number; expense: number }> = {}
+    // 1. Procesamiento para Gráficos Diarios Consolidados
+    const dailyData: Record<string, { income: number; expense: number }> = {}
     
     incomesRes.data.forEach(inc => {
-        const month = inc.date.substring(0, 7)
-        if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 }
-        monthlyData[month].income += Number(inc.amountUSD)
+        // Normalizamos a YYYY-MM-DD para consolidar múltiples registros del mismo día
+        const date = inc.date.substring(0, 10) 
+        if (!dailyData[date]) dailyData[date] = { income: 0, expense: 0 }
+        dailyData[date].income += Number(inc.amountUSD)
     })
 
     expensesRes.data.forEach(exp => {
-        const month = exp.date.substring(0, 7)
-        if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 }
-        monthlyData[month].expense += Number(exp.amountUSD)
+        const date = exp.date.substring(0, 10) 
+        if (!dailyData[date]) dailyData[date] = { income: 0, expense: 0 }
+        dailyData[date].expense += Number(exp.amountUSD)
     })
 
-    const chartData = Object.entries(monthlyData)
+    const chartData = Object.entries(dailyData)
         .map(([name, values]) => ({ name, ...values }))
         .sort((a, b) => a.name.localeCompare(b.name))
 
@@ -171,21 +172,51 @@ export async function getConsolidatedReport(filters: {
         }
     })
     
-    const totalOut = totalCost + totalExpense
+    // 5. Análisis de Eficiencia (Presupuesto vs Ejecutado)
+    let allocationsQuery = supabase
+        .from('BudgetAllocation')
+        .select(`
+            amountUSD,
+            consumedUSD,
+            companyAccount:CompanyAccount(
+                globalAccount:GlobalAccount(name)
+            ),
+            budget:Budget!inner(companyId, branchId)
+        `)
+        .eq('budget.companyId', finalCompanyId || 0)
+
+    if (filters.branchId) {
+        allocationsQuery = allocationsQuery.eq('budget.branchId', filters.branchId)
+    }
+
+    const { data: allocations } = await allocationsQuery
+
+    const budgetAnalysis: Record<string, { name: string; budget: number; executed: number }> = {}
     
+    allocations?.forEach(al => {
+        const accName = (al.companyAccount as any)?.globalAccount?.name || 'Otros'
+        if (!budgetAnalysis[accName]) budgetAnalysis[accName] = { name: accName, budget: 0, executed: 0 }
+        budgetAnalysis[accName].budget += Number(al.amountUSD)
+        budgetAnalysis[accName].executed += Number(al.consumedUSD)
+    })
+
+    const budgetEfficiency = Object.values(budgetAnalysis)
+        .filter(b => b.budget > 0)
+        .sort((a, b) => (b.executed / b.budget) - (a.executed / a.budget)) // Ordenar por mayor consumo
+        .slice(0, 5)
+
+    // Restaurar cálculos de resumen
+    const totalOut = totalCost + totalExpense
     const start = new Date(filters.startDate).getTime()
     const end = new Date(filters.endDate).getTime()
     const now = new Date().getTime()
-    
     const daysElapsed = Math.max(1, (Math.min(end, now) - start) / (1000 * 60 * 60 * 24))
-    const dailyAverage = totalExpense / daysElapsed
-    const projectedMonthly = dailyAverage * 30
-    const projectedNext30Days = totalExpense + (dailyAverage * 30)
 
     return {
         chartData,
         detailedBreakdown,
         categories: Object.values(categoryAnalysis),
+        budgetEfficiency,
         summary: {
             totalIncome,
             totalCost,
@@ -335,14 +366,28 @@ export async function getFinancialTreeReport(filters: {
     })
 
     // 8. Limpieza y Formateo Final
-    // Filtramos para no mostrar ramas vacías (sin presupuesto ni ejecución)
     const finalData = Object.values(accountMap)
         .filter((acc: any) => acc.budget !== 0 || acc.executed !== 0)
-        .map((acc: any) => ({
-            ...acc,
-            available: acc.budget - acc.executed,
-            percent: acc.budget > 0 ? (acc.executed / acc.budget) * 100 : 0
-        }))
+        .map((acc: any) => {
+            const isIncome = acc.type === 'INCOME'
+            
+            // Para ingresos, el "disponible" es lo que hemos ganado (Ejecutado - Presupuesto)
+            // Para gastos, es lo que nos queda por gastar (Presupuesto - Ejecutado)
+            const available = isIncome 
+                ? acc.executed - acc.budget 
+                : acc.budget - acc.executed
+
+            // Para ingresos, si no hay presupuesto, cualquier ejecución es 100% de éxito
+            const percent = acc.budget > 0 
+                ? (acc.executed / acc.budget) * 100 
+                : (isIncome && acc.executed > 0 ? 100 : 0)
+
+            return {
+                ...acc,
+                available,
+                percent
+            }
+        })
         .sort((a: any, b: any) => a.code.localeCompare(b.code))
 
     return finalData

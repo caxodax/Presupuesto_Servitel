@@ -359,46 +359,108 @@ export function ReportsClient({ companies, branches, categories, businessGroups,
                             </div>
                         </div>
                         
-                        <div className="h-[450px] w-full">
+                        <div className="h-[500px] w-full mt-4">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={reportData?.chartData}>
+                                <AreaChart data={reportData?.chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="gradIncome" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
                                             <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                                         </linearGradient>
                                         <linearGradient id="gradExpense" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2}/>
+                                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
                                             <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                    <CartesianGrid strokeDasharray="6 6" vertical={false} stroke="#e2e8f0" strokeOpacity={0.4} />
                                     <XAxis 
                                         dataKey="name" 
                                         axisLine={false} 
                                         tickLine={false} 
-                                        tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }}
+                                        tick={{ fontSize: 11, fontWeight: 800, fill: '#64748b' }}
                                         dy={15}
+                                        minTickGap={30}
+                                        interval="preserveStartEnd"
+                                        tickFormatter={(str) => {
+                                            const date = new Date(str + 'T12:00:00');
+                                            return date.toLocaleDateString('es-VE', { day: '2-digit', month: 'short' }).replace('.', '');
+                                        }}
                                     />
                                     <YAxis 
                                         axisLine={false} 
                                         tickLine={false} 
-                                        tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }}
-                                        tickFormatter={(val) => `$${val / 1000}k`}
+                                        tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }}
+                                        tickFormatter={(val) => `$${val.toLocaleString()}`}
+                                        width={80}
                                     />
                                     <Tooltip 
-                                        contentStyle={{ 
-                                            borderRadius: '24px', 
-                                            border: 'none', 
-                                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
-                                            padding: '15px 20px',
-                                            backgroundColor: '#fff',
-                                            color: '#000'
+                                        cursor={{ stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '4 4' }}
+                                        content={({ active, payload, label }) => {
+                                            if (active && payload && payload.length >= 1) {
+                                                const incomeVal = Number(payload[0]?.value || 0);
+                                                const expenseVal = Number(payload[1]?.value || 0);
+                                                const margin = incomeVal - expenseVal;
+
+                                                return (
+                                                    <div className="bg-white/80 dark:bg-zinc-900/90 backdrop-blur-xl p-5 rounded-[24px] border border-white/20 dark:border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in fade-in zoom-in duration-200">
+                                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3">
+                                                            {label ? new Date(label + 'T12:00:00').toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' }) : ''}
+                                                        </p>
+                                                        <div className="space-y-3">
+                                                            {payload.map((entry: any, index: number) => (
+                                                                <div key={index} className="flex items-center justify-between gap-8">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                                                                        <span className="text-xs font-bold text-zinc-500 uppercase">{entry.name}</span>
+                                                                    </div>
+                                                                    <span className="text-sm font-black text-zinc-900 dark:text-white">
+                                                                        ${Number(entry.value).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                            {payload.length >= 2 && (
+                                                                <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 mt-2">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <span className="text-[10px] font-black text-zinc-400 uppercase">Balance Diario</span>
+                                                                        <span className={`text-xs font-black ${margin >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                                            ${margin.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
                                         }}
-                                        itemStyle={{ fontWeight: 800, fontSize: '12px' }}
                                     />
-                                    <Area type="monotone" dataKey="income" name="Ingresos" stroke="#10b981" strokeWidth={5} fillOpacity={1} fill="url(#gradIncome)" />
-                                    <Area type="monotone" dataKey="expense" name="Egresos" stroke="#ef4444" strokeWidth={5} fillOpacity={1} fill="url(#gradExpense)" />
+                                    <Area 
+                                        type="natural" 
+                                        dataKey="income" 
+                                        name="Ingresos" 
+                                        stroke="#10b981" 
+                                        strokeWidth={4} 
+                                        fillOpacity={1} 
+                                        fill="url(#gradIncome)" 
+                                        animationDuration={2500}
+                                        animationBegin={200}
+                                        dot={false}
+                                        activeDot={{ r: 6, strokeWidth: 0, fill: '#10b981' }}
+                                    />
+                                    <Area 
+                                        type="natural" 
+                                        dataKey="expense" 
+                                        name="Egresos" 
+                                        stroke="#ef4444" 
+                                        strokeWidth={4} 
+                                        fillOpacity={1} 
+                                        fill="url(#gradExpense)" 
+                                        animationDuration={2500}
+                                        animationBegin={500}
+                                        dot={false}
+                                        activeDot={{ r: 6, strokeWidth: 0, fill: '#ef4444' }}
+                                    />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
@@ -406,75 +468,154 @@ export function ReportsClient({ companies, branches, categories, businessGroups,
 
                     {/* Secondary Charts */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Distribución de Gasto Rediseñada */}
                         <div className="bg-white dark:bg-zinc-900 p-8 rounded-[40px] border border-zinc-200/60 dark:border-zinc-800 shadow-sm">
-                            <div className="flex items-center gap-4 mb-10">
+                            <div className="flex items-center gap-4 mb-8">
                                 <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center">
                                     <PieIcon className="w-5 h-5 text-indigo-500" />
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-black tracking-tighter text-zinc-900 dark:text-white uppercase">Distribución de Gasto</h3>
-                                    <p className="text-[9px] text-zinc-400 font-black uppercase tracking-widest">Impacto por categoría raíz</p>
+                                    <h3 className="text-sm font-black tracking-tighter text-zinc-900 dark:text-white uppercase">Impacto por Categoría</h3>
+                                    <p className="text-[9px] text-zinc-400 font-black uppercase tracking-widest">Distribución del gasto operativo</p>
                                 </div>
                             </div>
-                            <div className="h-[300px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={reportData?.categories.filter((c: any) => c.expense > 0)}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={70}
-                                            outerRadius={100}
-                                            paddingAngle={8}
-                                            dataKey="expense"
-                                            nameKey="name"
-                                            animationBegin={0}
-                                            animationDuration={1500}
-                                        >
-                                            {reportData?.categories.map((entry: any, index: number) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="transparent" />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                    </PieChart>
-                                </ResponsiveContainer>
+                            
+                            <div className="flex flex-col xl:flex-row items-center gap-10">
+                                {/* Gráfico Donut con Centro Informativo */}
+                                <div className="h-[260px] w-full xl:w-1/2 relative">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={reportData?.categories.filter((c: any) => c.expense > 0)}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={75}
+                                                outerRadius={100}
+                                                paddingAngle={8}
+                                                dataKey="expense"
+                                                nameKey="name"
+                                                animationDuration={1500}
+                                                stroke="transparent"
+                                            >
+                                                {reportData?.categories.filter((c: any) => c.expense > 0).map((entry: any, index: number) => (
+                                                    <Cell 
+                                                        key={`cell-${index}`} 
+                                                        fill={COLORS[index % COLORS.length]} 
+                                                        className="hover:opacity-80 transition-opacity cursor-pointer focus:outline-none"
+                                                    />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip 
+                                                content={({ active, payload }) => {
+                                                    if (active && payload && payload.length) {
+                                                        const data = payload[0].payload;
+                                                        return (
+                                                            <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl">
+                                                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">{data.name}</p>
+                                                                <p className="text-sm font-black text-zinc-900 dark:text-white">${data.expense.toLocaleString()}</p>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return null;
+                                                }}
+                                            />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                    {/* Centro del Donut */}
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Total Egresos</span>
+                                        <span className="text-xl font-black text-zinc-900 dark:text-white leading-none">
+                                            ${reportData?.summary.totalOut.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Leyenda Detallada con Porcentajes */}
+                                <div className="w-full xl:w-1/2 space-y-3">
+                                    {reportData?.categories
+                                        .filter((c: any) => c.expense > 0)
+                                        .sort((a: any, b: any) => b.expense - a.expense)
+                                        .slice(0, 5)
+                                        .map((cat: any, i: number) => {
+                                            const percentage = ((cat.expense / (reportData?.summary.totalOut || 1)) * 100).toFixed(1);
+                                            return (
+                                                <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/20 border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 transition-all group">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="h-3 w-3 rounded-full shadow-sm" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[11px] font-black text-zinc-900 dark:text-zinc-100 uppercase truncate max-w-[120px]">{cat.name}</span>
+                                                            <span className="text-[9px] font-bold text-zinc-400">{percentage}% del impacto</span>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-xs font-black text-zinc-900 dark:text-white">${cat.expense.toLocaleString()}</span>
+                                                </div>
+                                            );
+                                        })}
+                                </div>
                             </div>
                         </div>
 
+                        {/* Monitor de Eficiencia Presupuestaria */}
                         <div className="bg-white dark:bg-zinc-900 p-8 rounded-[40px] border border-zinc-200/60 dark:border-zinc-800 shadow-sm overflow-hidden">
-                            <div className="flex items-center justify-between mb-10">
+                            <div className="flex items-center justify-between mb-8">
                                 <div className="flex items-center gap-4">
-                                    <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center">
-                                        <DollarSign className="w-5 h-5 text-emerald-500" />
+                                    <div className="h-10 w-10 rounded-xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center">
+                                        <TrendingUp className="w-5 h-5 text-amber-500" />
                                     </div>
                                     <div>
-                                        <h3 className="text-sm font-black tracking-tighter text-zinc-900 dark:text-white uppercase">Mejores Categorías</h3>
-                                        <p className="text-[9px] text-zinc-400 font-black uppercase tracking-widest">Top rendimiento positivo</p>
+                                        <h3 className="text-sm font-black tracking-tighter text-zinc-900 dark:text-white uppercase">Eficiencia de Gasto</h3>
+                                        <p className="text-[9px] text-zinc-400 font-black uppercase tracking-widest">Ejecución vs Presupuesto Planificado</p>
                                     </div>
                                 </div>
                             </div>
-                            <div className="space-y-4 max-h-[250px] overflow-y-auto custom-scrollbar pr-3">
-                                {reportData?.categories.sort((a: any, b: any) => b.income - a.income).map((cat: any, i: number) => (
-                                    <div key={i} className="group flex items-center justify-between p-5 rounded-3xl bg-zinc-50 dark:bg-zinc-800/20 border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700 transition-all">
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-2 w-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                                            <span className="text-xs font-black text-zinc-900 dark:text-zinc-100">{cat.name}</span>
+
+                            <div className="space-y-6 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                                {(reportData as any)?.budgetEfficiency?.map((item: any, i: number) => {
+                                    const percent = Math.min(100, (item.executed / item.budget) * 100);
+                                    // Color dinámico según ejecución
+                                    const barColor = percent > 90 ? 'bg-rose-500' : percent > 70 ? 'bg-amber-500' : 'bg-emerald-500';
+                                    const textColor = percent > 90 ? 'text-rose-500' : percent > 70 ? 'text-amber-500' : 'text-emerald-500';
+
+                                    return (
+                                        <div key={i} className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[11px] font-black text-zinc-900 dark:text-zinc-100 uppercase truncate max-w-[200px]">
+                                                        {item.name}
+                                                    </span>
+                                                    <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter">
+                                                        ${item.executed.toLocaleString()} de ${item.budget.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                                <span className={`text-xs font-black ${textColor}`}>
+                                                    {percent.toFixed(1)}%
+                                                </span>
+                                            </div>
+                                            {/* Barra de Progreso Premium */}
+                                            <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                                <div 
+                                                    className={`h-full ${barColor} transition-all duration-1000 ease-out rounded-full`}
+                                                    style={{ width: `${percent}%` }}
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-xs font-black text-emerald-500">+${cat.income.toLocaleString()}</span>
-                                            <span className="text-[9px] font-bold text-zinc-400 uppercase">Entrada de capital</span>
-                                        </div>
+                                    );
+                                })}
+
+                                {!(reportData as any)?.budgetEfficiency?.length && (
+                                    <div className="h-[200px] flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-zinc-100 dark:border-zinc-800 rounded-[32px]">
+                                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Sin presupuestos asignados para el periodo</p>
                                     </div>
-                                ))}
+                                )}
                             </div>
                         </div>
                     </div>
                 </div>
             ) : activeTab === 'hierarchical' ? (
                 /* Financial Tree Table (P&L) */
-                <div className="animate-in slide-in-from-right-4 duration-500 flex flex-col gap-6">
+                <div className="animate-in slide-in-from-right-4 duration-500 flex flex-col gap-6" suppressHydrationWarning>
                     {/* P&L Specific Summary */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6" suppressHydrationWarning>
                         <div className="bg-emerald-500/5 border border-emerald-500/10 p-6 rounded-[32px] flex items-center justify-between">
                             <div>
                                 <p className="text-[10px] font-black uppercase text-emerald-600 tracking-widest mb-1">Margen Bruto Proyectado</p>
@@ -568,7 +709,7 @@ export function ReportsClient({ companies, branches, categories, businessGroups,
                                                         row.type === 'COST' ? 'bg-amber-500/10 text-amber-600' :
                                                         'bg-rose-500/10 text-rose-600'
                                                     }`}>
-                                                        {row.type}
+                                                        {row.type === 'INCOME' ? 'INGRESO' : row.type === 'COST' ? 'COSTO' : 'GASTO'}
                                                     </span>
                                                 </td>
                                                 <td className="px-8 py-4 text-right">
@@ -580,7 +721,7 @@ export function ReportsClient({ companies, branches, categories, businessGroups,
                                                     </div>
                                                 </td>
                                                 <td className="px-8 py-4 text-right">
-                                                    <span className={`text-xs font-black ${row.executed > row.budget && row.budget > 0 ? 'text-rose-600' : 'text-rose-500'}`}>
+                                                    <span className={`text-xs font-black ${row.type === 'INCOME' ? 'text-emerald-500' : (row.executed > row.budget && row.budget > 0 ? 'text-rose-600' : 'text-rose-500')}`}>
                                                         ${row.executed.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                     </span>
                                                 </td>
@@ -590,19 +731,23 @@ export function ReportsClient({ companies, branches, categories, businessGroups,
                                                     </span>
                                                 </td>
                                                 <td className="px-8 py-4 text-center">
-                                                    <div className="flex flex-col items-center gap-1.5">
-                                                        <div className="w-24 h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden border border-zinc-200/50 dark:border-zinc-700/50">
-                                                            <div 
-                                                                className={`h-full transition-all duration-1000 ${row.percent > 100 ? 'bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : row.percent > 85 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                                                                style={{ width: `${Math.min(100, row.percent)}%` }}
-                                                            />
+                                                    {row.type !== 'INCOME' ? (
+                                                        <div className="flex flex-col items-center gap-1.5">
+                                                            <div className="w-24 h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden border border-zinc-200/50 dark:border-zinc-700/50">
+                                                                <div 
+                                                                    className={`h-full transition-all duration-1000 ${row.percent > 100 ? 'bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : row.percent > 85 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                                                    style={{ width: `${Math.min(100, row.percent)}%` }}
+                                                                />
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                <span className={`text-[10px] font-black ${row.percent > 100 ? 'text-rose-600' : 'text-zinc-500'}`}>
+                                                                    {Math.round(row.percent)}%
+                                                                </span>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex items-center gap-1">
-                                                            <span className={`text-[10px] font-black ${row.percent > 100 ? 'text-rose-600' : 'text-zinc-500'}`}>
-                                                                {Math.round(row.percent)}%
-                                                            </span>
-                                                        </div>
-                                                    </div>
+                                                    ) : (
+                                                        <span className="text-zinc-300 dark:text-zinc-700">—</span>
+                                                    )}
                                                 </td>
                                             </tr>
                                         );

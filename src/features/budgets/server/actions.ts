@@ -249,16 +249,21 @@ export async function transferFunds(formData: FormData) {
   revalidatePath(`/dashboard/presupuestos/${source.budgetId}`)
 }
 
-export async function getAllocationsForCompany(companyId: number) {
+export async function getAllocationsForCompany(companyId?: number) {
   const user = await requireAuth()
   const supabase = await createClient()
-  if (user.role !== "SUPER_ADMIN" && Number(user.companyId) !== Number(companyId)) {
-    throw new Error("No autorizado para ver presupuestos de esta empresa")
+  
+  const targetCompanyId = user.role === "SUPER_ADMIN" ? companyId : user.companyId
+
+  if (!targetCompanyId) {
+    if (user.role === "SUPER_ADMIN") return []
+    throw new Error("Usuario sin empresa asignada")
   }
-  const { data: budgets, error } = await supabase
+
+  let query = supabase
     .from("Budget")
     .select(`
-      id, name,
+      id, name, branchId,
       branch:Branch(id, name, company:Company(name)),
       allocations:BudgetAllocation(id, amountUSD, accountId, companyAccountId, 
         id, amountUSD, consumedUSD,
@@ -268,8 +273,15 @@ export async function getAllocationsForCompany(companyId: number) {
         )
       )
     `)
-    .eq("companyId", companyId)
+    .eq("companyId", targetCompanyId)
     .eq("status", "ACTIVE")
+
+  if (user.role === "OPERATOR" && user.branchId) {
+    query = query.eq("branchId", user.branchId)
+  }
+
+  const { data: budgets, error } = await query
+
   if (error) throw new Error("Error obteniendo presupuestos")
   const availableAllocations = (budgets || []).flatMap((b: any) => 
       (b.allocations || []).map((a: any) => {

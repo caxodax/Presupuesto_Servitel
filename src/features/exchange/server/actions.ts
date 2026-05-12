@@ -94,21 +94,18 @@ export async function getEffectiveRate() {
     
     if (existing) return { usd: existing.usd, eur: existing.eur, source: 'Database' }
 
-    // 2. No hay en DB para hoy, sincronizar
-    try {
-        const synced = await syncDailyExchangeRate()
-        if (synced.action !== 'error' && synced.rates) {
-            return { usd: synced.rates.usd, eur: synced.rates.eur, source: 'BCV (Auto-sync)' }
-        }
-        // No lanzamos error aquí, procedemos al catch para buscar alternativas
-        console.warn("Sync failed, looking for alternatives:", synced.error)
-    } catch (error) {
-        console.error("Auto-sync failed:", error)
-    }
+    // 2. No hay en DB para hoy, NO sincronizamos durante el render para evitar bucles.
+    // El sistema debe depender de un cron job o de una acción manual del admin para sincronizar.
+    console.warn("No rate found for today in DB, skipping auto-sync during render to prevent re-validation loops.")
 
     // 3. Si falla el sync o no hubo resultados, buscar la más reciente que tengamos
-    const latest = await getLatestSavedRate()
-    if (latest) return { usd: latest.usd, eur: latest.eur, source: 'Database (Last available)' }
+    // Usamos una estrategia silenciosa para no romper el renderizado del servidor
+    try {
+        const latest = await getLatestSavedRate()
+        if (latest) return { usd: latest.usd, eur: latest.eur, source: 'Database (Last available)' }
+    } catch (e) {
+        console.error("Error getting latest rate:", e)
+    }
     
     // 4. Si ni siquiera hay históricos, usar scraping directo (que tiene el fallback a DolarAPI)
     const direct = await getBCVRate()

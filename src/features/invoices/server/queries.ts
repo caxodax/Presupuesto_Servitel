@@ -22,6 +22,8 @@ export async function getInvoices(companyId?: string, queryParam?: string, page?
       date,
       status,
       companyId,
+      companyAccountId,
+      allocationId,
       createdAt,
       company:Company(name),
       registeredBy:User(name),companyAccount:CompanyAccount(globalAccount:GlobalAccount(code,name)),

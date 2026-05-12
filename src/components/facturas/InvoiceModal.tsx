@@ -55,7 +55,7 @@ export function InvoiceModal({
     const [allocations, setAllocations] = useState<any[]>(Array.isArray(initialAllocations) ? initialAllocations : (initialAllocations as any).items || [])
     const [isLoadingAllocations, setIsLoadingAllocations] = useState(false)
     const [selectedCompanyId, setSelectedCompanyId] = useState<string>(invoice?.companyId?.toString() || "")
-    const [selectedBudgetId, setSelectedBudgetId] = useState<number | null>(null)
+    const [selectedBudgetId, setSelectedBudgetId] = useState<number | null>(invoice?.allocation?.budget?.id || null)
     
     const {
         register,
@@ -68,7 +68,8 @@ export function InvoiceModal({
         defaultValues: mode === "edit" ? {
             ...invoice,
             date: invoice?.date && !isNaN(new Date(invoice.date).getTime()) ? format(new Date(invoice.date.includes("T") ? invoice.date : invoice.date + "T00:00:00"), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-            companyAccountId: invoice.companyAccountId || null
+            companyAccountId: invoice.companyAccountId || null,
+            invoiceId: invoice.id
         } : {
             date: format(new Date(), 'yyyy-MM-dd'),
             exchangeRate: Number(currentBcvRate) || 0,
@@ -195,7 +196,10 @@ export function InvoiceModal({
     }
 
     // Cálculo de impacto presupuestario previo
-    const remainingBefore = selectedAlloc?.remainingUSD || 0
+    // En modo edición, debemos "devolver" virtualmente el monto actual de la factura 
+    // al presupuesto para calcular el impacto del nuevo monto correctamente.
+    const currentInvoiceAmount = mode === 'edit' ? Number(invoice?.amountUSD || 0) : 0
+    const remainingBefore = (selectedAlloc?.remainingUSD || 0) + currentInvoiceAmount
     const remainingAfter = remainingBefore - Number(watchAmountUSD || 0)
     const isOverBudget = remainingAfter < 0
 

@@ -4,6 +4,8 @@ import { useOptimistic, useTransition } from "react"
 import { InlineAdjustmentForm } from "./AllocationForms"
 import { registerAdjustment } from "@/features/budgets/server/actions"
 import { toast } from "sonner"
+import { formatNumber } from "@/lib/utils"
+import { Activity } from "lucide-react"
 
 type Allocation = {
     id: number
@@ -54,68 +56,94 @@ export function BudgetAllocationsTable({ initialAllocations }: { initialAllocati
     }
 
     return (
-        <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden w-full">
-            <div className="p-5 border-b border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/50">
-                <h2 className="text-lg font-bold text-foreground">Distribución Presupuestaria</h2>
+        <div className="rounded-[24px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-[0_8px_30px_rgba(0,0,0,0.02)] overflow-hidden w-full">
+            <div className="px-8 py-6 border-b border-zinc-100 dark:border-zinc-800/60 bg-zinc-50/30 dark:bg-zinc-900/30 flex items-center justify-between">
+                <div>
+                    <h2 className="text-xl font-black tracking-tight text-foreground">Distribución Presupuestaria</h2>
+                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1">Control de ejecución por cuenta contable</p>
+                </div>
+                <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-tighter">
+                    <div className="flex items-center gap-1.5 text-emerald-500">
+                        <div className="w-2 h-2 rounded-full bg-current" /> Saludable
+                    </div>
+                    <div className="flex items-center gap-1.5 text-amber-500">
+                        <div className="w-2 h-2 rounded-full bg-current" /> Advertencia
+                    </div>
+                    <div className="flex items-center gap-1.5 text-rose-500">
+                        <div className="w-2 h-2 rounded-full bg-current" /> Crítico
+                    </div>
+                </div>
             </div>
-            <div className="overflow-x-auto overflow-y-auto max-h-[600px] scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800">
-                <table className="w-full text-sm text-left border-collapse table-auto">
-                    <thead className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold bg-zinc-50 dark:bg-zinc-900/30 border-b border-zinc-200 dark:border-zinc-800/50 sticky top-0 z-10 backdrop-blur-md">
+
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left border-collapse min-w-[1000px]">
+                    <thead className="text-[10px] uppercase tracking-[0.1em] text-zinc-400 font-black bg-white dark:bg-zinc-900 sticky top-0 z-10">
                         <tr>
-                            <th className="px-6 py-3 min-w-[240px]">Cuenta Contable</th>
-                            <th className="px-4 py-3 text-center">% Part.</th>
-                            <th className="px-6 py-3 text-right">Límite Aprobado</th>
-                            <th className="px-4 py-3 text-center">% Ejec.</th>
-                            <th className="px-6 py-3 text-right">Consumido</th>
-                            <th className="px-6 py-3 text-right">Disponible</th>
-                            <th className="px-6 py-3 text-right bg-rose-50/80 dark:bg-rose-950/40 border-l border-zinc-200 dark:border-zinc-800 text-rose-600 dark:text-rose-400 min-w-[360px] sticky top-0">Acción de Ajuste</th>
+                            <th className="px-8 py-5">Cuenta Contable</th>
+                            <th className="px-6 py-5 text-center">Peso</th>
+                            <th className="px-6 py-5 text-right">Límite Aprobado</th>
+                            <th className="px-6 py-5">Ejecución</th>
+                            <th className="px-6 py-5 text-right">Consumido</th>
+                            <th className="px-6 py-5 text-right">Disponible</th>
+                            <th className="px-8 py-5 text-right min-w-[320px]">Ajuste de Saldo</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
-                        {optimisticAllocations.map((alloc) => {
+                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
+                        {optimisticAllocations.map((alloc, idx) => {
                             const weight = totalBudget > 0 ? (Number(alloc.amountUSD) / totalBudget) * 100 : 0
                             const execution = Number(alloc.amountUSD) > 0 ? (Number(alloc.consumedUSD) / Number(alloc.amountUSD)) * 100 : 0
+                            const available = Number(alloc.amountUSD) - Number(alloc.consumedUSD)
                             
+                            const statusColor = execution >= 100 ? 'bg-rose-500' : execution >= 70 ? 'bg-amber-500' : 'bg-emerald-500'
+                            const statusBg = execution >= 100 ? 'bg-rose-100 dark:bg-rose-950/30' : execution >= 70 ? 'bg-amber-100 dark:bg-amber-950/30' : 'bg-emerald-100 dark:bg-emerald-950/30'
+                            const statusText = execution >= 100 ? 'text-rose-600' : execution >= 70 ? 'text-amber-600' : 'text-emerald-600'
+
                             return (
-                                <tr key={alloc.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/10 transition-colors">
-                                    <td className="px-6 py-2">
-                                        {alloc.companyAccount || alloc.account ? (
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black text-indigo-500 uppercase tracking-tighter mb-0.5">
-                                                    {alloc.companyAccount?.globalAccount?.code || alloc.account?.code}
-                                                </span>
-                                                <div className="font-bold text-foreground text-[14px] whitespace-normal leading-tight">
-                                                    {alloc.companyAccount?.globalAccount?.name || alloc.account?.name}
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="font-bold text-foreground text-[14px] whitespace-normal">Sin cuenta vinculada</div>
-                                        )}
+                                <tr key={alloc.id} className={`${idx % 2 === 0 ? 'bg-transparent' : 'bg-zinc-50/30 dark:bg-zinc-800/10'} hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-all group`}>
+                                    <td className="px-8 py-4">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-[9px] font-black text-indigo-500/70 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-500/10 w-fit px-1.5 py-0.5 rounded">
+                                                {alloc.companyAccount?.globalAccount?.code || alloc.account?.code || 'S/C'}
+                                            </span>
+                                            <span className="font-bold text-foreground text-[13px] leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                                {alloc.companyAccount?.globalAccount?.name || alloc.account?.name || 'Sin nombre'}
+                                            </span>
+                                        </div>
                                     </td>
-                                    <td className="px-4 py-2 text-center">
-                                        <span className="text-[10px] font-black px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
+                                    <td className="px-6 py-4 text-center">
+                                        <span className="text-[10px] font-black text-zinc-400">
                                             {weight.toFixed(1)}%
                                         </span>
                                     </td>
-                                    <td className="px-6 py-2 text-right font-black text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
-                                        ${Number(alloc.amountUSD).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                    </td>
-                                    <td className="px-4 py-2 text-center">
-                                        <span className={`text-[10px] font-black px-2 py-1 rounded-md ${
-                                            execution > 90 ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600' : 
-                                            execution > 50 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600' : 
-                                            'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600'
-                                        }`}>
-                                            {execution.toFixed(1)}%
+                                    <td className="px-6 py-4 text-right">
+                                        <span className="font-black text-foreground tabular-nums">
+                                            ${formatNumber(alloc.amountUSD)}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-2 text-right tabular-nums text-zinc-500 font-bold whitespace-nowrap">
-                                        ${Number(alloc.consumedUSD).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col gap-1.5 min-w-[120px]">
+                                            <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-tighter">
+                                                <span className={statusText}>{execution.toFixed(1)}%</span>
+                                                <span className="text-zinc-400">Utilizado</span>
+                                            </div>
+                                            <div className="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                                <div 
+                                                    className={`h-full ${statusColor} transition-all duration-500 ease-out`}
+                                                    style={{ width: `${Math.min(execution, 100)}%` }}
+                                                />
+                                            </div>
+                                        </div>
                                     </td>
-                                    <td className={`px-6 py-2 text-right tabular-nums font-black whitespace-nowrap ${(Number(alloc.amountUSD) - Number(alloc.consumedUSD)) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                        ${(Number(alloc.amountUSD) - Number(alloc.consumedUSD)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    <td className="px-6 py-4 text-right tabular-nums text-zinc-500 font-bold text-xs">
+                                        ${formatNumber(alloc.consumedUSD)}
                                     </td>
-                                    <td className="px-6 py-2 text-right border-l border-zinc-200 dark:border-zinc-800 bg-rose-50/5 dark:bg-rose-950/10">
+                                    <td className="px-6 py-4 text-right">
+                                        <div className={`inline-flex flex-col items-end px-3 py-1 rounded-xl ${statusBg} ${statusText}`}>
+                                            <span className="text-xs font-black tabular-nums">${formatNumber(available)}</span>
+                                            <span className="text-[8px] font-black uppercase tracking-widest opacity-70">Saldo</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-8 py-4">
                                         <InlineAdjustmentForm 
                                             allocationId={alloc.id.toString()} 
                                             onSubmit={handleApplyAdjustment} 
@@ -125,14 +153,18 @@ export function BudgetAllocationsTable({ initialAllocations }: { initialAllocati
                                 </tr>
                             )
                         })}
-                        {optimisticAllocations.length === 0 && (
-                            <tr>
-                                <td colSpan={7} className="px-6 py-12 text-center text-zinc-500 font-medium italic">Sin fondos distribuidos en este ciclo.</td>
-                            </tr>
-                        )}
                     </tbody>
                 </table>
             </div>
+            
+            {optimisticAllocations.length === 0 && (
+                <div className="px-8 py-20 text-center flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center text-zinc-300">
+                        <Activity className="w-6 h-6" />
+                    </div>
+                    <p className="text-sm text-zinc-500 font-medium italic">Sin fondos distribuidos en este ciclo.</p>
+                </div>
+            )}
         </div>
     )
 }

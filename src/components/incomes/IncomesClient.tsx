@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { IncomeModal } from "@/components/incomes/IncomeModal"
+import { formatDate, formatNumber } from "@/lib/utils"
 import { Wallet, Plus, Search, Edit2, ExternalLink, Trash2, Loader2, Calendar, Layers } from "lucide-react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -17,6 +18,7 @@ type IncomesClientProps = {
     businessGroups: any[]
     currentBcvRate: string | number
     userRole: string
+    userBranchId?: string | number | null
     totalPages: number
     currentPage: number
     totalItems: number
@@ -31,6 +33,7 @@ export function IncomesClient({
     businessGroups,
     currentBcvRate, 
     userRole,
+    userBranchId,
     totalPages,
     currentPage,
     totalItems,
@@ -189,7 +192,7 @@ export function IncomesClient({
                     <td className="px-8 py-5">
                        <div className="flex flex-col">
                           <span className="font-black text-foreground tracking-tight">#{inc.number}</span>
-                          <span className="text-[10px] text-zinc-400 font-bold">{new Date(inc.date).toLocaleDateString()}</span>
+                          <span className="text-[10px] text-zinc-400 font-bold">{formatDate(inc.date)}</span>
                        </div>
                     </td>
                     <td className="px-8 py-5">
@@ -206,9 +209,9 @@ export function IncomesClient({
                     <td className="px-8 py-5 text-right">
                         <div className="flex flex-col items-end">
                             <span className="font-black text-emerald-600 dark:text-emerald-400">
-                                ${Number(inc.amountUSD).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                ${formatNumber(inc.amountUSD)}
                             </span>
-                            <span className="text-[10px] text-zinc-400 font-bold">VES {Number(inc.amountVES).toLocaleString(undefined, { minimumFractionDigits: 0 })}</span>
+                            <span className="text-[10px] text-zinc-400 font-bold">VES {formatNumber(inc.amountVES, 0)}</span>
                         </div>
                     </td>
                     <td className="px-8 py-5 text-right">
@@ -269,6 +272,7 @@ export function IncomesClient({
             categories={categories}
             currentBcvRate={currentBcvRate}
             userRole={userRole}
+            userBranchId={userBranchId}
             defaultCompanyId={defaultCompanyId}
             onClose={() => setModalMode(null)}
         />

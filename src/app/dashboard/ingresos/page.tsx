@@ -49,6 +49,7 @@ export default async function IncomesListPage(props: {
         businessGroups={businessGroups}
         currentBcvRate={currentBcvRate}
         userRole={user.role}
+        userBranchId={user.branchId}
         totalPages={pageCount}
         currentPage={page}
         totalItems={total}

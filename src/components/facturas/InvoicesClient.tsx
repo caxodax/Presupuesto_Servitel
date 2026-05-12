@@ -20,6 +20,7 @@ import { SearchInput } from "@/components/ui/SearchInput"
 import { Pagination } from "@/components/ui/Pagination"
 import { anulateInvoice } from "@/features/invoices/server/actions"
 import { toast } from "sonner"
+import { formatNumber, formatDate } from "@/lib/utils"
 
 type InvoicesClientProps = {
     invoices: any[]
@@ -188,6 +189,7 @@ export function InvoicesClient({
               <thead>
                 <tr className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-100 dark:border-zinc-800">
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Detalles del Documento</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Cuenta Contable</th>
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 text-right">Monto USD</th>
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 text-right">Monto VES</th>
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 text-center">Estado</th>
@@ -207,15 +209,25 @@ export function InvoicesClient({
                                 <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">{inv.supplierName}</span>
                                 <div className="flex items-center gap-2 mt-1">
                                     <Calendar className="w-3 h-3 text-zinc-300" />
-                                    <span className="text-[10px] text-zinc-400 font-medium">{new Date(inv.date).toLocaleDateString()}</span>
+                                    <span className="text-[10px] text-zinc-400 font-medium">{formatDate(inv.date)}</span>
                                 </div>
                             </div>
                        </div>
                     </td>
+                    <td className="px-8 py-5">
+                        <div className="flex flex-col">
+                            <span className="text-[11px] font-black text-foreground tracking-tight">
+                                {inv.companyAccount?.globalAccount?.code || '—'}
+                            </span>
+                            <span className="text-[10px] text-zinc-400 font-bold uppercase truncate max-w-[150px]">
+                                {inv.companyAccount?.globalAccount?.name || 'No asignada'}
+                            </span>
+                        </div>
+                    </td>
                     <td className="px-8 py-5 text-right">
                         <div className="flex flex-col items-end">
                             <span className={`font-black text-sm ${inv.status === 'CANCELLED' ? 'text-zinc-400 line-through' : 'text-foreground'}`}>
-                                ${Number(inv.amountUSD).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                ${formatNumber(inv.amountUSD)}
                             </span>
                             <span className="text-[10px] text-zinc-400 font-bold uppercase">USD</span>
                         </div>
@@ -223,9 +235,9 @@ export function InvoicesClient({
                     <td className="px-8 py-5 text-right">
                         <div className="flex flex-col items-end">
                             <span className={`font-bold text-xs ${inv.status === 'CANCELLED' ? 'text-zinc-400 line-through' : 'text-zinc-500'}`}>
-                                {Number(inv.amountVES).toLocaleString(undefined, { minimumFractionDigits: 2 })} Bs
+                                {formatNumber(inv.amountVES)} Bs
                             </span>
-                            <span className="text-[10px] text-zinc-400 font-bold uppercase">Rate: {Number(inv.exchangeRate).toFixed(4)}</span>
+                            <span className="text-[10px] text-zinc-400 font-bold uppercase">Rate: {formatNumber(inv.exchangeRate, 4)}</span>
                         </div>
                     </td>
                     <td className="px-8 py-5 text-center">
