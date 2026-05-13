@@ -11,6 +11,7 @@ import { CreateAllocationModal } from "@/components/presupuestos/CreateAllocatio
 import { AdjustmentLogModal } from "@/components/presupuestos/AdjustmentLogModal"
 import { BudgetStatusActions } from "@/components/presupuestos/BudgetStatusActions"
 import { ExportBudgetExcel } from "@/components/presupuestos/ExportBudgetExcel"
+import { BudgetReportPDF } from "@/components/presupuestos/BudgetReportPDF"
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
@@ -75,6 +76,7 @@ export default async function BudgetDetailsPage({ params }: { params: Promise<{ 
          </div>
          
          <div className="flex flex-wrap items-center gap-3">
+              <BudgetReportPDF budget={budget} allocations={budget.allocations} stats={stats} />
               <ExportBudgetExcel allocations={budget.allocations} budgetName={budget.name} />
               <CreateAllocationModal 
                  budgetId={budget.id.toString()} 
