@@ -334,3 +334,48 @@ export async function updateBudgetMaster(formData: FormData) {
   revalidatePath(`/dashboard/presupuestos/${id}`)
   revalidatePath("/dashboard/presupuestos")
 }
+export async function closeBudgetMaster(budgetId: number) {
+  const user = await requireAuth()
+  const supabase = await createClient()
+
+  const { data: budget, error: bError } = await supabase
+    .from('Budget')
+    .select('companyId, branchId')
+    .eq('id', budgetId)
+    .single()
+
+  if (bError || !budget) throw new Error("Presupuesto no encontrado.")
+  enforceCompanyScope(user, budget.companyId)
+
+  const { error: rpcError } = await supabase.rpc('rpc_close_budget_manually', {
+    p_budget_id: budgetId
+  })
+
+  if (rpcError) throw new Error(rpcError.message)
+
+  revalidatePath(`/dashboard/presupuestos/${budgetId}`)
+  revalidatePath("/dashboard/presupuestos")
+}
+
+export async function reactivateBudgetMaster(budgetId: number) {
+  const user = await requireAuth()
+  const supabase = await createClient()
+
+  const { data: budget, error: bError } = await supabase
+    .from('Budget')
+    .select('companyId')
+    .eq('id', budgetId)
+    .single()
+
+  if (bError || !budget) throw new Error("Presupuesto no encontrado.")
+  enforceCompanyScope(user, budget.companyId)
+
+  const { error: rpcError } = await supabase.rpc('rpc_reactivate_budget', {
+    p_budget_id: budgetId
+  })
+
+  if (rpcError) throw new Error(rpcError.message)
+
+  revalidatePath(`/dashboard/presupuestos/${budgetId}`)
+  revalidatePath("/dashboard/presupuestos")
+}

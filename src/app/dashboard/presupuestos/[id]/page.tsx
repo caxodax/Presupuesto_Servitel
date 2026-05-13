@@ -9,6 +9,28 @@ import { InlineAdjustmentForm } from "@/components/presupuestos/AllocationForms"
 import { BudgetAllocationsTable } from "@/components/presupuestos/BudgetAllocationsTable"
 import { CreateAllocationModal } from "@/components/presupuestos/CreateAllocationModal"
 import { AdjustmentLogModal } from "@/components/presupuestos/AdjustmentLogModal"
+import { BudgetStatusActions } from "@/components/presupuestos/BudgetStatusActions"
+import { ExportBudgetExcel } from "@/components/presupuestos/ExportBudgetExcel"
+
+function StatusBadge({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-200/50 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20",
+    CLOSED: "bg-rose-50 text-rose-700 border-rose-200/50 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20",
+    DRAFT: "bg-zinc-50 text-zinc-700 border-zinc-200/50 dark:bg-zinc-500/10 dark:text-zinc-400 dark:border-zinc-500/20",
+  }
+
+  const labels: Record<string, string> = {
+    ACTIVE: "ACTIVO",
+    CLOSED: "CERRADO",
+    DRAFT: "BORRADOR",
+  }
+
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-widest border ${colors[status] || colors.DRAFT}`}>
+       {labels[status] || status}
+    </span>
+  )
+}
 
 export default async function BudgetDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params
@@ -45,6 +67,7 @@ export default async function BudgetDetailsPage({ params }: { params: Promise<{ 
              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold tracking-wider bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-500/20">
                 {budget.branch.name}
              </span>
+             <StatusBadge status={budget.status} />
            </div>
            <p className="text-sm text-muted-foreground flex items-center gap-2 font-medium">
              Periodo válido: {new Date(budget.initialDate).toLocaleDateString()} — {new Date(budget.endDate).toLocaleDateString()}
@@ -52,6 +75,7 @@ export default async function BudgetDetailsPage({ params }: { params: Promise<{ 
          </div>
          
          <div className="flex flex-wrap items-center gap-3">
+              <ExportBudgetExcel allocations={budget.allocations} budgetName={budget.name} />
               <CreateAllocationModal 
                  budgetId={budget.id.toString()} 
                  availableCategories={availableCategories} 
@@ -59,6 +83,13 @@ export default async function BudgetDetailsPage({ params }: { params: Promise<{ 
                  companyId={budget.companyId}
               />
               <MasterBudgetEditor budgetId={budget.id.toString()} currentLimit={stats.originalHardLimit} />
+              {user.role === 'SUPER_ADMIN' && (
+                <BudgetStatusActions 
+                  budgetId={budget.id} 
+                  status={budget.status} 
+                  periodLabel={`${new Date(budget.initialDate).toLocaleDateString()} — ${new Date(budget.endDate).toLocaleDateString()}`}
+                />
+              )}
               {user.role === 'SUPER_ADMIN' && budget.allocations.length > 1 && (
                 <FundTransferModal allocations={budget.allocations} budgetId={budget.id} />
               )}

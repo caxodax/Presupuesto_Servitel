@@ -13,14 +13,16 @@ CREATE OR REPLACE FUNCTION rpc_transfer_budget_funds(
 ) RETURNS JSONB AS $$
 DECLARE
     v_company_id BIGINT;
+    v_branch_id BIGINT;
     v_source_budget_id BIGINT;
     v_target_budget_id BIGINT;
     v_source_amount DECIMAL;
+    v_budget_status public."BudgetStatus";
     v_user_id BIGINT;
 BEGIN
     -- 1. Obtener contexto de empresa desde el presupuesto de origen
-    SELECT b."companyId", ba."budgetId", ba."amountUSD" 
-    INTO v_company_id, v_source_budget_id, v_source_amount
+    SELECT b."companyId", b."branchId", ba."budgetId", ba."amountUSD" 
+    INTO v_company_id, v_branch_id, v_source_budget_id, v_source_amount
     FROM "BudgetAllocation" ba
     JOIN "Budget" b ON b.id = ba."budgetId"
     WHERE ba.id = p_source_allocation_id;
@@ -29,7 +31,16 @@ BEGIN
         RAISE EXCEPTION 'Rubro de origen no encontrado.';
     END IF;
 
-    -- 2. Validar Seguridad
+    -- 2. Refrescar estados automáticamente
+    PERFORM public.rpc_refresh_budget_status(v_branch_id);
+
+    -- 3. Validar que el presupuesto esté ACTIVO
+    SELECT "status" INTO v_budget_status FROM "Budget" WHERE id = v_source_budget_id;
+    IF v_budget_status != 'ACTIVE' THEN
+        RAISE EXCEPTION 'Operación denegada: El presupuesto para esta transferencia no está activo.';
+    END IF;
+
+    -- 4. Validar Seguridad
     IF public.get_auth_user_role() != 'SUPER_ADMIN' AND v_company_id != public.get_auth_user_company_id() THEN
         RAISE EXCEPTION 'Seguridad: No tiene permisos para realizar transferencias en esta empresa.';
     END IF;
@@ -72,19 +83,21 @@ CREATE OR REPLACE FUNCTION rpc_register_invoice(
 ) RETURNS JSONB AS $$
 DECLARE
     v_company_id BIGINT;
+    v_branch_id BIGINT;
     v_user_id BIGINT;
     v_company_account_id BIGINT;
     v_account_type "AccountType";
     v_invoice_id BIGINT;
     v_allocation_id BIGINT;
     v_amount_usd DECIMAL;
+    v_budget_status public."BudgetStatus";
 BEGIN
     v_allocation_id := (p_invoice_data->>'allocationId')::BIGINT;
     v_company_account_id := (p_invoice_data->>'companyAccountId')::BIGINT;
     v_amount_usd := (p_invoice_data->>'amountUSD')::DECIMAL;
 
-    -- 1. Obtener contexto de empresa desde la asignación
-    SELECT b."companyId" INTO v_company_id
+    -- 1. Obtener contexto de empresa y sucursal desde la asignación
+    SELECT b."companyId", b."branchId", b."status" INTO v_company_id, v_branch_id, v_budget_status
     FROM "BudgetAllocation" ba
     JOIN "Budget" b ON b.id = ba."budgetId"
     WHERE ba.id = v_allocation_id;
@@ -93,7 +106,19 @@ BEGIN
         RAISE EXCEPTION 'Asignación presupuestaria no encontrada.';
     END IF;
 
-    -- 2. Validar Seguridad
+    -- 2. Refrescar estados automáticamente por fecha
+    PERFORM public.rpc_refresh_budget_status(v_branch_id);
+
+    -- 3. Validar que el presupuesto esté ACTIVO (después del refresh)
+    SELECT "status" INTO v_budget_status FROM "Budget" b 
+    JOIN "BudgetAllocation" ba ON ba."budgetId" = b.id 
+    WHERE ba.id = v_allocation_id;
+
+    IF v_budget_status != 'ACTIVE' THEN
+        RAISE EXCEPTION 'Operación denegada: El presupuesto no está activo o ya ha sido cerrado.';
+    END IF;
+
+    -- 4. Validar Seguridad
     IF public.get_auth_user_role() != 'SUPER_ADMIN' AND v_company_id != public.get_auth_user_company_id() THEN
         RAISE EXCEPTION 'Seguridad: No tiene permisos para operar en esta empresa.';
     END IF;
@@ -271,17 +296,29 @@ CREATE OR REPLACE FUNCTION rpc_budget_adjustment(
 ) RETURNS JSONB AS $$
 DECLARE
     v_company_id BIGINT;
+    v_branch_id BIGINT;
+    v_budget_id BIGINT;
     v_user_id BIGINT;
     v_adjustment_id BIGINT;
+    v_budget_status public."BudgetStatus";
 BEGIN
     -- Obtener contexto de empresa desde el presupuesto
-    SELECT b."companyId" INTO v_company_id
+    SELECT b."companyId", b."branchId", b.id INTO v_company_id, v_branch_id, v_budget_id
     FROM "BudgetAllocation" ba
     JOIN "Budget" b ON b.id = ba."budgetId"
     WHERE ba.id = p_allocation_id;
 
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Asignación presupuestaria no encontrada.';
+    END IF;
+
+    -- Refrescar estados automáticamente
+    PERFORM public.rpc_refresh_budget_status(v_branch_id);
+
+    -- Validar que el presupuesto esté ACTIVO
+    SELECT "status" INTO v_budget_status FROM "Budget" WHERE id = v_budget_id;
+    IF v_budget_status != 'ACTIVE' THEN
+        RAISE EXCEPTION 'Operación denegada: El presupuesto para este ajuste no está activo.';
     END IF;
 
     v_user_id := public.get_auth_user_id();
