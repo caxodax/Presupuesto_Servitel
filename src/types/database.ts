@@ -637,6 +637,11 @@ export type Database = {
           isActive: boolean
           name: string
           updatedAt: string
+          taxId: string | null
+          logoUrl: string | null
+          address: string | null
+          phone: string | null
+          baseCurrency: string | null
         }
         Insert: {
           createdAt?: string
@@ -645,6 +650,11 @@ export type Database = {
           isActive?: boolean
           name: string
           updatedAt?: string
+          taxId?: string | null
+          logoUrl?: string | null
+          address?: string | null
+          phone?: string | null
+          baseCurrency?: string | null
         }
         Update: {
           createdAt?: string
@@ -653,6 +663,11 @@ export type Database = {
           isActive?: boolean
           name?: string
           updatedAt?: string
+          taxId?: string | null
+          logoUrl?: string | null
+          address?: string | null
+          phone?: string | null
+          baseCurrency?: string | null
         }
         Relationships: [
           {

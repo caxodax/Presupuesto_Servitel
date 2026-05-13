@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { Plus, X, Building2, Loader2, Check } from "lucide-react"
 import { createCompany } from "@/features/companies/server/actions"
 import { toast } from "sonner"
+import { FileUploadInput } from "@/components/facturas/FileUploadInput"
 
 export function CreateCompanyModal({ businessGroups }: { businessGroups: any[] }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -37,7 +38,7 @@ export function CreateCompanyModal({ businessGroups }: { businessGroups: any[] }
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4 animate-in fade-in duration-300">
           <div 
-            className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300"
+            className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300"
           >
             {/* Header */}
             <div className="relative p-6 border-b border-zinc-100 dark:border-zinc-800">
@@ -62,36 +63,94 @@ export function CreateCompanyModal({ businessGroups }: { businessGroups: any[] }
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Razón Social</label>
-                <div className="relative group">
-                  <input 
-                    type="text" 
-                    name="name" 
-                    required 
-                    autoFocus
-                    disabled={isPending}
-                    placeholder="Ej: Servitel C.A" 
-                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50" 
-                  />
-                  <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity">
-                    {!isPending && <Check className="w-4 h-4 text-emerald-500" />}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Razón Social</label>
+                  <div className="relative group">
+                    <input 
+                      type="text" 
+                      name="name" 
+                      required 
+                      autoFocus
+                      disabled={isPending}
+                      placeholder="Ej: Servitel C.A" 
+                      className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50" 
+                    />
+                    <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity">
+                      {!isPending && <Check className="w-4 h-4 text-emerald-500" />}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Matriz / Sector</label>
-                <select 
-                    name="groupId"
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Matriz / Sector</label>
+                  <select 
+                      name="groupId"
+                      disabled={isPending}
+                      className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+                  >
+                      <option value="">Ninguna (Independiente)</option>
+                      {businessGroups.filter(g => g.isActive).map(group => (
+                          <option key={group.id} value={group.id}>{group.name}</option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">RIF / Identificación Fiscal</label>
+                  <input 
+                    type="text" 
+                    name="taxId" 
                     disabled={isPending}
-                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
-                >
-                    <option value="">Ninguna (Independiente)</option>
-                    {businessGroups.filter(g => g.isActive).map(group => (
-                        <option key={group.id} value={group.id}>{group.name}</option>
-                    ))}
-                </select>
+                    placeholder="Ej: J-12345678-9" 
+                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50" 
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Moneda Base</label>
+                  <select 
+                      name="baseCurrency"
+                      disabled={isPending}
+                      className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+                      defaultValue="USD"
+                  >
+                      <option value="USD">USD ($)</option>
+                      <option value="VES">VES (Bs)</option>
+                      <option value="EUR">EUR (€)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Teléfono (Opcional)</label>
+                  <input 
+                    type="text" 
+                    name="phone" 
+                    disabled={isPending}
+                    placeholder="Ej: +58 412 1234567" 
+                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50" 
+                  />
+                </div>
+                
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Dirección (Opcional)</label>
+                  <input 
+                    type="text" 
+                    name="address" 
+                    disabled={isPending}
+                    placeholder="Ej: Av. Principal, Edificio Torre X..." 
+                    className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50" 
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Logo de la Empresa (Opcional)</label>
+                  <div className="bg-zinc-50 dark:bg-zinc-950 p-2 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+                    <FileUploadInput name="logo" />
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-1">Este logo se usará en los encabezados de los reportes PDF.</p>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4">

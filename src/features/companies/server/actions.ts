@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server"
 import { requireAuth, hasRole, enforceCompanyScope } from "@/lib/permissions"
 import { companySchema, branchSchema } from "../validations"
 import { revalidatePath } from "next/cache"
+import { r2Client, BUCKET_NAME } from "@/lib/r2"
+import { PutObjectCommand } from "@aws-sdk/client-s3"
 
 
 export async function createCompany(formData: FormData) {
@@ -15,20 +17,42 @@ export async function createCompany(formData: FormData) {
   const validated = companySchema.parse({ 
     name: formData.get("name") as string,
     groupId: formData.get("groupId") as string,
+    taxId: formData.get("taxId") as string,
+    address: formData.get("address") as string,
+    phone: formData.get("phone") as string,
+    baseCurrency: formData.get("baseCurrency") as string || "USD",
   })
   
   const { data: company, error } = await supabase
     .from('Company')
     .insert({ 
         name: validated.name,
-        groupId: validated.groupId
+        groupId: validated.groupId,
+        taxId: validated.taxId,
+        address: validated.address,
+        phone: validated.phone,
+        baseCurrency: validated.baseCurrency
     })
     .select()
     .single()
 
   if (error || !company) throw new Error(`Error crear empresa: ${error?.message}`)
 
+  // Procesar logo si existe
+  const file = formData.get("logo") as File
+  if (file && file.size > 0) {
+    const logoUrl = `empresa_${company.id}/logo_${Date.now()}-${file.name.replace(/\s+/g, "_")}`
+    const buffer = Buffer.from(await file.arrayBuffer())
+    
+    await r2Client.send(new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: logoUrl,
+      Body: buffer,
+      ContentType: file.type,
+    }))
 
+    await supabase.from('Company').update({ logoUrl }).eq('id', company.id)
+  }
   
   revalidatePath("/dashboard/empresas")
 }
@@ -69,21 +93,45 @@ export async function updateCompany(companyId: number, formData: FormData) {
   const validated = companySchema.parse({
     name: formData.get("name") as string,
     groupId: formData.get("groupId") as string,
+    taxId: formData.get("taxId") as string,
+    address: formData.get("address") as string,
+    phone: formData.get("phone") as string,
+    baseCurrency: formData.get("baseCurrency") as string || "USD",
   })
+
+  // Obtener empresa actual para mantener logo antiguo si no se sube uno nuevo
+  const { data: oldCompany } = await supabase.from('Company').select('logoUrl').eq('id', companyId).single()
+  let logoUrl = oldCompany?.logoUrl
+
+  const file = formData.get("logo") as File
+  if (file && file.size > 0) {
+    logoUrl = `empresa_${companyId}/logo_${Date.now()}-${file.name.replace(/\s+/g, "_")}`
+    const buffer = Buffer.from(await file.arrayBuffer())
+    
+    await r2Client.send(new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: logoUrl,
+      Body: buffer,
+      ContentType: file.type,
+    }))
+  }
 
   const { data: company, error } = await supabase
     .from('Company')
     .update({ 
         name: validated.name,
-        groupId: validated.groupId
+        groupId: validated.groupId,
+        taxId: validated.taxId,
+        address: validated.address,
+        phone: validated.phone,
+        baseCurrency: validated.baseCurrency,
+        logoUrl: logoUrl
     })
     .eq('id', companyId)
     .select()
     .single()
 
   if (error || !company) throw new Error(`Error actualizar empresa: ${error?.message}`)
-
-
   
   revalidatePath("/dashboard/empresas")
 }
