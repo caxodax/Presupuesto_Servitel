@@ -1,5 +1,4 @@
 import { getIncomes } from "@/features/incomes/server/queries"
-import { getIncomeCategories } from "@/features/incomes/server/actions"
 import { getCompanies } from "@/features/companies/server/queries"
 import { getBusinessGroups } from "@/features/companies/server/actions"
 import { requireAuth } from "@/lib/permissions"

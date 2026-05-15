@@ -1077,6 +1077,18 @@ export type Database = {
         }
         Returns: Json
       }
+      rpc_close_budget_manually: {
+        Args: {
+          p_budget_id: number
+        }
+        Returns: Json
+      }
+      rpc_reactivate_budget: {
+        Args: {
+          p_budget_id: number
+        }
+        Returns: Json
+      }
     }
     Enums: {
       AccountType: "ASSET" | "LIABILITY" | "EQUITY" | "INCOME" | "COST" | "EXPENSE" | "PROFIT" | "DISTRIBUTION"

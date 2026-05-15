@@ -31,9 +31,9 @@ export async function getAccounts(options: {
     if (queryParam) qGlobal = qGlobal.or(`name.ilike.%${queryParam}%,code.ilike.%${queryParam}%`)
     if (type) {
         if (Array.isArray(type)) {
-            qGlobal = qGlobal.in('type', type)
+            qGlobal = qGlobal.in('type', type as any)
         } else {
-            qGlobal = qGlobal.eq('type', type)
+            qGlobal = qGlobal.eq('type', type as any)
         }
     }
     if (isBudgetable !== undefined) qGlobal = qGlobal.eq('isBudgetable', isBudgetable)
@@ -68,9 +68,9 @@ export async function getAccounts(options: {
 
   if (type) {
     if (Array.isArray(type)) {
-        queryBuilder = queryBuilder.in('globalAccount.type', type)
+        queryBuilder = queryBuilder.in('globalAccount.type', type as any)
     } else {
-        queryBuilder = queryBuilder.eq('globalAccount.type', type)
+        queryBuilder = queryBuilder.eq('globalAccount.type', type as any)
     }
   }
 
