@@ -26,15 +26,15 @@ Este documento detalla las tareas necesarias para alcanzar la madurez operativa 
 ## 2. Estabilidad Técnica
 
 ### 🛠️ Integridad de Datos
-- [ ] **Restricción de Eliminación**: Impedir el borrado de cuentas o presupuestos con movimientos históricos.
-- [ ] **Logs de Auditoría de Facturas**: Asegurar que cada cambio en una factura (monto, fecha) quede registrado en `AuditLog`.
+- [x] **Restricción de Eliminación**: Impedir el borrado de cuentas o presupuestos con movimientos históricos.
+- [x] **Logs de Auditoría de Facturas**: Asegurar que cada cambio en una factura (monto, fecha) quede registrado en `AuditLog`.
 
 ### ⚡ Rendimiento (Performance)
-- [ ] **Índices SQL**: Optimizar tablas `Invoice`, `BudgetAllocation` y `BudgetAdjustment` para búsquedas rápidas por `companyId` y `date`.
-- [ ] **Cacheo Estratégico**: Implementar `revalidatePath` en todos los server actions para mantener la UI sincronizada.
+- [x] **Índices SQL**: Optimizar tablas `Invoice`, `BudgetAllocation` y `BudgetAdjustment` para búsquedas rápidas por `companyId` y `date`.
+- [x] **Cacheo Estratégico**: Implementar `revalidatePath` en todos los server actions para mantener la UI sincronizada.
 
 ### 📁 Gestión de Archivos
-- [ ] **Políticas de Storage**: Configurar RLS en Supabase Storage para que los adjuntos de una empresa no sean accesibles por otra.
+- [x] **Almacenamiento en Cloudflare R2**: Se mantiene el uso de R2 debido a su capacidad gratuita de 10GB (frente a los 50MB de Supabase Storage). Los archivos se organizan por carpetas de empresa para garantizar el aislamiento lógico.
 
 ---
 

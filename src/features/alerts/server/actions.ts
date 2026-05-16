@@ -15,9 +15,15 @@ export async function triggerBudgetAlerts(allocationId: number) {
     .from('BudgetAllocation')
     .select(`
       *,
-      category:Category(name),
-      subcategory:Subcategory(name),
-      budget:Budget(companyId)
+      companyAccount:CompanyAccount(
+        globalAccount:GlobalAccount(code, name)
+      ),
+      budget:Budget(
+        id,
+        companyId,
+        company:Company(name),
+        branch:Branch(name)
+      )
     `)
     .eq('id', allocationId)
     .single()
@@ -28,14 +34,21 @@ export async function triggerBudgetAlerts(allocationId: number) {
   const consumedUSD = Number(allocation.consumedUSD)
   const percent = limitUSD > 0 ? consumedUSD / limitUSD : 0
 
-  const companyId = (allocation as any).budget.companyId
-  const rubroName = allocation.subcategory 
-    ? `${(allocation as any).category?.name} > ${(allocation as any).subcategory?.name}`
-    : (allocation as any).category?.name
+  const budgetInfo = (allocation as any).budget
+  const companyId = budgetInfo.companyId
+  const companyName = budgetInfo.company?.name || 'N/A'
+  const branchName = budgetInfo.branch?.name || 'N/A'
+  
+  const account = (allocation as any).companyAccount?.globalAccount
+  const rubroName = account 
+    ? `${account.code} - ${account.name}`
+    : 'Cuenta no definida'
+
+  const locationInfo = `[${companyName} - ${branchName}]`
 
   // 1. Alerta de Exceso (100%+)
   if (consumedUSD > limitUSD) {
-    const title = `Presupuesto Excedido: ${rubroName}`
+    const title = `Presupuesto Excedido: ${locationInfo} ${rubroName}`
     
     // Evitar duplicados (no leídos)
     const { data: existing } = await supabase
@@ -51,13 +64,13 @@ export async function triggerBudgetAlerts(allocationId: number) {
           companyId,
           type: "BUDGET_EXCEEDED",
           title,
-          message: `El rubro ${rubroName} ha superado su límite de $${limitUSD.toLocaleString()}. Consumo actual: $${consumedUSD.toLocaleString()}.`
+          message: `En ${companyName} (${branchName}), el rubro ${rubroName} ha superado su límite de $${limitUSD.toLocaleString()}. Consumo actual: $${consumedUSD.toLocaleString()}.`
       })
     }
   } 
   // 2. Alerta de Advertencia (90%+)
   else if (percent >= 0.90) {
-    const title = `Umbral Crítico (90%): ${rubroName}`
+    const title = `Umbral Crítico (90%): ${locationInfo} ${rubroName}`
     
     const { data: existing } = await supabase
       .from('Alert')
@@ -72,7 +85,7 @@ export async function triggerBudgetAlerts(allocationId: number) {
           companyId,
           type: "SYSTEM_WARNING",
           title,
-          message: `El rubro ${rubroName} ha alcanzado el 90% de su capacidad. Disponible: $${(limitUSD - consumedUSD).toLocaleString()}.`
+          message: `En ${companyName} (${branchName}), el rubro ${rubroName} ha alcanzado el 90% de su capacidad. Disponible: $${(limitUSD - consumedUSD).toLocaleString()}.`
       })
     }
   }

@@ -77,6 +77,7 @@ export async function createBudget(formData: FormData) {
   if (error || !budget) throw new Error(`Error crear presupuesto: ${error?.message}`)
 
   revalidatePath("/dashboard/presupuestos")
+  revalidatePath("/dashboard")
 }
 
 export async function upsertAllocation(formData: FormData) {
@@ -162,6 +163,7 @@ export async function upsertAllocation(formData: FormData) {
   }
 
   revalidatePath(`/dashboard/presupuestos/${validated.budgetId}`)
+  revalidatePath("/dashboard")
 }
 
 export async function registerAdjustment(formData: FormData) {
@@ -196,6 +198,7 @@ export async function registerAdjustment(formData: FormData) {
   await triggerBudgetAlerts(validated.allocationId)
 
   revalidatePath(`/dashboard/presupuestos/${(allocation as any).budget.id}`)
+  revalidatePath("/dashboard")
 }
 
 export async function transferFunds(formData: FormData) {
@@ -247,6 +250,7 @@ export async function transferFunds(formData: FormData) {
   ])
 
   revalidatePath(`/dashboard/presupuestos/${source.budgetId}`)
+  revalidatePath("/dashboard")
 }
 
 export async function getAllocationsForCompany(companyId?: number) {
@@ -333,6 +337,7 @@ export async function updateBudgetMaster(formData: FormData) {
 
   revalidatePath(`/dashboard/presupuestos/${id}`)
   revalidatePath("/dashboard/presupuestos")
+  revalidatePath("/dashboard")
 }
 export async function closeBudgetMaster(budgetId: number) {
   const user = await requireAuth()
@@ -355,6 +360,7 @@ export async function closeBudgetMaster(budgetId: number) {
 
   revalidatePath(`/dashboard/presupuestos/${budgetId}`)
   revalidatePath("/dashboard/presupuestos")
+  revalidatePath("/dashboard")
 }
 
 export async function reactivateBudgetMaster(budgetId: number) {
@@ -378,4 +384,5 @@ export async function reactivateBudgetMaster(budgetId: number) {
 
   revalidatePath(`/dashboard/presupuestos/${budgetId}`)
   revalidatePath("/dashboard/presupuestos")
+  revalidatePath("/dashboard")
 }

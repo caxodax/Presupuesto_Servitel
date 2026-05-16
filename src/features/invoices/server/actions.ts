@@ -99,6 +99,7 @@ export async function createInvoice(formData: FormData) {
 
   await triggerBudgetAlerts(validated.allocationId)
   revalidatePath('/dashboard/facturas')
+  revalidatePath('/dashboard')
 }
 
 export async function updateInvoice(formData: FormData) {
@@ -199,6 +200,7 @@ export async function updateInvoice(formData: FormData) {
 
   revalidatePath('/dashboard/facturas')
   revalidatePath(`/dashboard/facturas/${invoiceId}`)
+  revalidatePath('/dashboard')
 }
 
 export async function getRateByDate(date: string) {
@@ -235,4 +237,5 @@ export async function anulateInvoice(id: number) {
   if (rpcError) throw new Error(`Error al anular: ${rpcError.message}`)
 
   revalidatePath('/dashboard/facturas')
+  revalidatePath('/dashboard')
 }
