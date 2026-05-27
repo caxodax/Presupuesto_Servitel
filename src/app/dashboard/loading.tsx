@@ -1,39 +1,55 @@
-import { Loader2 } from "lucide-react"
-
 export default function DashboardLoading() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] w-full animate-in fade-in duration-500">
-      <div className="relative flex items-center justify-center">
-        {/* Outer Glow Effect */}
-        <div className="absolute inset-0 bg-indigo-500/20 blur-3xl rounded-full scale-150 animate-pulse" />
-        
-        {/* Main Spinner Container */}
-        <div className="relative bg-white dark:bg-zinc-900 p-8 rounded-[32px] border border-zinc-200/50 dark:border-zinc-800 shadow-2xl flex flex-col items-center gap-6">
-          <div className="relative">
-             <Loader2 className="w-12 h-12 text-indigo-600 dark:text-indigo-400 animate-spin stroke-[1.5px]" />
-             {/* Subtle internal pulse */}
-             <div className="absolute inset-0 bg-indigo-500/10 blur-xl animate-pulse rounded-full" />
+    <div className="w-full h-full flex flex-col gap-6 animate-pulse p-1">
+      {/* Header Skeleton */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+            <div className="h-3 w-24 bg-zinc-200 dark:bg-zinc-800 rounded" />
           </div>
-          
-          <div className="flex flex-col items-center gap-1.5 text-center">
-            <h3 className="text-base font-black tracking-tight text-zinc-900 dark:text-white uppercase">
-              Sincronizando
-            </h3>
-            <div className="flex items-center gap-2">
-               <span className="h-1 w-1 rounded-full bg-indigo-500 animate-bounce [animation-delay:-0.3s]" />
-               <span className="h-1 w-1 rounded-full bg-indigo-500 animate-bounce [animation-delay:-0.15s]" />
-               <span className="h-1 w-1 rounded-full bg-indigo-500 animate-bounce" />
+          <div className="h-8 w-48 bg-zinc-300 dark:bg-zinc-700 rounded-md" />
+          <div className="h-4 w-72 bg-zinc-200 dark:bg-zinc-800 rounded" />
+        </div>
+        <div className="h-10 w-44 bg-zinc-200 dark:bg-zinc-800 rounded-xl" />
+      </div>
+
+      {/* Grid of Cards (KPIs) */}
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 space-y-3 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="h-4 w-20 bg-zinc-200 dark:bg-zinc-800 rounded" />
+              <div className="h-5 w-5 rounded bg-zinc-100 dark:bg-zinc-800" />
             </div>
-            <p className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] mt-2">
-              Arquitectura Servitel
-            </p>
+            <div className="h-7 w-28 bg-zinc-300 dark:bg-zinc-700 rounded" />
+            <div className="h-3 w-16 bg-zinc-200 dark:bg-zinc-800 rounded" />
+          </div>
+        ))}
+      </div>
+
+      {/* Large Content Block Skeleton */}
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 flex-1">
+        <div className="lg:col-span-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 space-y-4 shadow-sm">
+          <div className="h-5 w-32 bg-zinc-300 dark:bg-zinc-700 rounded" />
+          <div className="space-y-3">
+            <div className="h-40 bg-zinc-100 dark:bg-zinc-800/50 rounded-lg" />
           </div>
         </div>
-      </div>
-      
-      {/* Background Decorative Element */}
-      <div className="mt-12 text-[10px] font-black text-zinc-300 dark:text-zinc-800 uppercase tracking-widest select-none">
-        Procesando transiciones de alta fidelidad
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 space-y-4 shadow-sm">
+          <div className="h-5 w-24 bg-zinc-300 dark:bg-zinc-700 rounded" />
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded bg-zinc-200 dark:bg-zinc-800 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-3/4 bg-zinc-200 dark:bg-zinc-800 rounded" />
+                  <div className="h-2 w-1/2 bg-zinc-100 dark:bg-zinc-800/80 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )

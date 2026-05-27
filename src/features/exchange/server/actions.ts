@@ -107,12 +107,27 @@ export async function getEffectiveRate() {
         console.error("Error getting latest rate:", e)
     }
     
-    // 4. Si ni siquiera hay históricos, usar scraping directo (que tiene el fallback a DolarAPI)
-    const direct = await getBCVRate()
+    // 4. Si ni siquiera hay históricos, usar DolarAPI directamente (nunca scraping de BCV en renderizado para evitar bloqueos)
+    try {
+        const fallbackRes = await fetch("https://ve.dolarapi.com/v1/dolares/oficial", {
+            next: { revalidate: 3600 } // Cache por 1 hora
+        });
+        if (fallbackRes.ok) {
+            const data = await fallbackRes.json();
+            return { 
+                usd: data.promedio || 0, 
+                eur: 0, 
+                source: 'DolarAPI (Direct Fallback)' 
+            }
+        }
+    } catch (e) {
+        console.error("Error al consultar fallback directo de DolarAPI:", e)
+    }
+
     return { 
-        usd: direct.rates?.usd || 0, 
-        eur: direct.rates?.eur || 0, 
-        source: direct.source || 'No source' 
+        usd: 0, 
+        eur: 0, 
+        source: 'Sin tasa disponible' 
     }
 }
 
