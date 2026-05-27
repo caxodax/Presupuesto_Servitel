@@ -10,22 +10,6 @@
 -- ==============================================================================
 
 -- 1. RPC: Transferencia de fondos entre rubros presupuestarios
-CREATE OR REPLACE FUNCTION rpc_transfer_budget_funds(
-    p_source_allocation_id BIGINT,
-    p_target_allocation_id BIGINT,
-    p_amount DECIMAL,
-    p_reason TEXT
-) RETURNS JSONB AS $$
-DECLARE
-    v_company_id BIGINT;
-    v_branch_id BIGINT;
-    v_source_budget_id BIGINT;
-    v_target_budget_id BIGINT;
-    v_source_amount DECIMAL;
-    v_budget_status TEXT;
-    v_user_id BIGINT;
-END;
-$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION rpc_transfer_budget_funds(
     p_source_allocation_id BIGINT,
