@@ -25,6 +25,11 @@ export async function getBCVRate() {
             res.on('end', () => resolve(data));
         });
 
+        req.setTimeout(3000, () => {
+            req.destroy();
+            reject(new Error("Timeout de conexión (3s) con el portal del BCV"));
+        });
+
         req.on('error', (e: any) => reject(e));
         req.end();
     });
