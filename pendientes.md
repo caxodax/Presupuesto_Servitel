@@ -5,21 +5,21 @@ Este documento detalla las tareas necesarias para alcanzar la madurez operativa 
 ## 1. Funcionalidades Pendientes (Core)
 
 ### 🔒 Control de Periodos
-- [ ] **Cierre de Mes/Año**: Implementar mecanismo para bloquear cambios en presupuestos de meses anteriores.
-- [ ] **Validación de Fechas**: Evitar registros de facturas con fechas fuera del rango del presupuesto activo.
+- [x] **Cierre de Mes/Año**: Bloqueo de registros en presupuestos cerrados con automatización por fecha actual (implementado vía Lazy Refresh en Server Actions/Queries y triggers en base de datos).
+- [x] **Validación de Fechas**: Evitar registros de facturas con fechas fuera del rango del presupuesto activo. (Implementado en Server Actions).
 
 ### 👥 Gestión Administrativa (UI)
-- [ ] **Panel de SuperAdmin**: Interfaz para crear nuevas empresas (`Company`) y grupos de negocio.
-- [ ] **Onboarding de Sucursales**: Flujo para configurar nuevas sucursales y asignarles su plan de cuentas.
-- [ ] **Gestión de Usuarios**: Pantalla para invitar usuarios y asignarles roles (`OPERATOR`, `ADMIN`) por empresa.
+- [x] **Panel de SuperAdmin**: Interfaz para crear nuevas empresas (`Company`) y grupos de negocio. (Completado y funcional en la ruta /dashboard/empresas).
+- [x] **Onboarding de Sucursales**: Flujo para configurar nuevas sucursales y asignarles su plan de cuentas. (Completado y aislado de manera multi-inquilino en /dashboard/sucursales).
+- [x] **Gestión de Usuarios**: Pantalla para invitar usuarios y asignarles roles (`OPERATOR`, `ADMIN`) por empresa. (Completado, restringido estrictamente para SUPER_ADMIN en /dashboard/usuarios).
 
 ### 📊 Reportes y Exportación
-- [ ] **Exportación a Excel**: Botón para descargar el detalle de ejecución presupuestaria en formato `.xlsx`.
-- [ ] **Reporte PDF**: Generación de informes ejecutivos mensuales para gerencia.
-- [ ] **Filtros Avanzados**: Búsqueda por proveedor y rango de fechas cruzado entre empresas.
+- [x] **Exportación a Excel**: Botón para descargar el detalle de ejecución presupuestaria en formato `.xlsx`. (Completado y operativo en Reportes y detalles de Presupuesto).
+- [x] **Reporte PDF**: Generación de informes ejecutivos mensuales para gerencia. (Implementado, listo para pruebas).
+- [x] **Filtros Avanzados**: Búsqueda por proveedor y rango de fechas cruzado entre empresas. (Completado e integrado en el dashboard de Reportes BI).
 
 ### 🔔 Notificaciones
-- [ ] **Alertas de Umbral**: Envío automático de notificaciones (Email/Sistema) cuando un rubro llegue al 80%, 90% y 100% de consumo.
+- [x] **Alertas de Umbral**: Envío automático de notificaciones (Email/Sistema) cuando un rubro llegue al 80%, 90% y 100% de consumo. (Completado con validaciones preventivas del 80% y 90%, y exceso del 100%, activado en creación y edición de facturas).
 
 ---
 
@@ -47,7 +47,7 @@ Este documento detalla las tareas necesarias para alcanzar la madurez operativa 
 - [ ] **Manual de Usuario**: Documentación básica para operadores de carga.
 
 ---
-*Última actualización: 2026-05-13*
+*Última actualización: 2026-05-17*
 
 
 Para lanzar el proyecto Presupuesto Servitel a producción con total confianza, aquí tienes un análisis de lo que está pendiente y lo que faltaría para el "GO LIVE":

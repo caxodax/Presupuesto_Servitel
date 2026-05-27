@@ -5,6 +5,9 @@ export async function getBudgets(companyId?: string, branchId?: string, queryPar
   const user = await requireAuth()
   const supabase = await createClient()
   
+  // Refrescar estados de presupuestos por fecha actual
+  await (supabase.rpc as any)('rpc_refresh_all_budgets_status')
+  
   let query = supabase
     .from('Budget')
     .select(`
@@ -70,6 +73,9 @@ export async function getBudgetDetails(budgetId: number) {
   const user = await requireAuth()
   const supabase = await createClient()
   
+  // Refrescar estados de presupuestos por fecha actual
+  await (supabase.rpc as any)('rpc_refresh_all_budgets_status')
+  
   const filter = enforceCompanyScope(user)
   const branchScope = getBranchIsolation(user)
 
@@ -77,7 +83,7 @@ export async function getBudgetDetails(budgetId: number) {
     .from('Budget')
     .select(`
       *,
-      branch:Branch(*),
+      branch:Branch(*, company:Company(name)),
       allocations:BudgetAllocation(
         *,
         category:Category(name),

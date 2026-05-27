@@ -10,6 +10,7 @@ export async function fetchReportAction(filters: {
     categoryId?: number
     subcategoryId?: number
     budgetId?: number
+    supplierName?: string
 }) {
     try {
         const consolidated = await getConsolidatedReport(filters)

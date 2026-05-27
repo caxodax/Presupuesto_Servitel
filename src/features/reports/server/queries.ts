@@ -9,6 +9,7 @@ export async function getConsolidatedReport(filters: {
     categoryId?: number
     subcategoryId?: number
     groupId?: number
+    supplierName?: string
 }) {
     const user = await requireAuth()
     const supabase = await createClient()
@@ -73,6 +74,12 @@ export async function getConsolidatedReport(filters: {
         // Para filtrar por la matriz de la empresa
         incomesQuery = incomesQuery.eq('company.groupId', filters.groupId)
         expensesQuery = expensesQuery.eq('company.groupId', filters.groupId)
+    }
+
+    if (filters.supplierName) {
+        // Si hay búsqueda por proveedor, los ingresos no aplican (se filtran a vacío)
+        incomesQuery = incomesQuery.eq('id', -1)
+        expensesQuery = expensesQuery.ilike('supplierName', `%${filters.supplierName}%`)
     }
 
     const [incomesRes, expensesRes] = await Promise.all([

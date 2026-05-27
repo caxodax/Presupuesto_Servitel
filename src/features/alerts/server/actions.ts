@@ -89,6 +89,27 @@ export async function triggerBudgetAlerts(allocationId: number) {
       })
     }
   }
+  // 3. Alerta de Advertencia Preventiva (80%+)
+  else if (percent >= 0.80) {
+    const title = `Umbral Preventivo (80%): ${locationInfo} ${rubroName}`
+    
+    const { data: existing } = await supabase
+      .from('Alert')
+      .select('id')
+      .eq('companyId', companyId)
+      .eq('title', title)
+      .eq('isRead', false)
+      .maybeSingle()
+
+    if (!existing) {
+      await supabase.from('Alert').insert({
+          companyId,
+          type: "SYSTEM_WARNING",
+          title,
+          message: `En ${companyName} (${branchName}), el rubro ${rubroName} ha alcanzado el 80% de su capacidad. Disponible: $${(limitUSD - consumedUSD).toLocaleString()}.`
+      })
+    }
+  }
 }
 
 export async function markAlertAsRead(alertId: number) {

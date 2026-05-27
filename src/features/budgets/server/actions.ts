@@ -96,11 +96,12 @@ export async function upsertAllocation(formData: FormData) {
 
   const { data: budget, error: bError } = await supabase
     .from("Budget")
-    .select("id, name, companyId")
+    .select("id, name, status, companyId")
     .eq("id", validated.budgetId)
     .single()
 
   if (bError || !budget) throw new Error("Presupuesto no encontrado")
+  if (budget.status === 'CLOSED') throw new Error("No se pueden modificar asignaciones de un presupuesto cerrado.")
   enforceCompanyScope(user, budget.companyId)
 
   // Resolución automática si no viene cuenta: No aplica para categorías ahora
@@ -179,11 +180,12 @@ export async function registerAdjustment(formData: FormData) {
 
   const { data: allocation, error: aError } = await supabase
     .from('BudgetAllocation')
-    .select('*, budget:Budget(id, companyId)')
+    .select('*, budget:Budget(id, status, companyId)')
     .eq('id', validated.allocationId)
     .single()
 
   if (aError || !allocation) throw new Error("Asignación no encontrada")
+  if ((allocation as any).budget.status === 'CLOSED') throw new Error("No se pueden realizar ajustes en un presupuesto cerrado.")
   enforceCompanyScope(user, (allocation as any).budget.companyId)
 
   const { data, error: rpcError } = await supabase.rpc('rpc_budget_adjustment', {
@@ -218,17 +220,20 @@ export async function transferFunds(formData: FormData) {
 
   const { data: source, error: sError } = await supabase
     .from('BudgetAllocation')
-    .select('*, budget:Budget(id, companyId)')
+    .select('*, budget:Budget(id, status, companyId)')
     .eq('id', sourceId)
     .single()
 
   const { data: target, error: tError } = await supabase
     .from('BudgetAllocation')
-    .select('*, budget:Budget(id, companyId)')
+    .select('*, budget:Budget(id, status, companyId)')
     .eq('id', targetId)
     .single()
 
   if (sError || tError || !source || !target) throw new Error("Uno de los rubros no existe.")
+  if ((source as any).budget.status === 'CLOSED' || (target as any).budget.status === 'CLOSED') {
+    throw new Error("No se pueden transferir fondos si el presupuesto está cerrado.")
+  }
   if (source.budgetId !== target.budgetId) throw new Error("Los rubros deben pertenecer al mismo ciclo presupuestario.")
 
   if (Number(source.amountUSD) < amount) {
@@ -256,6 +261,9 @@ export async function transferFunds(formData: FormData) {
 export async function getAllocationsForCompany(companyId?: number) {
   const user = await requireAuth()
   const supabase = await createClient()
+  
+  // Refrescar estados de presupuestos por fecha actual
+  await (supabase.rpc as any)('rpc_refresh_all_budgets_status')
   
   const targetCompanyId = user.role === "SUPER_ADMIN" ? companyId : user.companyId
 

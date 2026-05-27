@@ -13,6 +13,9 @@ export async function createInvoice(formData: FormData) {
   const user = await requireAuth()
   const supabase = await createClient()
 
+  // Refrescar estados de presupuestos por fecha actual
+  await (supabase.rpc as any)('rpc_refresh_all_budgets_status')
+
   const validated = invoiceSchema.parse({
     number: formData.get("number"),
     supplierName: formData.get("supplierName"),
@@ -26,13 +29,28 @@ export async function createInvoice(formData: FormData) {
 
   const { data: allocation, error: aError } = await supabase
     .from('BudgetAllocation')
-    .select('*, budget:Budget(id, companyId, branchId, branch:Branch(name, company:Company(name)))')
+    .select('*, budget:Budget(id, status, initialDate, endDate, companyId, branchId, branch:Branch(name, company:Company(name)))')
     .eq('id', validated.allocationId)
     .single()
 
   if (aError || !allocation) throw new Error("Asignación presupuestaria no encontrada.")
 
   const budgetInfo = (allocation as any).budget
+  
+  // 1. Validar Estado del Presupuesto
+  if (budgetInfo.status === 'CLOSED') {
+    throw new Error("No se pueden registrar facturas en un presupuesto cerrado.")
+  }
+
+  // 2. Validar Rango de Fechas
+  const invoiceDate = new Date(validated.date + 'T12:00:00')
+  const budgetStart = new Date(budgetInfo.initialDate)
+  const budgetEnd = new Date(budgetInfo.endDate)
+
+  if (invoiceDate < budgetStart || invoiceDate > budgetEnd) {
+    throw new Error(`La fecha de la factura (${invoiceDate.toLocaleDateString()}) está fuera del rango del presupuesto (${budgetStart.toLocaleDateString()} - ${budgetEnd.toLocaleDateString()}).`)
+  }
+
   const companyId = budgetInfo.companyId
   const branchId = budgetInfo.branchId
   const companyName = budgetInfo.branch.company.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
@@ -106,6 +124,9 @@ export async function updateInvoice(formData: FormData) {
   const user = await requireAuth()
   const supabase = await createClient()
 
+  // Refrescar estados de presupuestos por fecha actual
+  await (supabase.rpc as any)('rpc_refresh_all_budgets_status')
+
   const invoiceId = Number(formData.get("invoiceId"))
   const validated = invoiceSchema.parse({
     number: formData.get("number"),
@@ -120,7 +141,7 @@ export async function updateInvoice(formData: FormData) {
 
   const { data: oldInvoice, error: fError } = await supabase
     .from('Invoice')
-    .select('*, allocation:BudgetAllocation(*, budget:Budget(branchId))')
+    .select('*, allocation:BudgetAllocation(*, budget:Budget(id, status, initialDate, endDate, branchId))')
     .eq('id', invoiceId)
     .single()
 
@@ -130,11 +151,26 @@ export async function updateInvoice(formData: FormData) {
 
   const { data: targetAlloc } = await supabase
     .from('BudgetAllocation')
-    .select('*, budget:Budget(companyId, branchId, branch:Branch(name, company:Company(name)))')
+    .select('*, budget:Budget(id, status, initialDate, endDate, companyId, branchId, branch:Branch(name, company:Company(name)))')
     .eq('id', validated.allocationId)
     .single()
 
   const budgetInfo = (targetAlloc as any)?.budget
+  
+  // 1. Validar Estado del Presupuesto (en el destino)
+  if (budgetInfo?.status === 'CLOSED') {
+    throw new Error("No se pueden registrar facturas en un presupuesto cerrado.")
+  }
+
+  // 2. Validar Rango de Fechas
+  const invoiceDate = new Date(validated.date + 'T12:00:00')
+  const budgetStart = new Date(budgetInfo.initialDate)
+  const budgetEnd = new Date(budgetInfo.endDate)
+
+  if (invoiceDate < budgetStart || invoiceDate > budgetEnd) {
+    throw new Error(`La fecha de la factura está fuera del rango del presupuesto seleccionado (${budgetStart.toLocaleDateString()} - ${budgetEnd.toLocaleDateString()}).`)
+  }
+
   const targetCompanyId = budgetInfo?.companyId || oldInvoice.companyId
   
   // Resolución automática
@@ -198,6 +234,7 @@ export async function updateInvoice(formData: FormData) {
 
   if (rpcError) throw new Error(`Error al actualizar factura: ${rpcError.message}`)
 
+  await triggerBudgetAlerts(validated.allocationId)
   revalidatePath('/dashboard/facturas')
   revalidatePath(`/dashboard/facturas/${invoiceId}`)
   revalidatePath('/dashboard')

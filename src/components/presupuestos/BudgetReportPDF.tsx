@@ -2,6 +2,7 @@
 
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Font } from '@react-pdf/renderer'
 import { FileText, Loader2 } from "lucide-react"
+import { useState, useEffect } from "react"
 
 // Registrar fuentes si fuera necesario (opcional)
 // Font.register({ family: 'Inter', src: '...' });
@@ -117,9 +118,9 @@ const MyDocument = ({ budget, allocations, stats }: { budget: any, allocations: 
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.companyName}>{budget.branch.company.name}</Text>
-          <Text style={styles.reportTitle}>Ejecución Presupuestaria: {budget.name}</Text>
-          <Text style={{ fontSize: 8, marginTop: 2 }}>{budget.branch.name} | {new Date(budget.initialDate).toLocaleDateString()} - {new Date(budget.endDate).toLocaleDateString()}</Text>
+          <Text style={styles.companyName}>{budget.branch?.company?.name || 'Servitel'}</Text>
+          <Text style={styles.reportTitle}>Ejecución Presupuestaria: {budget.name || 'S/N'}</Text>
+          <Text style={{ fontSize: 8, marginTop: 2 }}>{budget.branch?.name || 'S/S'} | {new Date(budget.initialDate).toLocaleDateString()} - {new Date(budget.endDate).toLocaleDateString()}</Text>
         </View>
         <View style={styles.meta}>
           <Text>Fecha de Generación:</Text>
@@ -180,10 +181,31 @@ const MyDocument = ({ budget, allocations, stats }: { budget: any, allocations: 
 );
 
 export function BudgetReportPDF({ budget, allocations, stats }: { budget: any, allocations: any[], stats: any }) {
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  if (!isMounted) {
+    return (
+      <button 
+        disabled 
+        className="h-10 px-4 bg-zinc-100 text-zinc-400 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 cursor-wait"
+      >
+        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        Preparando...
+      </button>
+    )
+  }
+
+  // Ensure data is ready and valid before passing to Document
+  if (!budget || !allocations || !stats) return null;
+
   return (
     <PDFDownloadLink
       document={<MyDocument budget={budget} allocations={allocations} stats={stats} />}
-      fileName={`Reporte_${budget.name.replace(/\s+/g, '_')}.pdf`}
+      fileName={`Reporte_${budget.name?.replace(/\s+/g, '_') || 'Presupuesto'}.pdf`}
       className="h-10 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 active:scale-95 shadow-xl shadow-indigo-500/20"
     >
       {({ loading }) => (

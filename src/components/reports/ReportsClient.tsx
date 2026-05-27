@@ -56,6 +56,7 @@ type Filters = {
     subcategoryId?: number
     groupId?: number
     budgetId?: number
+    supplierName?: string
 }
 
 type TabType = 'visual' | 'analytical' | 'hierarchical'
@@ -75,7 +76,8 @@ export function ReportsClient({ companies, branches, categories, businessGroups,
         branchId: undefined,
         categoryId: undefined,
         subcategoryId: undefined,
-        groupId: undefined
+        groupId: undefined,
+        supplierName: undefined
     })
 
     useEffect(() => {
@@ -211,6 +213,17 @@ export function ReportsClient({ companies, branches, categories, businessGroups,
                             <option value="">Todas</option>
                             {filteredBranches.map((b: any) => <option key={b.id} value={b.id.toString()}>{b.name}</option>)}
                         </select>
+                    </div>
+
+                    <div className="flex flex-col gap-0.5 px-4 border-r border-zinc-200 dark:border-zinc-800">
+                        <span className="text-[8px] font-black uppercase text-zinc-400 tracking-widest">Proveedor</span>
+                        <input 
+                            type="text" 
+                            value={filters.supplierName || ''}
+                            onChange={(e) => setFilters((prev: Filters) => ({ ...prev, supplierName: e.target.value || undefined }))}
+                            placeholder="Buscar..."
+                            className="bg-transparent border-none outline-none text-[11px] font-black text-foreground cursor-pointer placeholder:text-zinc-400 w-24"
+                        />
                     </div>
 
                     <div className="flex flex-col gap-0.5 px-4 border-r border-zinc-200 dark:border-zinc-800">
