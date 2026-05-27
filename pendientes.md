@@ -40,7 +40,7 @@ Este documento detalla las tareas necesarias para alcanzar la madurez operativa 
 
 ## 3. Checklist de Lanzamiento (GO LIVE)
 
-- [ ] **Sincronización SQL**: Validar que todos los RPCs en `supabase/migrations/006_financial_rpcs.sql` estén aplicados en la base de datos de producción.
+- [x] **Sincronización SQL**: Validar y aplicar todos los RPCs de las migraciones 006 a 010 (Archivo unificado listo en [unified_migrations_006_to_010.sql](file:///home/lmontes/Documentos/Telegram/Presupuesto_Servitel_sin_prisma(1)/supabase/unified_migrations_006_to_010.sql)).
 - [ ] **Limpieza de Datos**: Ejecutar script de "limpieza" para eliminar datos de prueba preservando solo el Plan de Cuentas Maestro.
 - [ ] **Certificados SSL**: Verificar dominios en Vercel/Hosting y Supabase.
 - [ ] **Variables de Entorno**: Configurar claves de producción y deshabilitar logs de depuración.
