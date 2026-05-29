@@ -11,7 +11,10 @@ import {
     AlertCircle,
     Search,
     X,
-    Settings2
+    Settings2,
+    Folder,
+    FolderOpen,
+    FileText
 } from "lucide-react"
 import { toast } from "sonner"
 import { clsx } from "clsx"
@@ -200,21 +203,51 @@ export function MappingClient({
                     key={account.id} 
                     className={clsx(
                         "hover:bg-zinc-50/50 dark:hover:bg-zinc-800/10 border-b border-zinc-100 dark:border-zinc-800/50 transition-colors",
-                        !isEnabled && "opacity-60 bg-zinc-50/30 dark:bg-zinc-950/10"
+                        !isEnabled ? "opacity-50 bg-zinc-50/30 dark:bg-zinc-950/10" : 
+                        depth === 0 ? clsx(
+                            "font-bold bg-zinc-50/75 dark:bg-zinc-800/20 hover:bg-zinc-100 dark:hover:bg-zinc-800/30 border-l-4",
+                            account.type === "INCOME" && "border-l-emerald-500",
+                            account.type === "EXPENSE" && "border-l-rose-500",
+                            account.type === "COST" && "border-l-amber-500",
+                            (account.type === "ASSET" || account.type === "LIABILITY" || account.type === "EQUITY") && "border-l-indigo-500"
+                        ) :
+                        depth === 1 ? "border-l-2 border-l-zinc-300 dark:border-l-zinc-700 bg-zinc-50/20 dark:bg-zinc-800/5 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/15" :
+                        "hover:bg-zinc-50/30 dark:hover:bg-zinc-800/10"
                     )}
                 >
-                    <td className="px-6 py-4">
-                        <div className="flex items-center gap-2" style={{ paddingLeft: `${depth * 20}px` }}>
+                    <td className="px-6 py-4 relative">
+                        {/* Líneas de guía verticales */}
+                        {Array.from({ length: depth }).map((_, idx) => (
+                            <div 
+                                key={idx} 
+                                className="absolute top-0 bottom-0 border-l border-dashed border-zinc-200 dark:border-zinc-800" 
+                                style={{ left: `${idx * 20 + 20}px` }} 
+                            />
+                        ))}
+                        <div className="flex items-center gap-2.5 relative z-10" style={{ paddingLeft: `${depth * 20}px` }}>
                             {hasChildren ? (
                                 <button 
                                     onClick={() => toggleExpand(account.id)}
-                                    className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-transform text-zinc-400 hover:text-zinc-600 animate-all"
+                                    className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-transform text-zinc-400 hover:text-zinc-600 animate-all flex items-center justify-center"
                                 >
                                     {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                                 </button>
                             ) : (
-                                <div className="w-6 h-6 shrink-0" />
+                                <div className="w-6 h-6 shrink-0 flex items-center justify-center">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+                                </div>
                             )}
+
+                            {hasChildren ? (
+                                isExpanded ? (
+                                    <FolderOpen className="w-4 h-4 text-indigo-500/80 shrink-0" />
+                                ) : (
+                                    <Folder className="w-4 h-4 text-indigo-400/80 shrink-0" />
+                                )
+                            ) : (
+                                <FileText className="w-4 h-4 text-zinc-400/70 shrink-0" />
+                            )}
+
                             <span className="font-mono text-xs font-bold text-zinc-400 whitespace-nowrap">
                                 {account.code}
                             </span>
@@ -243,15 +276,27 @@ export function MappingClient({
                     </td>
 
                     <td className="px-6 py-4">
-                        <span className={clsx(
-                            "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border",
-                            account.type === "INCOME" && "bg-emerald-500/10 text-emerald-500 border-emerald-500/15",
-                            account.type === "EXPENSE" && "bg-rose-500/10 text-rose-500 border-rose-500/15",
-                            account.type === "COST" && "bg-amber-500/10 text-amber-500 border-amber-500/15",
-                            (account.type === "ASSET" || account.type === "LIABILITY" || account.type === "EQUITY") && "bg-zinc-500/10 text-zinc-500 border-zinc-500/15"
-                        )}>
-                            {TYPE_LABELS[account.type] || account.type}
-                        </span>
+                        {depth === 0 ? (
+                            <span className={clsx(
+                                "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border",
+                                account.type === "INCOME" && "bg-emerald-500/10 text-emerald-500 border-emerald-500/15",
+                                account.type === "EXPENSE" && "bg-rose-500/10 text-rose-500 border-rose-500/15",
+                                account.type === "COST" && "bg-amber-500/10 text-amber-500 border-amber-500/15",
+                                (account.type === "ASSET" || account.type === "LIABILITY" || account.type === "EQUITY") && "bg-zinc-500/10 text-zinc-500 border-zinc-500/15"
+                            )}>
+                                {TYPE_LABELS[account.type] || account.type}
+                            </span>
+                        ) : (
+                            <span className={clsx(
+                                "text-[10px] font-bold uppercase",
+                                account.type === "INCOME" && "text-emerald-500/70",
+                                account.type === "EXPENSE" && "text-rose-500/70",
+                                account.type === "COST" && "text-amber-500/70",
+                                (account.type === "ASSET" || account.type === "LIABILITY" || account.type === "EQUITY") && "text-zinc-400"
+                            )}>
+                                • {TYPE_LABELS[account.type] || account.type}
+                            </span>
+                        )}
                     </td>
 
                     <td className="px-6 py-4">

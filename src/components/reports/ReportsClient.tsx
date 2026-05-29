@@ -32,7 +32,10 @@ import {
     ChevronRight,
     ArrowUpRight,
     ArrowDownRight,
-    Info
+    Info,
+    Folder,
+    FolderOpen,
+    FileText
 } from "lucide-react"
 import { ReportsSkeleton } from "./ReportsSkeleton"
 import { toast } from "sonner"
@@ -699,14 +702,47 @@ export function ReportsClient({ companies, branches, categories, businessGroups,
                                         return (
                                             <tr 
                                                 key={i} 
-                                                className={`hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-all group ${isMainCategory ? 'bg-zinc-50/30 dark:bg-zinc-800/10' : ''} cursor-pointer`}
+                                                className={
+                                                    isMainCategory ? `border-l-4 ${
+                                                        row.type === 'INCOME' ? 'border-l-emerald-500' :
+                                                        row.type === 'COST' ? 'border-l-amber-500' :
+                                                        'border-l-rose-500'
+                                                    } bg-zinc-50/75 dark:bg-zinc-800/20 hover:bg-zinc-100 dark:hover:bg-zinc-800/30 transition-all group font-bold cursor-pointer` :
+                                                    isSubCategory ? 'border-l-2 border-l-zinc-300 dark:border-l-zinc-700 bg-zinc-50/20 dark:bg-zinc-800/5 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/15 transition-all group cursor-pointer' :
+                                                    'hover:bg-zinc-50/30 dark:hover:bg-zinc-800/10 transition-all group cursor-pointer'
+                                                }
                                                 onClick={() => !row.isMovement && setExpandedRows(prev => ({ ...prev, [row.code]: !isExpanded }))}
                                             >
-                                                <td className="px-8 py-4">
-                                                    <div className="flex items-center gap-3" style={{ paddingLeft: `${(row.level - 1) * 24}px` }}>
-                                                        {!row.isMovement && (
-                                                            <ChevronRight className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                                <td className="px-8 py-4 relative">
+                                                    {/* Líneas de guía verticales */}
+                                                    {Array.from({ length: row.level - 1 }).map((_, idx) => (
+                                                        <div 
+                                                            key={idx} 
+                                                            className="absolute top-0 bottom-0 border-l border-dashed border-zinc-200 dark:border-zinc-800" 
+                                                            style={{ left: `${idx * 24 + 38}px` }} 
+                                                        />
+                                                    ))}
+                                                    <div className="flex items-center gap-2.5 relative z-10" style={{ paddingLeft: `${(row.level - 1) * 24}px` }}>
+                                                        {!row.isMovement ? (
+                                                            <div className="p-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-transform text-zinc-400 hover:text-zinc-600 flex items-center justify-center shrink-0">
+                                                                <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="w-5.5 h-5.5 shrink-0 flex items-center justify-center">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+                                                            </div>
                                                         )}
+
+                                                        {!row.isMovement ? (
+                                                            isExpanded ? (
+                                                                <FolderOpen className="w-4 h-4 text-indigo-500/85 shrink-0" />
+                                                            ) : (
+                                                                <Folder className="w-4 h-4 text-indigo-400/85 shrink-0" />
+                                                            )
+                                                        ) : (
+                                                            <FileText className="w-4 h-4 text-zinc-400/70 shrink-0" />
+                                                        )}
+
                                                         <div className="flex flex-col">
                                                             <span className={`text-[8px] font-black leading-none ${isMainCategory ? 'text-indigo-600' : 'text-zinc-400'}`}>
                                                                 {row.code}
@@ -718,13 +754,23 @@ export function ReportsClient({ companies, branches, categories, businessGroups,
                                                     </div>
                                                 </td>
                                                 <td className="px-8 py-4 text-center">
-                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                                                        row.type === 'INCOME' ? 'bg-emerald-500/10 text-emerald-600' :
-                                                        row.type === 'COST' ? 'bg-amber-500/10 text-amber-600' :
-                                                        'bg-rose-500/10 text-rose-600'
-                                                    }`}>
-                                                        {row.type === 'INCOME' ? 'INGRESO' : row.type === 'COST' ? 'COSTO' : 'GASTO'}
-                                                    </span>
+                                                    {isMainCategory ? (
+                                                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
+                                                            row.type === 'INCOME' ? 'bg-emerald-500/10 text-emerald-600' :
+                                                            row.type === 'COST' ? 'bg-amber-500/10 text-amber-600' :
+                                                            'bg-rose-500/10 text-rose-600'
+                                                        }`}>
+                                                            {row.type === 'INCOME' ? 'INGRESO' : row.type === 'COST' ? 'COSTO' : 'GASTO'}
+                                                        </span>
+                                                    ) : (
+                                                        <span className={`text-[9px] font-bold uppercase ${
+                                                            row.type === 'INCOME' ? 'text-emerald-500/70' :
+                                                            row.type === 'COST' ? 'text-amber-500/70' :
+                                                            'text-rose-500/70'
+                                                        }`}>
+                                                            • {row.type === 'INCOME' ? 'INGRESO' : row.type === 'COST' ? 'COSTO' : 'GASTO'}
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="px-8 py-4 text-right">
                                                     <div className="flex flex-col">
