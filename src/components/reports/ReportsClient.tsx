@@ -586,9 +586,9 @@ export function ReportsClient({ companies, branches, categories, businessGroups,
                                 {(reportData as any)?.budgetEfficiency?.map((item: any, i: number) => {
                                     const realPercent = item.budget > 0 ? (item.executed / item.budget) * 100 : 0;
                                     const percentForBar = Math.min(100, realPercent);
-                                    // Color dinámico según ejecución
-                                    const barColor = realPercent > 90 ? 'bg-rose-500' : realPercent > 70 ? 'bg-amber-500' : 'bg-emerald-500';
-                                    const textColor = realPercent > 90 ? 'text-rose-500' : realPercent > 70 ? 'text-amber-500' : 'text-emerald-500';
+                                    // Color dinámico según ejecución (rojo si supera 100%, amarillo si supera 80%, verde si está por debajo)
+                                    const barColor = realPercent > 100 ? 'bg-rose-500' : realPercent > 80 ? 'bg-amber-500' : 'bg-emerald-500';
+                                    const textColor = realPercent > 100 ? 'text-rose-500' : realPercent > 80 ? 'text-amber-500' : 'text-emerald-500';
 
                                     return (
                                         <div key={i} className="space-y-2">
@@ -735,7 +735,7 @@ export function ReportsClient({ companies, branches, categories, businessGroups,
                                                     </div>
                                                 </td>
                                                 <td className="px-8 py-4 text-right">
-                                                    <span className={`text-xs font-black ${row.type === 'INCOME' ? 'text-emerald-500' : (row.executed > row.budget && row.budget > 0 ? 'text-rose-600' : 'text-rose-500')}`}>
+                                                    <span className={`text-xs font-black ${row.type === 'INCOME' ? 'text-emerald-500' : (row.executed > row.budget && row.budget > 0 ? 'text-rose-600' : 'text-zinc-900 dark:text-zinc-100')}`}>
                                                         ${row.executed.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                     </span>
                                                 </td>
