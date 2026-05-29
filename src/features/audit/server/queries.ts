@@ -40,7 +40,7 @@ export async function getAuditTrail(searchParams: { page?: string, actionFilter?
    const totalCount = totalRows || 0
 
    return { 
-       logs: logs || [], 
+       logs: (logs as any[]) || [], 
        metadata: { 
            totalRecords: totalCount, 
            totalPages: Math.ceil(totalCount / pageSize), 
@@ -50,4 +50,3 @@ export async function getAuditTrail(searchParams: { page?: string, actionFilter?
        } 
    }
 }
-

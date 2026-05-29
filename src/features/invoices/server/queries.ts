@@ -4,43 +4,18 @@ import { r2Client, BUCKET_NAME } from "@/lib/r2"
 import { GetObjectCommand } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 
+export async function getInvoces(companyId?: string, queryParam?: string, page?: number, limit: number = 10, groupId?: string) {
+  return getInvoices(companyId, queryParam, page, limit, groupId)
+}
+
 export async function getInvoices(companyId?: string, queryParam?: string, page?: number, limit: number = 10, groupId?: string) {
   const user = await requireAuth()
   const supabase = await createClient()
   
   const whereClause = enforceCompanyScope(user)
 
-  let query = supabase
-    .from('Invoice')
-    .select(`
-      id,
-      number,
-      supplierName,
-      amountUSD,
-      amountVES,
-      exchangeRate,
-      date,
-      status,
-      companyId,
-      companyAccountId,
-      allocationId,
-      createdAt,
-      company:Company(name),
-      registeredBy:User(name),companyAccount:CompanyAccount(globalAccount:GlobalAccount(code,name)),
-      allocation:BudgetAllocation(
-        id,
-        amountUSD,
-        consumedUSD,
-        categoryId,
-        category:Category(name),
-        budget:Budget(
-          id,
-          name,
-          branchId,
-          branch:Branch(name)
-        )
-      )
-    `, { count: 'exact' })
+  let query = (supabase.from('invoice_list_view') as any)
+    .select('*', { count: 'planned' })
     .order('date', { ascending: false })
 
   if (whereClause.companyId) {
@@ -54,13 +29,32 @@ export async function getInvoices(companyId?: string, queryParam?: string, page?
   }
 
   if (groupId) {
-    query = query.filter('company.groupId', 'eq', Number(groupId))
+    query = query.eq('companyGroupId', Number(groupId))
   }
+
+  const mapInvoice = (i: any) => ({
+    ...i,
+    company: { name: i.companyName },
+    registeredBy: { name: i.registeredByName },
+    companyAccount: {
+      globalAccount: {
+        code: i.accountCode,
+        name: i.accountName
+      }
+    },
+    allocation: {
+      id: i.allocationId,
+      budget: {
+        id: i.budgetId
+      }
+    }
+  })
 
   if (page === undefined) {
     const { data, error } = await query
     if (error) throw new Error(`Error al obtener facturas: ${error.message}`)
-    return { items: data || [], total: (data || []).length, pageCount: 1 }
+    const formatted = (data || []).map(mapInvoice)
+    return { items: formatted, total: formatted.length, pageCount: 1 }
   }
 
   const from = (page - 1) * limit
@@ -72,8 +66,10 @@ export async function getInvoices(companyId?: string, queryParam?: string, page?
     throw new Error(`Error al obtener facturas: ${error.message}`)
   }
 
+  const formattedItems = (items || []).map(mapInvoice)
+
   return {
-    items: items || [],
+    items: formattedItems,
     total: count || 0,
     pageCount: Math.ceil((count || 0) / limit)
   }
@@ -83,8 +79,7 @@ export async function getInvoiceDetails(invoiceId: number) {
   const user = await requireAuth()
   const supabase = await createClient()
 
-  const { data: invoice, error: invoiceError } = await supabase
-    .from('Invoice')
+  const { data: invoice, error: invoiceError } = await (supabase.from('Invoice') as any)
     .select(`
       *,
       company:Company(name),
@@ -103,16 +98,15 @@ export async function getInvoiceDetails(invoiceId: number) {
 
   if (invoiceError || !invoice) throw new Error("Factura no encontrada")
   
-  enforceCompanyScope(user, invoice.companyId)
+  enforceCompanyScope(user, (invoice as any).companyId)
 
-  const allocLimit = Number(invoice.allocation.amountUSD)
-  const currentConsumedAll = Number(invoice.allocation.consumedUSD)
+  const allocLimit = Number((invoice as any).allocation.amountUSD)
+  const currentConsumedAll = Number((invoice as any).allocation.consumedUSD)
   
   const negativeOverBudgetLimit = currentConsumedAll > allocLimit ? currentConsumedAll - allocLimit : 0
   const availableCapacity = allocLimit - currentConsumedAll
 
-  const { data: auditLogs } = await supabase
-    .from('AuditLog')
+  const { data: auditLogs } = await (supabase.from('AuditLog') as any)
     .select(`
       *,
       user:User(name, role)
@@ -123,11 +117,11 @@ export async function getInvoiceDetails(invoiceId: number) {
 
   // Generar URL firmada para Cloudflare R2
   let attachmentUrl = null
-  if (invoice.attachmentKey) {
+  if ((invoice as any).attachmentKey) {
       try {
           const command = new GetObjectCommand({
               Bucket: BUCKET_NAME,
-              Key: invoice.attachmentKey,
+              Key: (invoice as any).attachmentKey,
           })
           attachmentUrl = await getSignedUrl(r2Client, command, { expiresIn: 3600 })
       } catch (e) {
@@ -136,7 +130,7 @@ export async function getInvoiceDetails(invoiceId: number) {
   }
 
   return {
-    invoice: { ...invoice, attachmentUrl },
+    invoice: { ...(invoice as any), attachmentUrl },
     analytics: {
       hardLimit: allocLimit,
       totalConsumedNow: currentConsumedAll,
@@ -149,13 +143,11 @@ export async function getInvoiceDetails(invoiceId: number) {
 
 export async function getExchangeRateForDate(date: string) {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('ExchangeRate')
+  const { data, error } = await (supabase.from('ExchangeRate') as any)
     .select('usd')
     .eq('date', date)
     .single()
 
   if (error || !data) return null
-  return data.usd
+  return Number((data as any).usd)
 }
-

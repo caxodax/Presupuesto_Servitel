@@ -13,7 +13,7 @@ import {
     Activity,
     Target
 } from "lucide-react"
-import { createGlobalAccount, updateGlobalAccount } from "@/features/accounts/server/actions"
+import { createGlobalAccount, updateGlobalAccount, createAndLinkGlobalAccount } from "@/features/accounts/server/actions"
 import { toast } from "sonner"
 
 interface Props {
@@ -21,9 +21,11 @@ interface Props {
     account?: any
     globalAccounts: any[]
     onClose: () => void
+    onSuccess?: (result: any) => void
+    companyIdToLink?: number
 }
 
-export function GlobalAccountModal({ mode, account, globalAccounts, onClose }: Props) {
+export function GlobalAccountModal({ mode, account, globalAccounts, onClose, onSuccess, companyIdToLink }: Props) {
     const [isPending, startTransition] = useTransition()
     
     const { register, handleSubmit, watch, formState: { errors } } = useForm({
@@ -55,11 +57,22 @@ export function GlobalAccountModal({ mode, account, globalAccounts, onClose }: P
         startTransition(async () => {
             try {
                 if (mode === "create") {
-                    await createGlobalAccount(payload)
-                    toast.success("Cuenta global creada")
+                    if (companyIdToLink) {
+                        const result = await createAndLinkGlobalAccount({
+                            globalAccountData: payload,
+                            companyId: companyIdToLink
+                        })
+                        toast.success("Cuenta contable creada y vinculada")
+                        if (onSuccess) onSuccess(result)
+                    } else {
+                        const result = await createGlobalAccount(payload)
+                        toast.success("Cuenta global creada")
+                        if (onSuccess) onSuccess(result)
+                    }
                 } else {
-                    await updateGlobalAccount(account.id, payload)
+                    const result = await updateGlobalAccount(account.id, payload)
                     toast.success("Cuenta global actualizada")
+                    if (onSuccess) onSuccess(result)
                 }
                 onClose()
             } catch (error: any) {

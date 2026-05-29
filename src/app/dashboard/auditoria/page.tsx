@@ -10,7 +10,7 @@ export default async function AuditForensicPage(props: { searchParams: Promise<a
   const user = await requireAuth()
   const [{ logs, metadata }, companies] = await Promise.all([
     getAuditTrail(searchParams),
-    user.role === 'SUPER_ADMIN' ? getAllCompanies() : Promise.resolve([])
+    user.role === 'SUPER_ADMIN' ? getAllCompanies() : Promise.resolve([] as any[])
   ])
   
   const actionFilter = searchParams.actionFilter || '';

@@ -1,7 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { InvoiceModal } from "@/components/facturas/InvoiceModal"
+import dynamic from "next/dynamic"
+
+const InvoiceModal = dynamic(
+  () => import("@/components/facturas/InvoiceModal").then(m => m.InvoiceModal),
+  { ssr: false, loading: () => null }
+)
 import { 
     Receipt, 
     Plus, 

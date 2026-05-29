@@ -6,7 +6,7 @@ import { cache } from "react"
 /**
  * Obtiene la sesión actual y el perfil extendido del usuario desde la base de datos.
  * Reemplaza la antigua función 'auth()' de NextAuth.
- * Usamos \`cache\` de React para deduplicar llamadas dentro de un mismo ciclo de renderizado.
+ * Usamos `cache` de React para deduplicar llamadas dentro de un mismo ciclo de renderizado.
  */
 export const getSession = cache(async () => {
   const supabase = await createClient()
@@ -18,8 +18,7 @@ export const getSession = cache(async () => {
   }
 
   // Buscamos el perfil en nuestra tabla 'User' usando el authId (UUID de Supabase Auth)
-  const { data: profile, error: profileError } = await supabase
-    .from('User')
+  const { data: profile, error: profileError } = await (supabase.from('User') as any)
     .select('*, Company(id, name), Branch(id, name)')
     .eq('authId', user.id)
     .single()
@@ -32,12 +31,12 @@ export const getSession = cache(async () => {
   return {
     user: {
       ...user,
-      id: profile.id.toString(), // Mantenemos compatibilidad con IDs de Supabase Auth si es necesario, o usamos el numérico.
-      profileId: profile.id, 
-      name: profile.name,
-      role: profile.role,
-      companyId: profile.companyId,
-      branchId: profile.branchId,
+      id: (profile as any).id.toString(), // Mantenemos compatibilidad con IDs de Supabase Auth si es necesario, o usamos el numérico.
+      profileId: (profile as any).id, 
+      name: (profile as any).name,
+      role: (profile as any).role,
+      companyId: (profile as any).companyId,
+      branchId: (profile as any).branchId,
       profile: profile
     }
   }

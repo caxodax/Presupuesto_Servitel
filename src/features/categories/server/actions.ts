@@ -19,8 +19,7 @@ export async function createCategory(formData: FormData) {
     companyId: undefined 
   })
   
-  const { data: category, error } = await supabase
-    .from('Category')
+  const { data: category, error } = await (supabase.from('Category') as any)
     .insert({ 
       name: validated.name, 
       type: validated.type as any,
@@ -31,8 +30,6 @@ export async function createCategory(formData: FormData) {
 
   if (error || !category) throw new Error(`Error crear categoría: ${error?.message}`)
 
-
-  
   revalidatePath("/dashboard/categorias")
 }
 
@@ -46,8 +43,7 @@ export async function createSubcategory(formData: FormData) {
 
   const categoryId = Number(formData.get("categoryId"));
   
-  const { data: parentCat, error: fetchError } = await supabase
-    .from('Category')
+  const { data: parentCat, error: fetchError } = await (supabase.from('Category') as any)
     .select('id, name, companyId')
     .eq('id', categoryId)
     .single()
@@ -59,16 +55,13 @@ export async function createSubcategory(formData: FormData) {
     categoryId: categoryId 
   })
   
-  const { data: sub, error } = await supabase
-    .from('Subcategory')
+  const { data: sub, error } = await (supabase.from('Subcategory') as any)
     .insert({ name: validated.name, categoryId: validated.categoryId })
     .select()
     .single()
 
   if (error || !sub) throw new Error(`Error crear subcategoría: ${error?.message}`)
 
-
-  
   revalidatePath("/dashboard/categorias")
 }
 
@@ -83,24 +76,20 @@ export async function updateCategory(formData: FormData) {
   const id = Number(formData.get("id"))
   const name = formData.get("name") as string
 
-  const { data: category, error: fetchError } = await supabase
-    .from('Category')
+  const { data: category, error: fetchError } = await (supabase.from('Category') as any)
     .select('id, name, companyId')
     .eq('id', id)
     .single()
 
   if (fetchError || !category) throw new Error("La categoria no existe.")
   
-  const { data: updated, error } = await supabase
-    .from('Category')
+  const { data: updated, error } = await (supabase.from('Category') as any)
     .update({ name })
     .eq('id', id)
     .select()
     .single()
 
   if (error || !updated) throw new Error(`Error actualizar categoría: ${error?.message}`)
-
-
 
   revalidatePath("/dashboard/categorias")
 }
@@ -113,8 +102,7 @@ export async function toggleCategoryStatus(id: number) {
     throw new Error("Acceso denegado: Solo Súper Administradores.")
   }
 
-  const { data: category, error: fetchError } = await supabase
-    .from('Category')
+  const { data: category, error: fetchError } = await (supabase.from('Category') as any)
     .select('id, name, companyId, isActive')
     .eq('id', id)
     .single()
@@ -123,21 +111,17 @@ export async function toggleCategoryStatus(id: number) {
   
   const newStatus = !category.isActive
 
-  const { error: catUpdateError } = await supabase
-    .from('Category')
+  const { error: catUpdateError } = await (supabase.from('Category') as any)
     .update({ isActive: newStatus })
     .eq('id', id)
 
   if (catUpdateError) throw catUpdateError
 
-  const { error: subUpdateError } = await supabase
-    .from('Subcategory')
+  const { error: subUpdateError } = await (supabase.from('Subcategory') as any)
     .update({ isActive: newStatus })
     .eq('categoryId', id)
 
   if (subUpdateError) throw subUpdateError
-
-
 
   revalidatePath("/dashboard/categorias")
 }
@@ -153,24 +137,20 @@ export async function updateSubcategory(formData: FormData) {
   const id = Number(formData.get("id"))
   const name = formData.get("name") as string
 
-  const { data: sub, error: fetchError } = await supabase
-    .from('Subcategory')
+  const { data: sub, error: fetchError } = await (supabase.from('Subcategory') as any)
     .select('*, Category(companyId)')
     .eq('id', id)
     .single()
 
   if (fetchError || !sub) throw new Error("La subcategoria no existe.")
   
-  const { data: updated, error } = await supabase
-    .from('Subcategory')
+  const { data: updated, error } = await (supabase.from('Subcategory') as any)
     .update({ name })
     .eq('id', id)
     .select()
     .single()
 
   if (error || !updated) throw new Error(`Error actualizar subcategoría: ${error?.message}`)
-
-
 
   revalidatePath("/dashboard/categorias")
 }
@@ -183,8 +163,7 @@ export async function toggleSubcategoryStatus(id: number) {
     throw new Error("Acceso denegado.")
   }
 
-  const { data: sub, error: fetchError } = await supabase
-    .from('Subcategory')
+  const { data: sub, error: fetchError } = await (supabase.from('Subcategory') as any)
     .select('*, Category(companyId)')
     .eq('id', id)
     .single()
@@ -193,8 +172,7 @@ export async function toggleSubcategoryStatus(id: number) {
   
   const newStatus = !sub.isActive
 
-  const { data: updated, error } = await supabase
-    .from('Subcategory')
+  const { data: updated, error } = await (supabase.from('Subcategory') as any)
     .update({ isActive: newStatus })
     .eq('id', id)
     .select()
@@ -202,8 +180,5 @@ export async function toggleSubcategoryStatus(id: number) {
 
   if (error || !updated) throw new Error(`Error toggle subcategoría: ${error?.message}`)
 
-
-
   revalidatePath("/dashboard/categorias")
 }
-

@@ -1,226 +1,220 @@
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { requireAuth, enforceCompanyScope, getBranchIsolation } from "@/lib/permissions"
 import { getCachedCompanies, getCachedBranches, getCachedBusinessGroups } from "@/lib/cache"
+import { measureAsync } from "@/lib/perf"
+import { unstable_cache } from "next/cache"
 
 export async function getDashboardKpis(searchParams: { companyId?: number; branchId?: number; budgetId?: number; groupId?: number }) {
   const user = await requireAuth()
-  const supabase = await createClient()
-  
   const filter = enforceCompanyScope(user)
   const branchScope = getBranchIsolation(user)
 
-  let query = supabase
-    .from('Budget')
-    .select(`
-      amountLimitUSD,
-      company:Company!inner(groupId),
-      allocations:BudgetAllocation(amountUSD, consumedUSD)
-    `)
+  const companyId = filter.companyId || searchParams.companyId || null
+  const branchId = branchScope.branchId || searchParams.branchId || null
+  const budgetId = searchParams.budgetId || null
+  const groupId = searchParams.groupId || null
 
-  if (filter.companyId) query = query.eq('companyId', filter.companyId)
-  if (searchParams.companyId) query = query.eq('companyId', searchParams.companyId)
-  
-  if (branchScope.branchId) query = query.eq('branchId', branchScope.branchId)
-  else if (searchParams.branchId) query = query.eq('branchId', searchParams.branchId)
-  
-  if (searchParams.budgetId) query = query.eq('id', searchParams.budgetId)
-  
-  if (searchParams.groupId) {
-      query = query.eq('company.groupId', searchParams.groupId)
-  }
+  const userCompanyId = user.companyId
+  const userRole = user.role
 
-  const { data: budgets, error } = await query
+  const cacheKey = [
+    "dashboard-kpis",
+    String(userCompanyId || "all"),
+    userRole,
+    String(companyId || ""),
+    String(branchId || ""),
+    String(budgetId || ""),
+    String(groupId || "")
+  ]
 
-  if (error) throw new Error(`Error KPIs: ${error.message}`)
+  return unstable_cache(
+    async () => {
+      return measureAsync("getDashboardKpis", async () => {
+        const supabase = createServiceRoleClient()
+        
+        const { data, error } = await (supabase.rpc as any)('rpc_dashboard_kpis', {
+          p_company_id: companyId,
+          p_branch_id: branchId,
+          p_budget_id: budgetId,
+          p_group_id: groupId
+        })
 
-  // 2. Obtener Ingresos
-  let incomeQuery = supabase.from('Income').select('amountUSD, company:Company!inner(groupId)')
-  if (filter.companyId) incomeQuery = incomeQuery.eq('companyId', filter.companyId)
-  if (searchParams.companyId) incomeQuery = incomeQuery.eq('companyId', searchParams.companyId)
-  
-  if (branchScope.branchId) incomeQuery = incomeQuery.eq('branchId', branchScope.branchId)
-  else if (searchParams.branchId) incomeQuery = incomeQuery.eq('branchId', searchParams.branchId)
-  
-  if (searchParams.groupId) {
-      incomeQuery = incomeQuery.eq('company.groupId', searchParams.groupId)
-  }
-  
-  const { data: incomesData } = await incomeQuery
+        if (error) throw new Error(`Error KPIs: ${error.message}`)
 
-  let totalLimit = 0
-  let totalConsolidatedAllocations = 0
-  let totalConsumed = 0
+        const kpi = (data as any)?.[0] || {
+          total_limit: 0,
+          total_allocated: 0,
+          total_consumed: 0,
+          total_income: 0,
+          net_balance: 0,
+          available_capacity: 0,
+          overbudget_amount: 0,
+          execution_percentage: 0
+        }
 
-  budgets?.forEach((b: any) => {
-    totalLimit += Number(b.amountLimitUSD)
-    b.allocations?.forEach((a: any) => {
-      totalConsolidatedAllocations += Number(a.amountUSD)
-      totalConsumed += Number(a.consumedUSD)
-    })
-  })
-
-  const totalIncome = incomesData?.reduce((acc, curr) => acc + Number(curr.amountUSD), 0) || 0
-  const overbudgetAmount = totalConsumed > totalLimit ? totalConsumed - totalLimit : 0
-  const executionPercentage = totalLimit > 0 ? (totalConsumed / totalLimit) * 100 : 0
-  const netBalance = totalIncome - totalConsumed
-
-  return {
-    totalLimit,
-    totalAllocated: totalConsolidatedAllocations,
-    totalConsumed,
-    totalIncome,
-    netBalance,
-    availableCapacity: totalLimit - totalConsumed,
-    overbudgetAmount,
-    executionPercentage,
-  }
+        return {
+          totalLimit: Number(kpi.total_limit),
+          totalAllocated: Number(kpi.total_allocated),
+          totalConsumed: Number(kpi.total_consumed),
+          totalIncome: Number(kpi.total_income),
+          netBalance: Number(kpi.net_balance),
+          availableCapacity: Number(kpi.available_capacity),
+          overbudgetAmount: Number(kpi.overbudget_amount),
+          executionPercentage: Number(kpi.execution_percentage),
+        }
+      })
+    },
+    cacheKey,
+    { revalidate: 30, tags: ["dashboard"] }
+  )()
 }
 
 export async function getExecutiveAnalytics(searchParams: { companyId?: number; branchId?: number; budgetId?: number; groupId?: number }) {
   const user = await requireAuth()
-  const supabase = await createClient()
-  
   const filter = enforceCompanyScope(user)
   const branchScope = getBranchIsolation(user)
   
-  // 1. Ranking de Sucursales
-  let branchQuery = supabase.from('Branch').select(`
-    id, 
-    name, 
-    companyId, 
-    company:Company!inner(groupId),
-    budgets:Budget(
-      id,
-      allocations:BudgetAllocation(consumedUSD)
-    )
-  `)
-  if (filter.companyId) branchQuery = branchQuery.eq('companyId', filter.companyId)
-  if (searchParams.companyId) branchQuery = branchQuery.eq('companyId', searchParams.companyId)
+  const companyId = filter.companyId || searchParams.companyId || null
+  const branchId = branchScope.branchId || searchParams.branchId || null
+  const budgetId = searchParams.budgetId || null
+  const groupId = searchParams.groupId || null
 
-  if (branchScope.branchId) branchQuery = branchQuery.eq('id', branchScope.branchId)
-  else if (searchParams.branchId) branchQuery = branchQuery.eq('id', searchParams.branchId)
+  const userCompanyId = user.companyId
+  const userRole = user.role
 
-  if (searchParams.groupId) {
-      branchQuery = branchQuery.eq('company.groupId', searchParams.groupId)
-  }
+  const cacheKey = [
+    "dashboard-executive-analytics",
+    String(userCompanyId || "all"),
+    userRole,
+    String(companyId || ""),
+    String(branchId || ""),
+    String(budgetId || ""),
+    String(groupId || "")
+  ]
 
-  const { data: branchesData } = await branchQuery
+  return unstable_cache(
+    async () => {
+      return measureAsync("getExecutiveAnalytics", async () => {
+        const supabase = createServiceRoleClient()
+        
+        const [branchesResult, categoriesResult, accountsResult] = await Promise.all([
+          (supabase.rpc as any)('rpc_dashboard_branch_ranking', {
+            p_company_id: companyId,
+            p_branch_id: branchId,
+            p_budget_id: budgetId,
+            p_group_id: groupId
+          }),
+          (supabase.rpc as any)('rpc_dashboard_category_ranking', {
+            p_company_id: companyId,
+            p_branch_id: branchId,
+            p_budget_id: budgetId,
+            p_group_id: groupId
+          }),
+          (supabase.rpc as any)('rpc_dashboard_account_ranking', {
+            p_company_id: companyId,
+            p_branch_id: branchId,
+            p_budget_id: budgetId,
+            p_group_id: groupId
+          })
+        ])
 
-  const branchRankings = (branchesData || [])
-    .map((b: any) => {
-      let consumed = 0
-      b.budgets?.forEach((bud: any) => {
-        if (searchParams.budgetId && bud.id !== Number(searchParams.budgetId)) return
-        bud.allocations?.forEach((a: any) => (consumed += Number(a.consumedUSD)))
+        if (branchesResult.error) throw new Error(`Error Branch Rankings: ${branchesResult.error.message}`)
+        if (categoriesResult.error) throw new Error(`Error Category Rankings: ${categoriesResult.error.message}`)
+        if (accountsResult.error) throw new Error(`Error Account Rankings: ${accountsResult.error.message}`)
+
+        const branchRankings = (branchesResult.data || []).map((b: any) => ({
+          name: b.name,
+          consumed: Number(b.consumed)
+        }))
+
+        const categoryRankings = (categoriesResult.data || []).map((c: any) => ({
+          name: c.name,
+          consumed: Number(c.consumed)
+        }))
+
+        const accountRankings = (accountsResult.data || []).map((a: any) => ({
+          code: a.code,
+          name: a.name,
+          consumed: Number(a.consumed)
+        }))
+
+        return {
+          branchRankings,
+          categoryRankings,
+          accountRankings
+        }
       })
-      return { name: b.name, consumed }
-    })
-    .filter(b => b.consumed > 0 || searchParams.branchId)
-    .sort((a, b) => b.consumed - a.consumed)
-    .slice(0, 5)
-
-  // 2. Rankings por Clasificación
-  let allocQuery = supabase
-    .from('BudgetAllocation')
-    .select(`
-      consumedUSD,
-      category:Category(id, name),
-      account:AccountingAccount(id, code, name),
-      budget:Budget!inner(id, company:Company!inner(groupId))
-    `)
-  
-  if (filter.companyId) allocQuery = allocQuery.eq('budget.companyId', filter.companyId)
-  if (searchParams.companyId) allocQuery = allocQuery.eq('budget.companyId', searchParams.companyId)
-  
-  if (branchScope.branchId) allocQuery = allocQuery.eq('budget.branchId', branchScope.branchId)
-  else if (searchParams.branchId) allocQuery = allocQuery.eq('budget.branchId', searchParams.branchId)
-  
-  if (searchParams.budgetId) allocQuery = allocQuery.eq('budget.id', searchParams.budgetId)
-
-  if (searchParams.groupId) {
-      allocQuery = allocQuery.eq('budget.company.groupId', searchParams.groupId)
-  }
-
-  const { data: allocations } = await allocQuery
-
-  const categoryMap = new Map<number, { name: string, consumed: number }>()
-  const accountMap = new Map<number, { name: string, code: string, consumed: number }>()
-
-  allocations?.forEach((a: any) => {
-    const consumed = Number(a.consumedUSD)
-    
-    if (a.category) {
-      const catId = a.category.id
-      const prev = categoryMap.get(catId) || { name: a.category.name, consumed: 0 }
-      categoryMap.set(catId, { ...prev, consumed: prev.consumed + consumed })
-    }
-
-    if (a.account) {
-      const accId = a.account.id
-      const prev = accountMap.get(accId) || { name: a.account.name, code: a.account.code, consumed: 0 }
-      accountMap.set(accId, { ...prev, consumed: prev.consumed + consumed })
-    }
-  })
-
-  const categoryRankings = Array.from(categoryMap.values())
-    .filter(c => c.consumed > 0)
-    .sort((a, b) => b.consumed - a.consumed)
-    .slice(0, 5)
-
-  const accountRankings = Array.from(accountMap.values())
-    .filter(c => c.consumed > 0)
-    .sort((a, b) => b.consumed - a.consumed)
-    .slice(0, 5)
-
-  return {
-    branchRankings,
-    categoryRankings,
-    accountRankings
-  }
+    },
+    cacheKey,
+    { revalidate: 30, tags: ["dashboard"] }
+  )()
 }
 
 export async function getRecentActivity(searchParams: { companyId?: number; branchId?: number; budgetId?: number; groupId?: number }) {
   const user = await requireAuth()
-  const supabase = await createClient()
-  
   const filter = enforceCompanyScope(user)
-  const branchScope = getBranchIsolation(user)
+  const finalCompanyId = filter.companyId || searchParams.companyId || null
 
-  let query = supabase
-    .from('Invoice')
-    .select(`
-      id,
-      number,
-      supplierName,
-      amountUSD,
-      date,
-      status,
-      companyId,
-      company:Company!inner(name, groupId),
-      registeredBy:User(name),
-      account:AccountingAccount(code, name),
-      allocation:BudgetAllocation(
-        category:Category(name),
-        budget:Budget(
-          id,
-          branchId,
-          branch:Branch(id, name)
-        )
-      )
-    `)
+  const userCompanyId = user.companyId
+  const userRole = user.role
 
-  if (filter.companyId) query = query.eq('companyId', filter.companyId)
-  if (searchParams.companyId) query = query.eq('companyId', searchParams.companyId)
+  const cacheKey = [
+    "dashboard-recent-activity",
+    String(userCompanyId || "all"),
+    userRole,
+    String(finalCompanyId || ""),
+    String(searchParams.branchId || ""),
+    String(searchParams.budgetId || ""),
+    String(searchParams.groupId || "")
+  ]
 
-  if (searchParams.groupId) {
-    query = query.eq('company.groupId', searchParams.groupId)
-  }
+  return unstable_cache(
+    async () => {
+      return measureAsync("getRecentActivity", async () => {
+        const supabase = createServiceRoleClient()
+        
+        let query = (supabase.from('recent_activity_view') as any)
+          .select('*')
 
-  const { data } = await query
-    .order('createdAt', { ascending: false })
-    .limit(6)
+        if (finalCompanyId) query = query.eq('companyId', finalCompanyId)
+        if (searchParams.branchId) query = query.eq('branchId', searchParams.branchId)
+        if (searchParams.budgetId) query = query.eq('budgetId', searchParams.budgetId)
+        if (searchParams.groupId) query = query.eq('companyGroupId', searchParams.groupId)
 
-  return data || []
+        const { data, error } = await query
+          .order('createdAt', { ascending: false })
+          .limit(6)
+
+        if (error) throw error
+
+        return (data || []).map((row: any) => ({
+          id: row.id,
+          number: row.number,
+          supplierName: row.supplierName,
+          amountUSD: row.amountUSD,
+          date: row.date,
+          status: row.status,
+          companyId: row.companyId,
+          company: {
+            name: row.companyName,
+            groupId: row.companyGroupId
+          },
+          registeredBy: row.registeredByName ? { name: row.registeredByName } : null,
+          account: row.accountName ? { code: row.accountCode, name: row.accountName } : null,
+          allocation: row.budgetId ? {
+            category: null,
+            budget: {
+              id: row.budgetId,
+              branchId: row.branchId,
+              branch: row.branchName ? { id: row.branchId, name: row.branchName } : null
+            }
+          } : null
+        })) as any[]
+      })
+    },
+    cacheKey,
+    { revalidate: 30, tags: ["dashboard"] }
+  )()
 }
 
 export async function getFilterOptions() {
@@ -233,7 +227,7 @@ export async function getFilterOptions() {
   const [companiesResult, branchesResult, budgetsResult, groups] = await Promise.all([
     getCachedCompanies(),
     getCachedBranches(),
-    supabase.from('Budget').select('id, name, branchId, companyId').order('initialDate', { ascending: false }).limit(200).then(res => res.data || []),
+    (supabase.from('Budget') as any).select('id, name, branchId, companyId').order('initialDate', { ascending: false }).limit(200).then((res: any) => res.data || []),
     getCachedBusinessGroups(true)
   ])
 
@@ -242,14 +236,14 @@ export async function getFilterOptions() {
   let budgets = budgetsResult || []
 
   if (filter.companyId) {
-      companies = companies.filter(c => c.id === filter.companyId)
-      branches = branches.filter(b => b.companyId === filter.companyId)
-      budgets = budgets.filter(b => b.companyId === filter.companyId)
+      companies = companies.filter((c: any) => c.id === filter.companyId)
+      branches = branches.filter((b: any) => b.companyId === filter.companyId)
+      budgets = budgets.filter((b: any) => b.companyId === filter.companyId)
   }
 
   if (branchScope.branchId) {
-      branches = branches.filter(b => b.id === branchScope.branchId)
-      budgets = budgets.filter(b => b.branchId === branchScope.branchId)
+      branches = branches.filter((b: any) => b.id === branchScope.branchId)
+      budgets = budgets.filter((b: any) => b.branchId === branchScope.branchId)
   }
 
   return { companies, branches, budgets, groups }

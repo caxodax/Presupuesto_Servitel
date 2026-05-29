@@ -84,7 +84,7 @@ export function CreateInvoiceForm({
             <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase text-amber-600">Referencia BCV (Tasa)</label>
             <input type="number" step="0.0001" name="exchangeRate" required disabled={isPending} defaultValue={currentBcvRate} placeholder="Ej. 36.5021" className="w-full h-9 rounded-md border border-amber-300 dark:border-amber-800/80 bg-amber-50 dark:bg-amber-950/30 px-3 text-sm font-bold text-foreground outline-none focus:border-amber-500 disabled:opacity-50" />
-            {currentBcvRate && <p className="text-[10px] text-amber-600/80 font-medium">Auto-obtenido de DolarApi Oficial</p>}
+            {currentBcvRate && <p className="text-[10px] text-amber-600/80 font-medium">Auto-obtenido del portal oficial / sistema</p>}
             </div>
         </div>
 

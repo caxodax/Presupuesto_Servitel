@@ -5,7 +5,8 @@ import { requireAuth, enforceCompanyScope } from "@/lib/permissions"
 import { invoiceSchema } from "../validations"
 import { validateAccountForExpense } from "@/features/accounts/server/validations"
 import { triggerBudgetAlerts } from "@/features/alerts/server/actions"
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag as nextRevalidateTag } from "next/cache"
+const revalidateTag = nextRevalidateTag as any
 import { r2Client, BUCKET_NAME } from "@/lib/r2"
 import { PutObjectCommand } from "@aws-sdk/client-s3"
 
@@ -27,8 +28,7 @@ export async function createInvoice(formData: FormData) {
     companyAccountId: formData.get("companyAccountId") || null,
   })
 
-  const { data: allocation, error: aError } = await supabase
-    .from('BudgetAllocation')
+  const { data: allocation, error: aError } = await (supabase.from('BudgetAllocation') as any)
     .select('*, budget:Budget(id, status, initialDate, endDate, companyId, branchId, branch:Branch(name, company:Company(name)))')
     .eq('id', validated.allocationId)
     .single()
@@ -65,8 +65,8 @@ export async function createInvoice(formData: FormData) {
   if (!finalCompanyAccountId && !finalAccountId && (allocation as any).companyAccountId) {
     finalCompanyAccountId = (allocation as any).companyAccountId
   }
-  if (!finalAccountId && !finalCompanyAccountId && allocation.accountId) {
-    finalAccountId = allocation.accountId
+  if (!finalAccountId && !finalCompanyAccountId && (allocation as any).accountId) {
+    finalAccountId = (allocation as any).accountId
   }
 
   // Validaciones de tipo COST/EXPENSE
@@ -97,7 +97,7 @@ export async function createInvoice(formData: FormData) {
 
   const calculatedVES = validated.amountUSD * validated.exchangeRate
 
-  const { data: rpcData, error: rpcError } = await supabase.rpc('rpc_register_invoice', {
+  const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('rpc_register_invoice', {
     p_invoice_data: {
       number: validated.number,
       supplierName: validated.supplierName,
@@ -117,6 +117,7 @@ export async function createInvoice(formData: FormData) {
 
   await triggerBudgetAlerts(validated.allocationId)
   revalidatePath('/dashboard/facturas')
+  revalidateTag('dashboard')
   revalidatePath('/dashboard')
 }
 
@@ -139,18 +140,16 @@ export async function updateInvoice(formData: FormData) {
     companyAccountId: formData.get("companyAccountId") || null,
   })
 
-  const { data: oldInvoice, error: fError } = await supabase
-    .from('Invoice')
+  const { data: oldInvoice, error: fError } = await (supabase.from('Invoice') as any)
     .select('*, allocation:BudgetAllocation(*, budget:Budget(id, status, initialDate, endDate, branchId))')
     .eq('id', invoiceId)
     .single()
 
   if (fError || !oldInvoice) throw new Error("Factura original no encontrada.")
 
-  enforceCompanyScope(user, oldInvoice.companyId)
+  enforceCompanyScope(user, (oldInvoice as any).companyId)
 
-  const { data: targetAlloc } = await supabase
-    .from('BudgetAllocation')
+  const { data: targetAlloc } = await (supabase.from('BudgetAllocation') as any)
     .select('*, budget:Budget(id, status, initialDate, endDate, companyId, branchId, branch:Branch(name, company:Company(name)))')
     .eq('id', validated.allocationId)
     .single()
@@ -171,7 +170,7 @@ export async function updateInvoice(formData: FormData) {
     throw new Error(`La fecha de la factura está fuera del rango del presupuesto seleccionado (${budgetStart.toLocaleDateString()} - ${budgetEnd.toLocaleDateString()}).`)
   }
 
-  const targetCompanyId = budgetInfo?.companyId || oldInvoice.companyId
+  const targetCompanyId = budgetInfo?.companyId || (oldInvoice as any).companyId
   
   // Resolución automática
   let finalAccountId = validated.accountId
@@ -180,8 +179,8 @@ export async function updateInvoice(formData: FormData) {
   if (!finalCompanyAccountId && !finalAccountId && (targetAlloc as any)?.companyAccountId) {
     finalCompanyAccountId = (targetAlloc as any).companyAccountId
   }
-  if (!finalAccountId && !finalCompanyAccountId && targetAlloc?.accountId) {
-    finalAccountId = targetAlloc.accountId
+  if (!finalAccountId && !finalCompanyAccountId && (targetAlloc as any)?.accountId) {
+    finalAccountId = (targetAlloc as any).accountId
   }
 
 
@@ -192,13 +191,13 @@ export async function updateInvoice(formData: FormData) {
 
   await validateAccountForExpense(finalCompanyAccountId, targetCompanyId)
 
-  const targetBranchId = budgetInfo?.branchId || (oldInvoice.allocation as any)?.budget?.branchId
+  const targetBranchId = budgetInfo?.branchId || ((oldInvoice as any).allocation as any)?.budget?.branchId
   const companyName = budgetInfo?.branch.company.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || 'desconocida'
   const branchName = budgetInfo?.branch.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || 'desconocida'
 
   const file = formData.get("attachment") as File
-  let attachmentKey = oldInvoice.attachmentKey
-  let attachmentName = oldInvoice.attachmentName
+  let attachmentKey = (oldInvoice as any).attachmentKey
+  let attachmentName = (oldInvoice as any).attachmentName
 
   if (file && file.size > 0) {
     attachmentName = file.name
@@ -215,7 +214,7 @@ export async function updateInvoice(formData: FormData) {
 
   const calculatedVES = validated.amountUSD * validated.exchangeRate
 
-  const { error: rpcError } = await supabase.rpc('rpc_update_invoice', {
+  const { error: rpcError } = await (supabase.rpc as any)('rpc_update_invoice', {
     p_invoice_id: invoiceId,
     p_invoice_data: {
       number: validated.number,
@@ -237,42 +236,42 @@ export async function updateInvoice(formData: FormData) {
   await triggerBudgetAlerts(validated.allocationId)
   revalidatePath('/dashboard/facturas')
   revalidatePath(`/dashboard/facturas/${invoiceId}`)
+  revalidateTag('dashboard')
   revalidatePath('/dashboard')
 }
 
 export async function getRateByDate(date: string) {
     const supabase = await createClient()
-    const { data, error } = await supabase
-      .from('ExchangeRate')
+    const { data, error } = await (supabase.from('ExchangeRate') as any)
       .select('usd')
       .eq('date', date)
       .maybeSingle()
   
     if (error || !data) return null
-    return Number(data.usd)
+    return Number((data as any).usd)
 }
 
 export async function anulateInvoice(id: number) {
   const user = await requireAuth()
   const supabase = await createClient()
 
-  const { data: invoice, error: fError } = await supabase
-    .from('Invoice')
+  const { data: invoice, error: fError } = await (supabase.from('Invoice') as any)
     .select('*')
     .eq('id', id)
     .single()
 
   if (fError || !invoice) throw new Error("Factura no encontrada")
-  if (invoice.status === 'CANCELLED') throw new Error("La factura ya está anulada")
+  if ((invoice as any).status === 'CANCELLED') throw new Error("La factura ya está anulada")
 
-  enforceCompanyScope(user, invoice.companyId)
+  enforceCompanyScope(user, (invoice as any).companyId)
 
-  const { error: rpcError } = await supabase.rpc('rpc_cancel_invoice', {
+  const { error: rpcError } = await (supabase.rpc as any)('rpc_cancel_invoice', {
     p_invoice_id: id
   })
 
   if (rpcError) throw new Error(`Error al anular: ${rpcError.message}`)
 
   revalidatePath('/dashboard/facturas')
+  revalidateTag('dashboard')
   revalidatePath('/dashboard')
 }

@@ -12,9 +12,9 @@ export async function ExecutiveAnalytics({ searchParams }: { searchParams: Searc
     })
 
     // Calculamos totales para porcentajes relativos
-    const totalBranchConsumed = branchRankings.reduce((acc, curr) => acc + curr.consumed, 0)
-    const totalCategoryConsumed = categoryRankings.reduce((acc, curr) => acc + curr.consumed, 0)
-    const totalAccountConsumed = (accountRankings || []).reduce((acc, curr) => acc + curr.consumed, 0)
+    const totalBranchConsumed = branchRankings.reduce((acc: number, curr: { consumed: number }) => acc + curr.consumed, 0)
+    const totalCategoryConsumed = categoryRankings.reduce((acc: number, curr: { consumed: number }) => acc + curr.consumed, 0)
+    const totalAccountConsumed = (accountRankings || []).reduce((acc: number, curr: { consumed: number }) => acc + curr.consumed, 0)
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
@@ -35,7 +35,7 @@ export async function ExecutiveAnalytics({ searchParams }: { searchParams: Searc
                 </div>
 
                 <div className="space-y-8">
-                    {branchRankings.map((branch, i) => (
+                    {branchRankings.map((branch: { name: string; consumed: number }, i: number) => (
                         <div key={branch.name} className="relative group/item">
                             <div className="flex justify-between items-end mb-2.5">
                                 <div className="flex items-center gap-3">
@@ -82,7 +82,7 @@ export async function ExecutiveAnalytics({ searchParams }: { searchParams: Searc
                 </div>
 
                 <div className="space-y-8">
-                    {(accountRankings || []).map((acc, i) => (
+                    {(accountRankings || []).map((acc: { code: string; name: string; consumed: number }, i: number) => (
                         <div key={acc.code} className="relative group/item">
                             <div className="flex justify-between items-end mb-2.5">
                                 <div className="flex flex-col">
@@ -125,7 +125,7 @@ export async function ExecutiveAnalytics({ searchParams }: { searchParams: Searc
                 </div>
 
                 <div className="space-y-8">
-                    {categoryRankings.map((cat, i) => (
+                    {categoryRankings.map((cat: { name: string; consumed: number }, i: number) => (
                         <div key={cat.name} className="relative group/item">
                             <div className="flex justify-between items-end mb-2.5">
                                 <div className="flex items-center gap-3">

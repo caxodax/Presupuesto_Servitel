@@ -1,25 +1,11 @@
-import { getBudgets } from "@/features/budgets/server/queries"
-import { getCompanies } from "@/features/companies/server/queries"
+import { getAvailableAllocationsForSelect } from "@/features/budgets/server/queries"
+import { getCachedCompanies } from "@/lib/cache"
 import { requireAuth } from "@/lib/permissions"
+import { getEffectiveRate } from "@/features/exchange/server/actions"
 import { CompanyFilter } from "@/components/ui/CompanyFilter"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { CreateInvoiceForm } from "@/components/facturas/CreateInvoiceForm"
-
-
-async function fetchBCVRate(): Promise<number | string> {
-  try {
-    const response = await fetch("https://ve.dolarapi.com/v1/dolares/oficial", {
-      next: { revalidate: 3600 } // Revalidar cada hora
-    });
-    if (!response.ok) return "";
-    const data = await response.json();
-    return data.promedio || "";
-  } catch (error) {
-    console.error("Error fetching BCV:", error);
-    return "";
-  }
-}
 
 export default async function NewInvoiceEntryPage(props: { 
   searchParams: Promise<{ companyId?: string }>
@@ -28,22 +14,14 @@ export default async function NewInvoiceEntryPage(props: {
   const user = await requireAuth()
   const companyId = searchParams.companyId
 
-  const [budgets, companies, currentBcvRate] = await Promise.all([
-    getBudgets(companyId),
-    user.role === "SUPER_ADMIN" ? getCompanies() : Promise.resolve([]),
-    fetchBCVRate()
+  const [availableAllocations, companies, bcvResult] = await Promise.all([
+    getAvailableAllocationsForSelect(companyId),
+    user.role === "SUPER_ADMIN" ? getCachedCompanies() : Promise.resolve([]),
+    getEffectiveRate()
   ])
+  const currentBcvRate = bcvResult.usd || ""
   
-  const budgetsList = (budgets as any).items || []
   const companiesList = Array.isArray(companies) ? companies : (companies as any).items || []
-  
-  // Condensamos TODAS las Allocations del sistema para el Select de impacto
-  const availableAllocations = budgetsList.flatMap((b: any) => 
-      b.allocations.map((a: any) => ({ 
-          id: a.id, 
-          label: `${user.role === "SUPER_ADMIN" ? `[${b.branch.company.name}] ` : ''}${b.name} (${b.branch.name}) - ${a.category.name} ${a.subcategory ? `> ${a.subcategory.name}` : ''}`
-      }))
-  )
    
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-8 pb-10">

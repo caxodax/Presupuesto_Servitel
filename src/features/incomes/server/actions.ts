@@ -5,7 +5,8 @@ import { requireAuth, enforceCompanyScope } from "@/lib/permissions"
 import { incomeSchema } from "../validations"
 import { validateAccountForIncome } from "@/features/accounts/server/validations"
 import { resolveAccountFromCategory, toggleCompanyAccount } from "@/features/accounts/server/actions"
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag as nextRevalidateTag } from "next/cache"
+const revalidateTag = nextRevalidateTag as any
 import { r2Client, BUCKET_NAME } from "@/lib/r2"
 import { PutObjectCommand } from "@aws-sdk/client-s3"
 
@@ -14,18 +15,17 @@ import { PutObjectCommand } from "@aws-sdk/client-s3"
  */
 async function ensureCompanyAccount(companyId: number, globalAccountId: number) {
   const supabase = await createClient()
-  const { data: existing } = await supabase
-    .from('CompanyAccount')
+  const { data: existing } = await (supabase.from('CompanyAccount') as any)
     .select('id, isActive')
     .eq('companyId', companyId)
     .eq('globalAccountId', globalAccountId)
     .maybeSingle()
 
   if (existing) {
-    if (!existing.isActive) {
+    if (!(existing as any).isActive) {
       await toggleCompanyAccount({ companyId, globalAccountId, isActive: true })
     }
-    return existing.id
+    return (existing as any).id
   }
 
   const result = await toggleCompanyAccount({ companyId, globalAccountId, isActive: true })
@@ -98,7 +98,7 @@ export async function createIncome(formData: FormData) {
 
   const calculatedVES = validated.amountUSD * validated.exchangeRate
 
-  const { data: rpcData, error: rpcError } = await supabase.rpc('rpc_register_income', {
+  const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('rpc_register_income', {
     p_income_data: {
       number: validated.number,
       clientName: validated.clientName,
@@ -118,6 +118,7 @@ export async function createIncome(formData: FormData) {
   if (rpcError) throw new Error(`Error crear ingreso: ${rpcError.message}`)
 
   revalidatePath('/dashboard/ingresos')
+  revalidateTag('dashboard')
   revalidatePath('/dashboard')
 }
 
@@ -125,24 +126,23 @@ export async function deleteIncome(incomeId: number) {
     const user = await requireAuth()
     const supabase = await createClient()
 
-    const { data: income, error: fError } = await supabase
-        .from('Income')
+    const { data: income, error: fError } = await (supabase.from('Income') as any)
         .select('companyId, number')
         .eq('id', incomeId)
         .single()
 
     if (fError || !income) throw new Error("Ingreso no encontrado.")
 
-    enforceCompanyScope(user, income.companyId)
+    enforceCompanyScope(user, (income as any).companyId)
 
-    const { error: dError } = await supabase
-        .from('Income')
+    const { error: dError } = await (supabase.from('Income') as any)
         .delete()
         .eq('id', incomeId)
 
     if (dError) throw new Error(`Error al eliminar ingreso: ${dError.message}`)
 
     revalidatePath('/dashboard/ingresos')
+    revalidateTag('dashboard')
     revalidatePath('/dashboard')
 }
 
@@ -153,14 +153,13 @@ export async function updateIncome(formData: FormData) {
   const incomeId = Number(formData.get("incomeId"))
   if (!incomeId) throw new Error("ID de ingreso requerido")
 
-  const { data: oldIncome, error: fError } = await supabase
-    .from('Income')
+  const { data: oldIncome, error: fError } = await (supabase.from('Income') as any)
     .select('*')
     .eq('id', incomeId)
     .single()
 
   if (fError || !oldIncome) throw new Error("Ingreso original no encontrado.")
-  enforceCompanyScope(user, oldIncome.companyId)
+  enforceCompanyScope(user, (oldIncome as any).companyId)
 
   const validated = incomeSchema.parse({
     number: formData.get("number"),
@@ -180,7 +179,7 @@ export async function updateIncome(formData: FormData) {
   let finalCompanyAccountId = validated.companyAccountId
 
   if (!finalCompanyAccountId && validated.globalAccountId) {
-    finalCompanyAccountId = await ensureCompanyAccount(oldIncome.companyId, validated.globalAccountId)
+    finalCompanyAccountId = await ensureCompanyAccount((oldIncome as any).companyId, validated.globalAccountId)
   }
 
 
@@ -189,17 +188,17 @@ export async function updateIncome(formData: FormData) {
     throw new Error("Debe seleccionar una cuenta contable válida. El sistema ya no permite registros sin asignación contable.")
   }
 
-  await validateAccountForIncome(finalCompanyAccountId, oldIncome.companyId)
+  await validateAccountForIncome(finalCompanyAccountId, (oldIncome as any).companyId)
 
 
   // Procesar Adjunto si viene uno nuevo
   const file = formData.get("attachment") as File
-  let attachmentKey = oldIncome.attachmentKey
-  let attachmentName = oldIncome.attachmentName
+  let attachmentKey = (oldIncome as any).attachmentKey
+  let attachmentName = (oldIncome as any).attachmentName
 
   if (file && file.size > 0) {
     attachmentName = file.name
-    attachmentKey = `empresa_${oldIncome.companyId}/ingresos/${Date.now()}-${attachmentName.replace(/\s+/g, "_")}`
+    attachmentKey = `empresa_${(oldIncome as any).companyId}/ingresos/${Date.now()}-${attachmentName.replace(/\s+/g, "_")}`
     const buffer = Buffer.from(await file.arrayBuffer())
     
     await r2Client.send(new PutObjectCommand({
@@ -212,8 +211,7 @@ export async function updateIncome(formData: FormData) {
 
   const calculatedVES = validated.amountUSD * validated.exchangeRate
 
-  const { error: uError } = await supabase
-    .from('Income')
+  const { error: uError } = await (supabase.from('Income') as any)
     .update({
       number: validated.number,
       clientName: validated.clientName,
@@ -233,13 +231,14 @@ export async function updateIncome(formData: FormData) {
   if (uError) throw new Error(`Error al actualizar ingreso: ${uError.message}`)
 
   revalidatePath('/dashboard/ingresos')
+  revalidateTag('dashboard')
   revalidatePath('/dashboard')
 }
 
 export async function getCompanyDataForIncome(companyId: number) {
     const supabase = await createClient()
     
-    const { data: branches } = await supabase.from('Branch').select('id, name').eq('companyId', companyId).eq('isActive', true)
+    const { data: branches } = await (supabase.from('Branch') as any).select('id, name').eq('companyId', companyId).eq('isActive', true)
     
     return {
         branches: branches || []

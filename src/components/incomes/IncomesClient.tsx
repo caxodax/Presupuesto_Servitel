@@ -1,7 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { IncomeModal } from "@/components/incomes/IncomeModal"
+import dynamic from "next/dynamic"
+
+const IncomeModal = dynamic(
+  () => import("@/components/incomes/IncomeModal").then(m => m.IncomeModal),
+  { ssr: false, loading: () => null }
+)
 import { formatDate, formatNumber } from "@/lib/utils"
 import { Wallet, Plus, Search, Edit2, ExternalLink, Trash2, Loader2, Calendar, Layers } from "lucide-react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"

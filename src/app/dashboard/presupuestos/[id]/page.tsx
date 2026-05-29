@@ -1,4 +1,4 @@
-import { getBudgetDetails } from "@/features/budgets/server/queries"
+import { getBudgetDetails, getBudgetRecentAdjustments } from "@/features/budgets/server/queries"
 import { getCachedCategories } from "@/lib/cache"
 import { ArrowLeft, Activity } from "lucide-react"
 import Link from "next/link"
@@ -11,7 +11,22 @@ import { CreateAllocationModal } from "@/components/presupuestos/CreateAllocatio
 import { AdjustmentLogModal } from "@/components/presupuestos/AdjustmentLogModal"
 import { BudgetStatusActions } from "@/components/presupuestos/BudgetStatusActions"
 import { ExportBudgetExcel } from "@/components/presupuestos/ExportBudgetExcel"
-import { BudgetReportPDF } from "@/components/presupuestos/BudgetReportPDF"
+import dynamic from "next/dynamic"
+
+const BudgetReportPDF = dynamic(
+  () => import("@/components/presupuestos/BudgetReportPDF").then((mod) => mod.BudgetReportPDF),
+  {
+    loading: () => (
+      <button 
+        disabled 
+        className="h-10 px-4 bg-zinc-100 text-zinc-400 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 cursor-wait"
+      >
+        <span className="w-3.5 h-3.5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin" />
+        Cargando...
+      </button>
+    )
+  }
+)
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
@@ -35,24 +50,17 @@ function StatusBadge({ status }: { status: string }) {
 
 export default async function BudgetDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params
-  const [user, data] = await Promise.all([
+  const budgetId = Number(resolvedParams.id)
+  const [user, data, recentAdjustments] = await Promise.all([
     requireAuth(),
-    getBudgetDetails(Number(resolvedParams.id))
+    getBudgetDetails(budgetId),
+    getBudgetRecentAdjustments(budgetId)
   ])
   
   // No longer fetching categories as we use Plan de Cuentas directly.
   const availableCategories: any[] = []
   
   const { budget, stats } = data
-
-  const allAdjustments = budget.allocations.flatMap((a: any) => 
-    a.adjustments.map((adj: any) => ({ 
-      ...adj, 
-      accountName: a.companyAccount?.globalAccount?.name || a.account?.name || 'S/A' 
-    }))
-  ).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  
-  const recentAdjustments = allAdjustments.slice(0, 5)
   
   return (
     <div className="flex flex-col gap-6 pb-20 max-w-[1400px] mx-auto w-full">
@@ -114,7 +122,7 @@ export default async function BudgetDetailsPage({ params }: { params: Promise<{ 
             <h3 className="text-lg font-bold flex items-center gap-2">
                 <Activity className="w-5 h-5 text-zinc-400" /> Recientes Movimientos
             </h3>
-            <AdjustmentLogModal adjustments={allAdjustments} />
+            <AdjustmentLogModal budgetId={budget.id} />
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

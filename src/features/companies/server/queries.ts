@@ -21,7 +21,7 @@ export async function getCompanies(queryParam?: string, page?: number, limit: nu
   if (page === undefined) {
     const { data } = await query.order('createdAt', { ascending: false }).limit(500)
     return {
-      items: data || [],
+      items: (data as any[]) || [],
       total: data?.length || 0,
       pageCount: 1
     }
@@ -37,7 +37,7 @@ export async function getCompanies(queryParam?: string, page?: number, limit: nu
   const total = count || 0
 
   return {
-    items: items || [],
+    items: (items as any[]) || [],
     total: total,
     pageCount: Math.ceil(total / limit)
   }
@@ -56,7 +56,7 @@ export async function getAllCompanies() {
   }
   
   const { data } = await query.order('name', { ascending: true })
-  return data || []
+  return (data as any[]) || []
 }
 
 /**
@@ -81,7 +81,7 @@ export async function getBranches(companyId?: number, queryParam?: string, page?
   if (page === undefined) {
     const { data } = await query.order('createdAt', { ascending: false }).limit(500)
     return {
-      items: data || [],
+      items: (data as any[]) || [],
       total: data?.length || 0,
       pageCount: 1
     }
@@ -97,9 +97,8 @@ export async function getBranches(companyId?: number, queryParam?: string, page?
   const total = count || 0
 
   return {
-    items: items || [],
+    items: (items as any[]) || [],
     total: total,
     pageCount: Math.ceil(total / limit)
   }
 }
-

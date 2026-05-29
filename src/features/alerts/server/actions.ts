@@ -11,7 +11,7 @@ import { revalidatePath } from "next/cache"
 export async function triggerBudgetAlerts(allocationId: number) {
   const supabase = await createClient()
 
-  const { data: allocation, error } = await supabase
+  const { data, error } = await supabase
     .from('BudgetAllocation')
     .select(`
       *,
@@ -28,7 +28,8 @@ export async function triggerBudgetAlerts(allocationId: number) {
     .eq('id', allocationId)
     .single()
 
-  if (error || !allocation) return
+  if (error || !data) return
+  const allocation = data as any
 
   const limitUSD = Number(allocation.amountUSD)
   const consumedUSD = Number(allocation.consumedUSD)
@@ -51,8 +52,7 @@ export async function triggerBudgetAlerts(allocationId: number) {
     const title = `Presupuesto Excedido: ${locationInfo} ${rubroName}`
     
     // Evitar duplicados (no leídos)
-    const { data: existing } = await supabase
-      .from('Alert')
+    const { data: existing } = await (supabase.from('Alert') as any)
       .select('id')
       .eq('companyId', companyId)
       .eq('title', title)
@@ -60,7 +60,7 @@ export async function triggerBudgetAlerts(allocationId: number) {
       .maybeSingle()
 
     if (!existing) {
-      await supabase.from('Alert').insert({
+      await (supabase.from('Alert') as any).insert({
           companyId,
           type: "BUDGET_EXCEEDED",
           title,
@@ -72,8 +72,7 @@ export async function triggerBudgetAlerts(allocationId: number) {
   else if (percent >= 0.90) {
     const title = `Umbral Crítico (90%): ${locationInfo} ${rubroName}`
     
-    const { data: existing } = await supabase
-      .from('Alert')
+    const { data: existing } = await (supabase.from('Alert') as any)
       .select('id')
       .eq('companyId', companyId)
       .eq('title', title)
@@ -81,7 +80,7 @@ export async function triggerBudgetAlerts(allocationId: number) {
       .maybeSingle()
 
     if (!existing) {
-      await supabase.from('Alert').insert({
+      await (supabase.from('Alert') as any).insert({
           companyId,
           type: "SYSTEM_WARNING",
           title,
@@ -93,8 +92,7 @@ export async function triggerBudgetAlerts(allocationId: number) {
   else if (percent >= 0.80) {
     const title = `Umbral Preventivo (80%): ${locationInfo} ${rubroName}`
     
-    const { data: existing } = await supabase
-      .from('Alert')
+    const { data: existing } = await (supabase.from('Alert') as any)
       .select('id')
       .eq('companyId', companyId)
       .eq('title', title)
@@ -102,7 +100,7 @@ export async function triggerBudgetAlerts(allocationId: number) {
       .maybeSingle()
 
     if (!existing) {
-      await supabase.from('Alert').insert({
+      await (supabase.from('Alert') as any).insert({
           companyId,
           type: "SYSTEM_WARNING",
           title,
@@ -116,8 +114,7 @@ export async function markAlertAsRead(alertId: number) {
   const user = await requireAuth()
   const supabase = await createClient()
   
-  const { data: alert } = await supabase
-    .from('Alert')
+  const { data: alert } = await (supabase.from('Alert') as any)
     .select('companyId')
     .eq('id', alertId)
     .single()
@@ -128,8 +125,7 @@ export async function markAlertAsRead(alertId: number) {
     throw new Error("No tienes permiso para gestionar esta alerta.")
   }
 
-  await supabase
-    .from('Alert')
+  await (supabase.from('Alert') as any)
     .update({ isRead: true })
     .eq('id', alertId)
 
@@ -140,8 +136,7 @@ export async function markAllAlertsAsRead() {
   const user = await requireAuth()
   const supabase = await createClient()
   
-  let query = supabase
-    .from('Alert')
+  let query = (supabase.from('Alert') as any)
     .update({ isRead: true })
     .eq('isRead', false)
 
@@ -153,4 +148,3 @@ export async function markAllAlertsAsRead() {
 
   revalidatePath("/dashboard")
 }
-

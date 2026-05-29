@@ -1,10 +1,29 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Activity, X, List, Calendar } from "lucide-react"
+import { fetchBudgetAdjustments } from "@/features/budgets/server/actions"
 
-export function AdjustmentLogModal({ adjustments }: { adjustments: any[] }) {
+export function AdjustmentLogModal({ budgetId }: { budgetId: number }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [adjustments, setAdjustments] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) {
+      setLoading(true)
+      fetchBudgetAdjustments(budgetId)
+        .then((data) => {
+          setAdjustments(data)
+        })
+        .catch((err) => {
+          console.error("Error fetching adjustments:", err)
+        })
+        .finally(() => {
+          setLoading(false)
+        })
+    }
+  }, [isOpen, budgetId])
 
   return (
     <>
@@ -40,39 +59,49 @@ export function AdjustmentLogModal({ adjustments }: { adjustments: any[] }) {
 
              <div className="p-6 overflow-y-auto flex-1 bg-zinc-50/30 dark:bg-zinc-950/30">
                 <div className="flex flex-col gap-4">
-                  {adjustments.map(adj => (
-                    <div key={adj.id} className="text-sm bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
-                       <div className="flex justify-between items-start mb-2">
-                           <div>
-                               <span className="font-bold text-foreground">{adj.categoryName}</span>
-                               <p className="text-xs text-zinc-500 mt-0.5">{adj.reason}</p>
-                           </div>
-                           <span className={`font-black text-lg ${Number(adj.amountUSD) > 0 ? 'text-emerald-500' : 'text-rose-500'} bg-zinc-50 dark:bg-zinc-800/50 px-2 py-0.5 rounded-lg border border-zinc-100 dark:border-zinc-700`}>
-                               {Number(adj.amountUSD) > 0 ? '+' : ''}{Number(adj.amountUSD)}
-                           </span>
-                       </div>
-                       <div className="pt-3 mt-3 border-t border-zinc-100 dark:border-zinc-800/50 flex justify-between items-end">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
-                               <Calendar className="w-3 h-3" />
-                               <span>{new Date(adj.createdAt).toLocaleDateString()} - {new Date(adj.createdAt).toLocaleTimeString()}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                               <div className="w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[8px] font-black">
-                                  {adj.recordedBy?.name?.substring(0, 2).toUpperCase() || 'S'}
+                  {loading ? (
+                    <>
+                      <SkeletonRow />
+                      <SkeletonRow />
+                      <SkeletonRow />
+                    </>
+                  ) : (
+                    <>
+                      {adjustments.map((adj) => (
+                        <div key={adj.id} className="text-sm bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+                           <div className="flex justify-between items-start mb-2">
+                               <div>
+                                   <span className="font-bold text-foreground">{adj.accountName}</span>
+                                   <p className="text-xs text-zinc-500 mt-0.5">{adj.reason}</p>
                                </div>
-                               <span className="text-[10px] font-black text-foreground uppercase tracking-tight">{adj.recordedBy?.name || 'Sistema'}</span>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                             <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest block mb-0.5">Estado</span>
-                             <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20 uppercase">Auditado</span>
-                          </div>
-                       </div>
-                    </div>
-                  ))}
-                  {adjustments.length === 0 && (
-                     <div className="text-center py-12 text-zinc-500 italic font-medium">Sin historial registrado</div>
+                               <span className={`font-black text-lg ${Number(adj.amountUSD) > 0 ? 'text-emerald-500' : 'text-rose-500'} bg-zinc-50 dark:bg-zinc-800/50 px-2 py-0.5 rounded-lg border border-zinc-100 dark:border-zinc-700`}>
+                                   {Number(adj.amountUSD) > 0 ? '+' : ''}{Number(adj.amountUSD)}
+                               </span>
+                           </div>
+                           <div className="pt-3 mt-3 border-t border-zinc-100 dark:border-zinc-800/50 flex justify-between items-end">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+                                   <Calendar className="w-3 h-3" />
+                                   <span>{new Date(adj.createdAt).toLocaleDateString()} - {new Date(adj.createdAt).toLocaleTimeString()}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                   <div className="w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[8px] font-black">
+                                      {adj.recordedBy?.name?.substring(0, 2).toUpperCase() || 'S'}
+                                   </div>
+                                   <span className="text-[10px] font-black text-foreground uppercase tracking-tight">{adj.recordedBy?.name || 'Sistema'}</span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                 <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest block mb-0.5">Estado</span>
+                                 <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20 uppercase">Auditado</span>
+                              </div>
+                           </div>
+                        </div>
+                      ))}
+                      {adjustments.length === 0 && (
+                         <div className="text-center py-12 text-zinc-500 italic font-medium">Sin historial registrado</div>
+                      )}
+                    </>
                   )}
                 </div>
              </div>
@@ -80,5 +109,29 @@ export function AdjustmentLogModal({ adjustments }: { adjustments: any[] }) {
         </div>
       )}
     </>
+  )
+}
+
+function SkeletonRow() {
+  return (
+    <div className="text-sm bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 animate-pulse flex flex-col gap-3">
+      <div className="flex justify-between items-start">
+        <div className="flex flex-col gap-2 w-2/3">
+          <div className="h-4 bg-zinc-200 dark:bg-zinc-850 rounded-lg w-3/4" />
+          <div className="h-3 bg-zinc-100 dark:bg-zinc-850/50 rounded-lg w-1/2" />
+        </div>
+        <div className="h-8 bg-zinc-200 dark:bg-zinc-850 rounded-xl w-16" />
+      </div>
+      <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800/50 flex justify-between items-end">
+        <div className="flex flex-col gap-2 w-1/2">
+          <div className="h-3 bg-zinc-200 dark:bg-zinc-850 rounded-lg w-3/4" />
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-zinc-200 dark:bg-zinc-850" />
+            <div className="h-3 bg-zinc-100 dark:bg-zinc-850/50 rounded-lg w-16" />
+          </div>
+        </div>
+        <div className="h-5 bg-zinc-200 dark:bg-zinc-850 rounded-lg w-14" />
+      </div>
+    </div>
   )
 }

@@ -6,6 +6,14 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+export type AccountType = "ASSET" | "LIABILITY" | "EQUITY" | "INCOME" | "COST" | "EXPENSE" | "PROFIT" | "DISTRIBUTION"
+export type AlertType = "BUDGET_EXCEEDED" | "ADJUSTMENT_MADE" | "SYSTEM_WARNING"
+export type BudgetPeriodType = "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL"
+export type BudgetStatus = "DRAFT" | "ACTIVE" | "CLOSED"
+export type CategoryType = "EXPENSE" | "INCOME"
+export type InvoiceStatus = "REGISTERED" | "CANCELLED"
+export type Role = "SUPER_ADMIN" | "COMPANY_ADMIN" | "OPERATOR" | "AUDITOR" | "VIEWER"
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -20,7 +28,7 @@ export type Database = {
           companyId: number
           code: string
           name: string
-          type: Database["public"]["Enums"]["AccountType"]
+          type: "ASSET" | "LIABILITY" | "EQUITY" | "INCOME" | "COST" | "EXPENSE" | "PROFIT" | "DISTRIBUTION"
           parentId: number | null
           level: number
           isBudgetable: boolean
@@ -34,7 +42,7 @@ export type Database = {
           companyId: number
           code: string
           name: string
-          type: Database["public"]["Enums"]["AccountType"]
+          type: "ASSET" | "LIABILITY" | "EQUITY" | "INCOME" | "COST" | "EXPENSE" | "PROFIT" | "DISTRIBUTION"
           parentId?: number | null
           level?: number
           isBudgetable?: boolean
@@ -48,7 +56,7 @@ export type Database = {
           companyId?: number
           code?: string
           name?: string
-          type?: Database["public"]["Enums"]["AccountType"]
+          type?: "ASSET" | "LIABILITY" | "EQUITY" | "INCOME" | "COST" | "EXPENSE" | "PROFIT" | "DISTRIBUTION"
           parentId?: number | null
           level?: number
           isBudgetable?: boolean
@@ -82,7 +90,7 @@ export type Database = {
           isRead: boolean
           message: string
           title: string
-          type: Database["public"]["Enums"]["AlertType"]
+          type: AlertType
         }
         Insert: {
           companyId: number
@@ -91,7 +99,7 @@ export type Database = {
           isRead?: boolean
           message: string
           title: string
-          type: Database["public"]["Enums"]["AlertType"]
+          type: AlertType
         }
         Update: {
           companyId?: number
@@ -100,7 +108,7 @@ export type Database = {
           isRead?: boolean
           message?: string
           title?: string
-          type?: Database["public"]["Enums"]["AlertType"]
+          type?: AlertType
         }
         Relationships: [
           {
@@ -205,8 +213,8 @@ export type Database = {
           id: number
           initialDate: string
           name: string
-          status: Database["public"]["Enums"]["BudgetStatus"]
-          type: Database["public"]["Enums"]["BudgetPeriodType"]
+          status: BudgetStatus
+          type: BudgetPeriodType
           updatedAt: string
         }
         Insert: {
@@ -218,8 +226,8 @@ export type Database = {
           id?: number
           initialDate: string
           name: string
-          status?: Database["public"]["Enums"]["BudgetStatus"]
-          type?: Database["public"]["Enums"]["BudgetPeriodType"]
+          status?: BudgetStatus
+          type?: BudgetPeriodType
           updatedAt?: string
         }
         Update: {
@@ -231,8 +239,8 @@ export type Database = {
           id?: number
           initialDate?: string
           name?: string
-          status?: Database["public"]["Enums"]["BudgetStatus"]
-          type?: Database["public"]["Enums"]["BudgetPeriodType"]
+          status?: BudgetStatus
+          type?: BudgetPeriodType
           updatedAt?: string
         }
         Relationships: [
@@ -313,7 +321,7 @@ export type Database = {
           amountVES: number
           reason: string
           recordedById: number | null
-          recordedAt: string
+          createdAt: string
         }
         Insert: {
           id?: number
@@ -324,7 +332,7 @@ export type Database = {
           amountVES?: number
           reason: string
           recordedById?: number | null
-          recordedAt?: string
+          createdAt?: string
         }
         Update: {
           id?: number
@@ -335,7 +343,7 @@ export type Database = {
           amountVES?: number
           reason?: string
           recordedById?: number | null
-          recordedAt?: string
+          createdAt?: string
         }
         Relationships: [
           {
@@ -481,7 +489,7 @@ export type Database = {
           id: number
           code: string
           name: string
-          type: Database["public"]["Enums"]["AccountType"]
+          type: "ASSET" | "LIABILITY" | "EQUITY" | "INCOME" | "COST" | "EXPENSE" | "PROFIT" | "DISTRIBUTION"
           parentId: number | null
           level: number
           isBudgetable: boolean
@@ -495,7 +503,7 @@ export type Database = {
           id?: number
           code: string
           name: string
-          type: Database["public"]["Enums"]["AccountType"]
+          type: "ASSET" | "LIABILITY" | "EQUITY" | "INCOME" | "COST" | "EXPENSE" | "PROFIT" | "DISTRIBUTION"
           parentId?: number | null
           level?: number
           isBudgetable?: boolean
@@ -509,7 +517,7 @@ export type Database = {
           id?: number
           code?: string
           name?: string
-          type?: Database["public"]["Enums"]["AccountType"]
+          type?: "ASSET" | "LIABILITY" | "EQUITY" | "INCOME" | "COST" | "EXPENSE" | "PROFIT" | "DISTRIBUTION"
           parentId?: number | null
           level?: number
           isBudgetable?: boolean
@@ -598,7 +606,7 @@ export type Database = {
           id: number
           isActive: boolean
           name: string
-          type: Database["public"]["Enums"]["CategoryType"] | null
+          type: CategoryType | null
           updatedAt: string
         }
         Insert: {
@@ -607,7 +615,7 @@ export type Database = {
           id?: number
           isActive?: boolean
           name: string
-          type?: Database["public"]["Enums"]["CategoryType"] | null
+          type?: CategoryType | null
           updatedAt?: string
         }
         Update: {
@@ -616,7 +624,7 @@ export type Database = {
           id?: number
           isActive?: boolean
           name?: string
-          type?: Database["public"]["Enums"]["CategoryType"] | null
+          type?: CategoryType | null
           updatedAt?: string
         }
         Relationships: [
@@ -838,7 +846,7 @@ export type Database = {
           id: number
           number: string
           registeredById: number
-          status: Database["public"]["Enums"]["InvoiceStatus"]
+          status: InvoiceStatus
           supplierName: string
           updatedAt: string
         }
@@ -857,7 +865,7 @@ export type Database = {
           id?: number
           number: string
           registeredById: number
-          status?: Database["public"]["Enums"]["InvoiceStatus"]
+          status?: InvoiceStatus
           supplierName: string
           updatedAt?: string
         }
@@ -876,7 +884,7 @@ export type Database = {
           id?: number
           number?: string
           registeredById?: number
-          status?: Database["public"]["Enums"]["InvoiceStatus"]
+          status?: InvoiceStatus
           supplierName?: string
           updatedAt?: string
         }
@@ -964,7 +972,7 @@ export type Database = {
           isActive: boolean
           name: string
           passwordHash: string | null
-          role: Database["public"]["Enums"]["Role"]
+          role: Role
           updatedAt: string
         }
         Insert: {
@@ -977,7 +985,7 @@ export type Database = {
           isActive?: boolean
           name: string
           passwordHash?: string | null
-          role?: Database["public"]["Enums"]["Role"]
+          role?: Role
           updatedAt?: string
         }
         Update: {
@@ -990,7 +998,7 @@ export type Database = {
           isActive?: boolean
           name?: string
           passwordHash?: string | null
-          role?: Database["public"]["Enums"]["Role"]
+          role?: Role
           updatedAt?: string
         }
         Relationships: [
@@ -1012,7 +1020,98 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      budget_list_view: {
+        Row: {
+          id: number
+          name: string
+          initialDate: string
+          endDate: string
+          status: string
+          amountLimitUSD: number
+          companyId: number
+          branchId: number
+          createdAt: string
+          companyName: string | null
+          companyGroupId: number | null
+          branchName: string | null
+          totalAllocated: number
+          totalConsumedUSD: number
+          totalConsumedVES: number
+        }
+      }
+      invoice_list_view: {
+        Row: {
+          id: number
+          number: string
+          supplierName: string
+          amountUSD: number
+          amountVES: number
+          exchangeRate: number
+          date: string
+          status: string
+          companyId: number
+          companyAccountId: number | null
+          allocationId: number | null
+          createdAt: string
+          companyName: string | null
+          companyGroupId: number | null
+          registeredByName: string | null
+          accountCode: string | null
+          accountName: string | null
+          categoryId: number | null
+          categoryName: string | null
+          budgetId: number | null
+          budgetName: string | null
+          branchId: number | null
+          branchName: string | null
+        }
+      }
+      income_list_view: {
+        Row: {
+          id: number
+          amountUSD: number
+          amountVES: number
+          exchangeRate: number
+          date: string
+          number: string
+          clientName: string
+          notes: string | null
+          companyId: number
+          branchId: number | null
+          categoryId: number
+          subcategoryId: number | null
+          companyAccountId: number | null
+          createdAt: string
+          companyName: string | null
+          companyGroupId: number | null
+          registeredByName: string | null
+          categoryName: string | null
+          subcategoryName: string | null
+          branchName: string | null
+          accountCode: string | null
+          accountName: string | null
+        }
+      }
+      recent_activity_view: {
+        Row: {
+          id: number
+          number: string
+          supplierName: string
+          amountUSD: number
+          date: string
+          status: string
+          companyId: number
+          companyName: string | null
+          companyGroupId: number | null
+          registeredByName: string | null
+          accountCode: string | null
+          accountName: string | null
+          budgetId: number | null
+          branchId: number | null
+          branchName: string | null
+          createdAt: string
+        }
+      }
     }
     Functions: {
       adjust_allocation_on_invoice: {
@@ -1031,7 +1130,7 @@ export type Database = {
         Returns: {
           user_branch_id: number
           user_company_id: number
-          user_role: Database["public"]["Enums"]["Role"]
+          user_role: Role
         }[]
       }
       rpc_transfer_budget_funds: {

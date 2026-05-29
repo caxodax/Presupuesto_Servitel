@@ -27,7 +27,7 @@ export async function getAccounts(options: {
 
   // Si se pide el catálogo global (Super Admin), consultamos GlobalAccount directamente
   if (includeGlobal && user.role === 'SUPER_ADMIN') {
-    let qGlobal = supabase.from('GlobalAccount').select('*', { count: 'exact' })
+    let qGlobal = supabase.from('GlobalAccount').select('*', { count: 'planned' })
     if (queryParam) qGlobal = qGlobal.or(`name.ilike.%${queryParam}%,code.ilike.%${queryParam}%`)
     if (type) {
         if (Array.isArray(type)) {
@@ -41,7 +41,7 @@ export async function getAccounts(options: {
     
     const { data: gData, error: gError } = await qGlobal.limit(limit)
     if (gError) throw gError
-    return (gData || []).map(g => ({ ...g, isGlobal: true }))
+    return ((gData as any[]) || []).map(g => ({ ...g, isGlobal: true }))
   }
 
   if (!targetCompanyId) return []
@@ -53,7 +53,7 @@ export async function getAccounts(options: {
         isActive,
         globalAccountId,
         globalAccount:GlobalAccount!inner(*)
-    `, { count: 'exact' })
+    `, { count: 'planned' })
     .eq('companyId', targetCompanyId)
     .eq('isActive', true)
 
@@ -141,7 +141,7 @@ export async function getAccountById(id: number) {
   if (error) throw new Error(`Error al obtener cuenta: ${error.message}`)
   
   return {
-    ...data,
+    ...(data as any),
     code: (data as any).globalAccount.code,
     name: (data as any).globalAccount.name,
     type: (data as any).globalAccount.type

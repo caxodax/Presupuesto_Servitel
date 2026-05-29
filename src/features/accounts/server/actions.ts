@@ -4,61 +4,6 @@ import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/permissions"
 import { revalidatePath } from "next/cache"
 
-export async function createAccount(formData: any) {
-  const user = await requireAuth()
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('AccountingAccount')
-    .insert([{
-      ...formData,
-      companyId: user.companyId || formData.companyId,
-      updatedAt: new Date().toISOString()
-    }])
-    .select()
-    .single()
-
-  if (error) throw new Error(error.message)
-
-  revalidatePath('/dashboard/cuentas')
-  return data
-}
-
-export async function updateAccount(id: number, formData: any) {
-  const user = await requireAuth()
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('AccountingAccount')
-    .update({
-      ...formData,
-      updatedAt: new Date().toISOString()
-    })
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) throw new Error(error.message)
-
-  revalidatePath('/dashboard/cuentas')
-  return data
-}
-
-export async function deleteAccount(id: number) {
-  const user = await requireAuth()
-  const supabase = await createClient()
-
-  const { error } = await supabase
-    .from('AccountingAccount')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw new Error(error.message)
-
-  revalidatePath('/dashboard/cuentas')
-  return { success: true }
-}
-
 /**
  * Crea o actualiza un mapeo entre Categoría y Cuenta.
  */
@@ -72,12 +17,11 @@ export async function upsertCategoryMapping(mapping: {
   const user = await requireAuth()
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('CategoryAccountMapping')
+  const { data, error } = await (supabase.from('CategoryAccountMapping') as any)
     .upsert({
       ...mapping,
       updatedAt: new Date().toISOString()
-    }, { onConflict: 'companyId,categoryId,subcategoryId' })
+    } as any, { onConflict: 'companyId,categoryId,subcategoryId' } as any)
     .select()
     .single()
 
@@ -98,8 +42,7 @@ export async function resolveAccountFromCategory(params: { companyId: number, ca
   
   // 1. Intentar con subcategoría específica
   if (params.subcategoryId) {
-    const { data: subMap } = await supabase
-      .from('CategoryAccountMapping')
+    const { data: subMap } = await (supabase.from('CategoryAccountMapping') as any)
       .select('accountId, companyAccountId')
       .eq('companyId', params.companyId)
       .eq('categoryId', params.categoryId)
@@ -111,8 +54,7 @@ export async function resolveAccountFromCategory(params: { companyId: number, ca
   
   // 2. Intentar con categoría base (subcategoryId is null)
   if (!mapping) {
-    const { data: catMap } = await supabase
-      .from('CategoryAccountMapping')
+    const { data: catMap } = await (supabase.from('CategoryAccountMapping') as any)
       .select('accountId, companyAccountId')
       .eq('companyId', params.companyId)
       .eq('categoryId', params.categoryId)
@@ -123,8 +65,8 @@ export async function resolveAccountFromCategory(params: { companyId: number, ca
   }
     
   return {
-    accountId: mapping?.accountId || null,
-    companyAccountId: mapping?.companyAccountId || null
+    accountId: (mapping as any)?.accountId || null,
+    companyAccountId: (mapping as any)?.companyAccountId || null
   }
 }
 
@@ -137,8 +79,7 @@ export async function createGlobalAccount(data: any) {
 
     if (user.role !== 'SUPER_ADMIN') throw new Error("No autorizado")
 
-    const { data: account, error } = await supabase
-        .from('GlobalAccount')
+    const { data: account, error } = await (supabase.from('GlobalAccount') as any)
         .insert([{ ...data, updatedAt: new Date().toISOString() }])
         .select()
         .single()
@@ -154,8 +95,7 @@ export async function updateGlobalAccount(id: number, data: any) {
 
     if (user.role !== 'SUPER_ADMIN') throw new Error("No autorizado")
 
-    const { data: account, error } = await supabase
-        .from('GlobalAccount')
+    const { data: account, error } = await (supabase.from('GlobalAccount') as any)
         .update({ ...data, updatedAt: new Date().toISOString() })
         .eq('id', id)
         .select()
@@ -172,8 +112,7 @@ export async function deleteGlobalAccount(id: number) {
 
     if (user.role !== 'SUPER_ADMIN') throw new Error("No autorizado")
 
-    const { error } = await supabase
-        .from('GlobalAccount')
+    const { error } = await (supabase.from('GlobalAccount') as any)
         .delete()
         .eq('id', id)
 
@@ -193,8 +132,7 @@ export async function toggleCompanyAccount(params: { companyId: number, globalAc
         throw new Error("No autorizado")
     }
 
-    const { data, error } = await supabase
-        .from('CompanyAccount')
+    const { data, error } = await (supabase.from('CompanyAccount') as any)
         .upsert({
             companyId: params.companyId,
             globalAccountId: params.globalAccountId,
@@ -213,19 +151,17 @@ export async function updateCompanyAccountOverrides(id: number, data: any) {
     const user = await requireAuth()
     const supabase = await createClient()
 
-    const { data: ca, error: getError } = await supabase
-        .from('CompanyAccount')
+    const { data: ca, error: getError } = await (supabase.from('CompanyAccount') as any)
         .select('companyId')
         .eq('id', id)
         .single()
     
     if (getError || !ca) throw new Error("Cuenta no encontrada")
-    if (user.role !== 'SUPER_ADMIN' && (user.role !== 'COMPANY_ADMIN' || Number(user.companyId) !== Number(ca.companyId))) {
+    if (user.role !== 'SUPER_ADMIN' && (user.role !== 'COMPANY_ADMIN' || Number(user.companyId) !== Number((ca as any).companyId))) {
         throw new Error("No autorizado")
     }
 
-    const { data: updated, error } = await supabase
-        .from('CompanyAccount')
+    const { data: updated, error } = await (supabase.from('CompanyAccount') as any)
         .update({ ...data, updatedAt: new Date().toISOString() })
         .eq('id', id)
         .select()
@@ -238,19 +174,17 @@ export async function updateCompanyAccountOverrides(id: number, data: any) {
 
 export async function getGlobalAccounts() {
     const supabase = await createClient()
-    const { data, error } = await supabase
-        .from('GlobalAccount')
+    const { data, error } = await (supabase.from('GlobalAccount') as any)
         .select('*')
         .order('code')
     
     if (error) throw error
-    return data || []
+    return (data as any[]) || []
 }
 
 export async function getCompanyAccounts(companyId: number) {
     const supabase = await createClient()
-    const { data, error } = await supabase
-        .from('CompanyAccount')
+    const { data, error } = await (supabase.from('CompanyAccount') as any)
         .select(`
             *,
             globalAccount:GlobalAccount(*)
@@ -259,6 +193,68 @@ export async function getCompanyAccounts(companyId: number) {
         .eq('isActive', true)
     
     if (error) throw error
-    return data || []
+    return (data as any[]) || []
 }
 
+export async function createAndLinkGlobalAccount(data: { globalAccountData: any, companyId: number }) {
+    const user = await requireAuth()
+    const supabase = await createClient()
+
+    if (user.role !== 'SUPER_ADMIN' && (user.role !== 'COMPANY_ADMIN' || Number(user.companyId) !== Number(data.companyId))) {
+        throw new Error("No autorizado")
+    }
+
+    // 1. Insertar la Cuenta Global
+    const { data: globalAccount, error: gError } = await (supabase.from('GlobalAccount') as any)
+        .insert([{ ...data.globalAccountData, updatedAt: new Date().toISOString() }])
+        .select()
+        .single()
+
+    if (gError) throw new Error(`Error crear cuenta global: ${gError.message}`)
+
+    // 2. Insertar/Vincular a la Empresa
+    const { data: companyAccount, error: cError } = await (supabase.from('CompanyAccount') as any)
+        .insert([{
+            companyId: data.companyId,
+            globalAccountId: globalAccount.id,
+            isActive: true,
+            updatedAt: new Date().toISOString()
+        }])
+        .select()
+        .single()
+
+    if (cError) throw new Error(`Error vincular a empresa: ${cError.message}`)
+
+    revalidatePath('/dashboard/cuentas')
+    revalidatePath('/dashboard/cuentas/mapeo')
+
+    return {
+        ...companyAccount,
+        globalAccount
+    }
+}
+
+export async function deleteCategoryMapping(id: number) {
+    const user = await requireAuth()
+    const supabase = await createClient()
+
+    const { data: mapping, error: getError } = await (supabase.from('CategoryAccountMapping') as any)
+        .select('companyId')
+        .eq('id', id)
+        .single()
+
+    if (getError || !mapping) throw new Error("Mapeo no encontrado")
+
+    if (user.role !== 'SUPER_ADMIN' && (user.role !== 'COMPANY_ADMIN' || Number(user.companyId) !== Number((mapping as any).companyId))) {
+        throw new Error("No autorizado")
+    }
+
+    const { error } = await (supabase.from('CategoryAccountMapping') as any)
+        .delete()
+        .eq('id', id)
+
+    if (error) throw new Error(error.message)
+    
+    revalidatePath('/dashboard/cuentas/mapeo')
+    return { success: true }
+}

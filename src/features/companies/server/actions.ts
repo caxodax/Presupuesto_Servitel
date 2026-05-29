@@ -23,8 +23,7 @@ export async function createCompany(formData: FormData) {
     baseCurrency: formData.get("baseCurrency") as string || "USD",
   })
   
-  const { data: company, error } = await supabase
-    .from('Company')
+  const { data: company, error } = await (supabase.from('Company') as any)
     .insert({ 
         name: validated.name,
         groupId: validated.groupId,
@@ -51,7 +50,7 @@ export async function createCompany(formData: FormData) {
       ContentType: file.type,
     }))
 
-    await supabase.from('Company').update({ logoUrl }).eq('id', company.id)
+    await (supabase.from('Company') as any).update({ logoUrl }).eq('id', company.id)
   }
   
   revalidatePath("/dashboard/empresas")
@@ -69,8 +68,7 @@ export async function createBranch(formData: FormData) {
     companyId: scope.companyId!
   })
 
-  const { data: branch, error } = await supabase
-    .from('Branch')
+  const { data: branch, error } = await (supabase.from('Branch') as any)
     .insert({
       name: validated.name,
       companyId: validated.companyId
@@ -80,8 +78,6 @@ export async function createBranch(formData: FormData) {
 
   if (error || !branch) throw new Error(`Error crear sucursal: ${error?.message}`)
 
-
-  
   revalidatePath("/dashboard/sucursales")
 }
 
@@ -100,8 +96,8 @@ export async function updateCompany(companyId: number, formData: FormData) {
   })
 
   // Obtener empresa actual para mantener logo antiguo si no se sube uno nuevo
-  const { data: oldCompany } = await supabase.from('Company').select('logoUrl').eq('id', companyId).single()
-  let logoUrl = oldCompany?.logoUrl
+  const { data: oldCompany } = await (supabase.from('Company') as any).select('logoUrl').eq('id', companyId).single()
+  let logoUrl = (oldCompany as any)?.logoUrl
 
   const file = formData.get("logo") as File
   if (file && file.size > 0) {
@@ -116,8 +112,7 @@ export async function updateCompany(companyId: number, formData: FormData) {
     }))
   }
 
-  const { data: company, error } = await supabase
-    .from('Company')
+  const { data: company, error } = await (supabase.from('Company') as any)
     .update({ 
         name: validated.name,
         groupId: validated.groupId,
@@ -141,25 +136,21 @@ export async function toggleCompanyStatus(companyId: number) {
   const supabase = await createClient()
   if (!hasRole(user.role, ["SUPER_ADMIN"])) throw new Error("Acceso denegado. Privilegios insuficientes.")
 
-  const { data: current, error: fError } = await supabase
-    .from('Company')
+  const { data: current, error: fError } = await (supabase.from('Company') as any)
     .select('*')
     .eq('id', companyId)
     .single()
 
   if (fError || !current) throw new Error("Empresa no encontrada")
 
-  const { data: updated, error } = await supabase
-    .from('Company')
-    .update({ isActive: !current.isActive })
+  const { data: updated, error } = await (supabase.from('Company') as any)
+    .update({ isActive: !(current as any).isActive })
     .eq('id', companyId)
     .select()
     .single()
 
   if (error || !updated) throw new Error(`Error toggle empresa: ${error?.message}`)
 
-
-  
   revalidatePath("/dashboard/empresas")
 }
 
@@ -167,21 +158,19 @@ export async function updateBranch(branchId: number, formData: FormData) {
   const user = await requireAuth()
   const supabase = await createClient()
   
-  const { data: branchData, error: fError } = await supabase
-    .from('Branch')
+  const { data: branchData, error: fError } = await (supabase.from('Branch') as any)
     .select('*')
     .eq('id', branchId)
     .single()
 
   if (fError || !branchData) throw new Error("Sucursal no encontrada")
   
-  enforceCompanyScope(user, branchData.companyId)
+  enforceCompanyScope(user, (branchData as any).companyId)
   
   const newName = formData.get("name") as string
   if (!newName || newName.trim().length === 0) throw new Error("El nombre es requerido")
 
-  const { data: updatedBranch, error } = await supabase
-    .from('Branch')
+  const { data: updatedBranch, error } = await (supabase.from('Branch') as any)
     .update({ name: newName })
     .eq('id', branchId)
     .select()
@@ -189,8 +178,6 @@ export async function updateBranch(branchId: number, formData: FormData) {
 
   if (error || !updatedBranch) throw new Error(`Error actualizar sucursal: ${error?.message}`)
 
-
-  
   revalidatePath("/dashboard/sucursales")
 }
 
@@ -198,27 +185,23 @@ export async function toggleBranchStatus(branchId: number) {
   const user = await requireAuth()
   const supabase = await createClient()
   
-  const { data: current, error: fError } = await supabase
-    .from('Branch')
+  const { data: current, error: fError } = await (supabase.from('Branch') as any)
     .select('*')
     .eq('id', branchId)
     .single()
 
   if (fError || !current) throw new Error("Sucursal no encontrada")
   
-  enforceCompanyScope(user, current.companyId)
+  enforceCompanyScope(user, (current as any).companyId)
 
-  const { data: updated, error } = await supabase
-    .from('Branch')
-    .update({ isActive: !current.isActive })
+  const { data: updated, error } = await (supabase.from('Branch') as any)
+    .update({ isActive: !(current as any).isActive })
     .eq('id', branchId)
     .select()
     .single()
 
   if (error || !updated) throw new Error(`Error toggle sucursal: ${error?.message}`)
 
-
-  
   revalidatePath("/dashboard/sucursales")
 }
 
@@ -226,8 +209,7 @@ export async function getBusinessGroups(onlyActive: boolean = false) {
     const user = await requireAuth()
     const supabase = await createClient()
     
-    let query = supabase
-        .from('BusinessGroup')
+    let query = (supabase.from('BusinessGroup') as any)
         .select('*')
         .order('name')
         
@@ -238,7 +220,7 @@ export async function getBusinessGroups(onlyActive: boolean = false) {
     const { data, error } = await query
         
     if (error) throw new Error(`Error al obtener grupos: ${error.message}`)
-    return data || []
+    return (data as any[]) || []
 }
 
 export async function createBusinessGroup(formData: FormData) {
@@ -249,15 +231,12 @@ export async function createBusinessGroup(formData: FormData) {
     const name = formData.get("name") as string
     const description = formData.get("description") as string
 
-    const { data, error } = await supabase
-        .from('BusinessGroup')
+    const { data, error } = await (supabase.from('BusinessGroup') as any)
         .insert({ name, description })
         .select()
         .single()
 
     if (error) throw new Error(`Error al crear matriz: ${error.message}`)
-
-
 
     revalidatePath("/dashboard/matrices")
     revalidatePath("/dashboard/empresas")
@@ -271,16 +250,13 @@ export async function updateBusinessGroup(id: number, formData: FormData) {
     const name = formData.get("name") as string
     const description = formData.get("description") as string
 
-    const { data, error } = await supabase
-        .from('BusinessGroup')
+    const { data, error } = await (supabase.from('BusinessGroup') as any)
         .update({ name, description })
         .eq('id', id)
         .select()
         .single()
 
     if (error) throw new Error(`Error al actualizar matriz: ${error.message}`)
-
-
 
     revalidatePath("/dashboard/matrices")
     revalidatePath("/dashboard/empresas")
@@ -291,8 +267,7 @@ export async function toggleBusinessGroupStatus(id: number, currentStatus: boole
     const supabase = await createClient()
     if (!hasRole(user.role, ["SUPER_ADMIN"])) throw new Error("No tienes permisos")
 
-    const { data, error } = await supabase
-        .from('BusinessGroup')
+    const { data, error } = await (supabase.from('BusinessGroup') as any)
         .update({ isActive: !currentStatus })
         .eq('id', id)
         .select()
@@ -300,9 +275,6 @@ export async function toggleBusinessGroupStatus(id: number, currentStatus: boole
 
     if (error) throw new Error(`Error al cambiar estado: ${error.message}`)
 
-
-
     revalidatePath("/dashboard/matrices")
     revalidatePath("/dashboard/empresas")
 }
-

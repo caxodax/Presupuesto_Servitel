@@ -20,29 +20,26 @@ export async function syncDailyExchangeRate() {
     const today = new Date().toISOString().split('T')[0]
 
     // Verificar si ya existe para hoy
-    const { data: existing } = await supabase
-        .from('ExchangeRate')
+    const { data: existing } = await (supabase.from('ExchangeRate') as any)
         .select('id')
         .eq('date', today)
         .maybeSingle()
 
     if (existing) {
         // Actualizar si ya existe (por si cambió durante el día)
-        const { error } = await supabase
-            .from('ExchangeRate')
+        const { error } = await (supabase.from('ExchangeRate') as any)
             .update({
                 usd,
                 eur: eur || 0,
                 updatedAt: new Date().toISOString()
             })
-            .eq('id', existing.id)
+            .eq('id', (existing as any).id)
         
         if (error) throw error
         return { action: 'updated', date: today, rates: { usd, eur } }
     } else {
         // Insertar nuevo
-        const { error } = await supabase
-            .from('ExchangeRate')
+        const { error } = await (supabase.from('ExchangeRate') as any)
             .insert({
                 date: today,
                 usd,
@@ -62,8 +59,7 @@ export async function syncDailyExchangeRate() {
 export async function saveHistoricalRate(date: string, usd: number, eur: number) {
     const supabase = await createClient()
     
-    const { error } = await supabase
-        .from('ExchangeRate')
+    const { error } = await (supabase.from('ExchangeRate') as any)
         .upsert({
             date,
             usd,
@@ -86,13 +82,12 @@ export async function getEffectiveRate() {
     const supabase = await createClient()
 
     // 1. Intentar DB
-    const { data: existing } = await supabase
-        .from('ExchangeRate')
+    const { data: existing } = await (supabase.from('ExchangeRate') as any)
         .select('*')
         .eq('date', today)
         .maybeSingle()
     
-    if (existing) return { usd: existing.usd, eur: existing.eur, source: 'Database' }
+    if (existing) return { usd: (existing as any).usd, eur: (existing as any).eur, source: 'Database' }
 
     // 2. No hay en DB para hoy, NO sincronizamos durante el render para evitar bucles.
     // El sistema debe depender de un cron job o de una acción manual del admin para sincronizar.
@@ -137,8 +132,7 @@ export async function getEffectiveRate() {
 export async function getLatestSavedRate() {
     const supabase = await createClient()
     
-    const { data, error } = await supabase
-        .from('ExchangeRate')
+    const { data, error } = await (supabase.from('ExchangeRate') as any)
         .select('*')
         .order('date', { ascending: false })
         .limit(1)
@@ -147,4 +141,3 @@ export async function getLatestSavedRate() {
     if (error) return null
     return data
 }
-

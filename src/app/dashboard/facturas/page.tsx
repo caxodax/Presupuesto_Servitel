@@ -1,7 +1,5 @@
 import { getInvoices } from "@/features/invoices/server/queries"
-import { getCompanies } from "@/features/companies/server/queries"
-import { getBusinessGroups } from "@/features/companies/server/actions"
-import { getBudgets } from "@/features/budgets/server/queries"
+import { getCachedCompanies, getCachedBusinessGroups } from "@/lib/cache"
 import { requireAuth } from "@/lib/permissions"
 import { InvoicesClient } from "@/components/facturas/InvoicesClient"
 
@@ -19,8 +17,8 @@ export default async function InvoicesListPage(props: {
 
   const results = await Promise.all([
     getInvoices(companyId, query, page, 10, groupId),
-    user.role === "SUPER_ADMIN" ? getCompanies() : Promise.resolve([]),
-    getBusinessGroups(true),
+    user.role === "SUPER_ADMIN" ? getCachedCompanies() : Promise.resolve([]),
+    getCachedBusinessGroups(true),
     getEffectiveRate()
   ])
 

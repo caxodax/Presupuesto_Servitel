@@ -5,7 +5,8 @@ import { requireAuth, enforceCompanyScope, hasRole } from "@/lib/permissions"
 import { budgetSchema, allocationSchema, adjustmentSchema } from "../validations"
 import { validateAccountForBudget, validateCompanyAccountAccess } from "@/features/accounts/server/validations"
 import { resolveAccountFromCategory, toggleCompanyAccount } from "@/features/accounts/server/actions"
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag as nextRevalidateTag } from "next/cache"
+const revalidateTag = nextRevalidateTag as any
 
 import { triggerBudgetAlerts } from "@/features/alerts/server/actions"
 
@@ -17,8 +18,7 @@ async function ensureCompanyAccount(companyId: number, globalAccountId: number) 
   const supabase = await createClient()
   
   // 1. Verificar si ya existe
-  const { data: existing } = await supabase
-    .from('CompanyAccount')
+  const { data: existing } = await (supabase.from('CompanyAccount') as any)
     .select('id, isActive')
     .eq('companyId', companyId)
     .eq('globalAccountId', globalAccountId)
@@ -50,18 +50,17 @@ export async function createBudget(formData: FormData) {
   })
 
   // Obtener sucursal para validar scope
-  const { data: branch, error: bError } = await supabase
-    .from('Branch')
+  const { data: branchData, error: bError } = await (supabase.from('Branch') as any)
     .select('companyId')
     .eq('id', validated.branchId)
     .single()
 
-  if (bError || !branch) throw new Error("Sucursal inválida")
+  if (bError || !branchData) throw new Error("Sucursal inválida")
+  const branch = branchData as any
 
   enforceCompanyScope(user, branch.companyId)
 
-  const { data: budget, error } = await supabase
-    .from('Budget')
+  const { data: budget, error } = await (supabase.from('Budget') as any)
     .insert({
       name: validated.name,
       companyId: branch.companyId,
@@ -76,7 +75,32 @@ export async function createBudget(formData: FormData) {
 
   if (error || !budget) throw new Error(`Error crear presupuesto: ${error?.message}`)
 
+  // Pre-popula las asignaciones presupuestarias en cero para todas las cuentas activas de la empresa
+  const { data: companyAccounts } = await (supabase.from('CompanyAccount') as any)
+    .select('id, globalAccountId')
+    .eq('companyId', branch.companyId)
+    .eq('isActive', true)
+
+  if (companyAccounts && companyAccounts.length > 0) {
+    const allocationsToInsert = companyAccounts.map((ca: any) => ({
+      budgetId: budget.id,
+      companyAccountId: ca.id,
+      accountId: ca.globalAccountId,
+      amountUSD: 0,
+      consumedUSD: 0,
+      consumedVES: 0
+    }))
+
+    const { error: allocError } = await (supabase.from('BudgetAllocation') as any)
+      .insert(allocationsToInsert)
+
+    if (allocError) {
+      console.error("Error pre-populating allocations:", allocError)
+    }
+  }
+
   revalidatePath("/dashboard/presupuestos")
+  revalidateTag("dashboard")
   revalidatePath("/dashboard")
 }
 
@@ -94,13 +118,13 @@ export async function upsertAllocation(formData: FormData) {
     amountUSD: formData.get("amountUSD"),
   })
 
-  const { data: budget, error: bError } = await supabase
-    .from("Budget")
+  const { data: budgetData, error: bError } = await (supabase.from("Budget") as any)
     .select("id, name, status, companyId")
     .eq("id", validated.budgetId)
     .single()
 
-  if (bError || !budget) throw new Error("Presupuesto no encontrado")
+  if (bError || !budgetData) throw new Error("Presupuesto no encontrado")
+  const budget = budgetData as any
   if (budget.status === 'CLOSED') throw new Error("No se pueden modificar asignaciones de un presupuesto cerrado.")
   enforceCompanyScope(user, budget.companyId)
 
@@ -119,8 +143,7 @@ export async function upsertAllocation(formData: FormData) {
 
 
   // Verificamos si ya existe por cuenta
-  let q = supabase
-    .from('BudgetAllocation')
+  let q = (supabase.from('BudgetAllocation') as any)
     .select('id')
     .eq('budgetId', validated.budgetId)
   
@@ -137,18 +160,16 @@ export async function upsertAllocation(formData: FormData) {
   let allocationId: number
 
   if (existingAllocation) {
-    const { data: updated, error: uError } = await supabase
-      .from('BudgetAllocation')
+    const { data: updated, error: uError } = await (supabase.from('BudgetAllocation') as any)
       .update({ amountUSD: validated.amountUSD })
-      .eq('id', existingAllocation.id)
+      .eq('id', (existingAllocation as any).id)
       .select()
       .single()
     
     if (uError || !updated) throw uError
-    allocationId = updated.id
+    allocationId = (updated as any).id
   } else {
-    const { data: fresh, error: iError } = await supabase
-      .from('BudgetAllocation')
+    const { data: fresh, error: iError } = await (supabase.from('BudgetAllocation') as any)
       .insert({
         budgetId: validated.budgetId,
         accountId: finalAccountId,
@@ -160,10 +181,11 @@ export async function upsertAllocation(formData: FormData) {
       .single()
     
     if (iError || !fresh) throw iError
-    allocationId = fresh.id
+    allocationId = (fresh as any).id
   }
 
   revalidatePath(`/dashboard/presupuestos/${validated.budgetId}`)
+  revalidateTag("dashboard")
   revalidatePath("/dashboard")
 }
 
@@ -178,17 +200,17 @@ export async function registerAdjustment(formData: FormData) {
     reason: formData.get("reason"),
   })
 
-  const { data: allocation, error: aError } = await supabase
-    .from('BudgetAllocation')
+  const { data: allocationData, error: aError } = await (supabase.from('BudgetAllocation') as any)
     .select('*, budget:Budget(id, status, companyId)')
     .eq('id', validated.allocationId)
     .single()
 
-  if (aError || !allocation) throw new Error("Asignación no encontrada")
-  if ((allocation as any).budget.status === 'CLOSED') throw new Error("No se pueden realizar ajustes en un presupuesto cerrado.")
+  if (aError || !allocationData) throw new Error("Asignación no encontrada")
+  const allocation = allocationData as any
+  if (allocation.budget.status === 'CLOSED') throw new Error("No se pueden realizar ajustes en un presupuesto cerrado.")
   enforceCompanyScope(user, (allocation as any).budget.companyId)
 
-  const { data, error: rpcError } = await supabase.rpc('rpc_budget_adjustment', {
+  const { data, error: rpcError } = await (supabase.rpc as any)('rpc_budget_adjustment', {
     p_allocation_id: validated.allocationId,
     p_company_account_id: (validated.companyAccountId || allocation.companyAccountId) as number,
     p_amount_usd: validated.amountUSD,
@@ -200,6 +222,7 @@ export async function registerAdjustment(formData: FormData) {
   await triggerBudgetAlerts(validated.allocationId)
 
   revalidatePath(`/dashboard/presupuestos/${(allocation as any).budget.id}`)
+  revalidateTag("dashboard")
   revalidatePath("/dashboard")
 }
 
@@ -218,20 +241,20 @@ export async function transferFunds(formData: FormData) {
   if (isNaN(amount) || amount <= 0) throw new Error("Monto de transferencia inválido.")
   if (sourceId === targetId) throw new Error("No puedes transferir fondos al mismo rubro.")
 
-  const { data: source, error: sError } = await supabase
-    .from('BudgetAllocation')
+  const { data: sourceData, error: sError } = await (supabase.from('BudgetAllocation') as any)
     .select('*, budget:Budget(id, status, companyId)')
     .eq('id', sourceId)
     .single()
 
-  const { data: target, error: tError } = await supabase
-    .from('BudgetAllocation')
+  const { data: targetData, error: tError } = await (supabase.from('BudgetAllocation') as any)
     .select('*, budget:Budget(id, status, companyId)')
     .eq('id', targetId)
     .single()
 
-  if (sError || tError || !source || !target) throw new Error("Uno de los rubros no existe.")
-  if ((source as any).budget.status === 'CLOSED' || (target as any).budget.status === 'CLOSED') {
+  if (sError || tError || !sourceData || !targetData) throw new Error("Uno de los rubros no existe.")
+  const source = sourceData as any
+  const target = targetData as any
+  if (source.budget.status === 'CLOSED' || target.budget.status === 'CLOSED') {
     throw new Error("No se pueden transferir fondos si el presupuesto está cerrado.")
   }
   if (source.budgetId !== target.budgetId) throw new Error("Los rubros deben pertenecer al mismo ciclo presupuestario.")
@@ -240,7 +263,7 @@ export async function transferFunds(formData: FormData) {
     throw new Error(`Fondos insuficientes en el origen. Disponible: $${source.amountUSD}`)
   }
 
-  const { data, error: rpcError } = await supabase.rpc('rpc_transfer_budget_funds', {
+  const { data, error: rpcError } = await (supabase.rpc as any)('rpc_transfer_budget_funds', {
     p_source_allocation_id: sourceId,
     p_target_allocation_id: targetId,
     p_amount: amount,
@@ -255,6 +278,7 @@ export async function transferFunds(formData: FormData) {
   ])
 
   revalidatePath(`/dashboard/presupuestos/${source.budgetId}`)
+  revalidateTag("dashboard")
   revalidatePath("/dashboard")
 }
 
@@ -272,8 +296,7 @@ export async function getAllocationsForCompany(companyId?: number) {
     throw new Error("Usuario sin empresa asignada")
   }
 
-  let query = supabase
-    .from("Budget")
+  let query = (supabase.from("Budget") as any)
     .select(`
       id, name, branchId,
       branch:Branch(id, name, company:Company(name)),
@@ -295,6 +318,7 @@ export async function getAllocationsForCompany(companyId?: number) {
   const { data: budgets, error } = await query
 
   if (error) throw new Error("Error obteniendo presupuestos")
+
   const availableAllocations = (budgets || []).flatMap((b: any) => 
       (b.allocations || []).map((a: any) => {
           const acc = a.companyAccount?.globalAccount
@@ -312,6 +336,7 @@ export async function getAllocationsForCompany(companyId?: number) {
   )
   return availableAllocations
 }
+
 export async function updateBudgetMaster(formData: FormData) {
   const user = await requireAuth()
   const supabase = await createClient()
@@ -321,13 +346,13 @@ export async function updateBudgetMaster(formData: FormData) {
 
   if (isNaN(newLimit) || newLimit < 0) throw new Error("Monto inválido.")
 
-  const { data: budget, error: bError } = await supabase
-    .from('Budget')
+  const { data: budgetData, error: bError } = await (supabase.from('Budget') as any)
     .select('companyId, allocations:BudgetAllocation(id, amountUSD, accountId, companyAccountId, amountUSD)')
     .eq('id', id)
     .single()
 
-  if (bError || !budget) throw new Error("Presupuesto no encontrado.")
+  if (bError || !budgetData) throw new Error("Presupuesto no encontrado.")
+  const budget = budgetData as any
   enforceCompanyScope(user, budget.companyId)
 
   const totalAllocated = (budget as any).allocations.reduce((acc: number, a: any) => acc + Number(a.amountUSD), 0)
@@ -336,8 +361,7 @@ export async function updateBudgetMaster(formData: FormData) {
     throw new Error(`Inconsistencia detectada: El nuevo límite ($${newLimit.toLocaleString()}) es inferior al monto ya distribuido ($${totalAllocated.toLocaleString()}).`)
   }
 
-  const { error: uError } = await supabase
-    .from('Budget')
+  const { error: uError } = await (supabase.from('Budget') as any)
     .update({ amountLimitUSD: newLimit })
     .eq('id', id)
 
@@ -345,22 +369,24 @@ export async function updateBudgetMaster(formData: FormData) {
 
   revalidatePath(`/dashboard/presupuestos/${id}`)
   revalidatePath("/dashboard/presupuestos")
+  revalidateTag("dashboard")
   revalidatePath("/dashboard")
 }
+
 export async function closeBudgetMaster(budgetId: number) {
   const user = await requireAuth()
   const supabase = await createClient()
 
-  const { data: budget, error: bError } = await supabase
-    .from('Budget')
+  const { data: budgetData, error: bError } = await (supabase.from('Budget') as any)
     .select('companyId, branchId')
     .eq('id', budgetId)
     .single()
 
-  if (bError || !budget) throw new Error("Presupuesto no encontrado.")
+  if (bError || !budgetData) throw new Error("Presupuesto no encontrado.")
+  const budget = budgetData as any
   enforceCompanyScope(user, budget.companyId)
 
-  const { error: rpcError } = await supabase.rpc('rpc_close_budget_manually', {
+  const { error: rpcError } = await (supabase.rpc as any)('rpc_close_budget_manually', {
     p_budget_id: budgetId
   })
 
@@ -368,6 +394,7 @@ export async function closeBudgetMaster(budgetId: number) {
 
   revalidatePath(`/dashboard/presupuestos/${budgetId}`)
   revalidatePath("/dashboard/presupuestos")
+  revalidateTag("dashboard")
   revalidatePath("/dashboard")
 }
 
@@ -375,16 +402,16 @@ export async function reactivateBudgetMaster(budgetId: number) {
   const user = await requireAuth()
   const supabase = await createClient()
 
-  const { data: budget, error: bError } = await supabase
-    .from('Budget')
+  const { data: budgetData, error: bError } = await (supabase.from('Budget') as any)
     .select('companyId')
     .eq('id', budgetId)
     .single()
 
-  if (bError || !budget) throw new Error("Presupuesto no encontrado.")
+  if (bError || !budgetData) throw new Error("Presupuesto no encontrado.")
+  const budget = budgetData as any
   enforceCompanyScope(user, budget.companyId)
 
-  const { error: rpcError } = await supabase.rpc('rpc_reactivate_budget', {
+  const { error: rpcError } = await (supabase.rpc as any)('rpc_reactivate_budget', {
     p_budget_id: budgetId
   })
 
@@ -392,5 +419,48 @@ export async function reactivateBudgetMaster(budgetId: number) {
 
   revalidatePath(`/dashboard/presupuestos/${budgetId}`)
   revalidatePath("/dashboard/presupuestos")
+  revalidateTag("dashboard")
   revalidatePath("/dashboard")
+}
+
+export async function fetchBudgetAdjustments(budgetId: number) {
+  const user = await requireAuth()
+  const supabase = await createClient()
+
+  const filter = enforceCompanyScope(user)
+
+  let query = (supabase
+    .from('BudgetAdjustment')
+    .select(`
+      id,
+      amountUSD,
+      amountVES,
+      reason,
+      createdAt,
+      recordedBy:User(name),
+      allocation!inner(
+        budgetId,
+        companyAccount:CompanyAccount!inner(
+          companyId,
+          globalAccount:GlobalAccount(name, code)
+        )
+      )
+    `) as any)
+    .eq('allocation.budgetId', budgetId)
+
+  if (filter.companyId) {
+    query = query.eq('allocation.companyAccount.companyId', filter.companyId)
+  }
+
+  const { data, error } = await query.order('createdAt', { ascending: false })
+
+  if (error) {
+    throw new Error(`Error al obtener historial de ajustes: ${error.message}`)
+  }
+
+  return (data || []).map((adj: any) => ({
+    ...adj,
+    accountName: adj.allocation?.companyAccount?.globalAccount?.name || 'S/A',
+    categoryName: adj.allocation?.companyAccount?.globalAccount?.name || 'S/A'
+  }))
 }

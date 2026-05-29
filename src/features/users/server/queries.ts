@@ -32,9 +32,8 @@ export async function getUsers(companyId?: number, branchId?: number, page: numb
   }
 
   return {
-    items: data || [],
+    items: (data as any[]) || [],
     total: count || 0,
     pageCount: Math.ceil((count || 0) / limit)
   }
 }
-

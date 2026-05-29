@@ -20,9 +20,15 @@ export default async function CategoryAccountMappingPage() {
     // Obtener cuentas contables (Activadas por empresa)
     const { data: accounts } = await supabase
         .from('CompanyAccount')
-        .select('id, isActive, globalAccount:GlobalAccount(code, name, type)')
+        .select('id, isActive, globalAccount:GlobalAccount(id, code, name, type)')
         .eq('isActive', true)
         .order('id')
+
+    // Obtener todas las cuentas globales maestras
+    const { data: globalAccounts } = await supabase
+        .from('GlobalAccount')
+        .select('*')
+        .order('code')
 
     // Obtener mapeos actuales
     const { data: mappings } = await supabase
@@ -52,6 +58,7 @@ export default async function CategoryAccountMappingPage() {
                 companies={companies || []}
                 categories={categories || []}
                 accounts={accounts || []}
+                globalAccounts={globalAccounts || []}
                 userRole={user.role}
                 userCompanyId={user.companyId}
             />

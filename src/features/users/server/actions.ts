@@ -47,8 +47,7 @@ export async function createUser(formData: FormData) {
 
   // 2. Crear en nuestra tabla 'User'
   const supabase = await createClient()
-  const { data: newUser, error } = await supabase
-    .from('User')
+  const { data: newUser, error } = await (supabase.from('User') as any)
     .insert({
       authId: authUser.user.id,
       name: validated.name,
@@ -78,8 +77,7 @@ export async function updateUser(formData: FormData) {
   const branchId = formData.get("branchId") ? Number(formData.get("branchId")) : null
   const password = formData.get("password") as string
 
-  const { data: userProfile, error: pError } = await supabase
-    .from('User')
+  const { data: userProfile, error: pError } = await (supabase.from('User') as any)
     .select('authId, email')
     .eq('id', userId)
     .single()
@@ -98,17 +96,17 @@ export async function updateUser(formData: FormData) {
           process.env.SUPABASE_SERVICE_ROLE_KEY
       )
 
-      if (userProfile.authId) {
+      if ((userProfile as any).authId) {
           // Existe en Auth: Actualizar
           const { error: authError } = await adminClient.auth.admin.updateUserById(
-              userProfile.authId,
+              (userProfile as any).authId,
               { password: password }
           )
           if (authError) throw new Error(`Error Auth Update: ${authError.message}`)
       } else {
           // NO existe en Auth: Crear cuenta retroactivamente (Caso Cinthia)
           const { data: newAuth, error: authError } = await adminClient.auth.admin.createUser({
-              email: userProfile.email,
+              email: (userProfile as any).email,
               password: password,
               email_confirm: true,
               user_metadata: { name }
@@ -116,13 +114,12 @@ export async function updateUser(formData: FormData) {
           if (authError) throw new Error(`Error Auth Creation: ${authError.message}`)
           
           // Vincular el nuevo authId al perfil
-          await supabase.from('User').update({ authId: newAuth.user.id }).eq('id', userId)
+          await (supabase.from('User') as any).update({ authId: newAuth.user.id }).eq('id', userId)
       }
   }
 
   // 2. Actualizar perfil local
-  const { data: updated, error } = await supabase
-    .from('User')
+  const { data: updated, error } = await (supabase.from('User') as any)
     .update({ name, role, companyId, branchId })
     .eq('id', userId)
     .select()
@@ -138,17 +135,15 @@ export async function toggleUserStatus(userId: number) {
   const supabase = await createClient()
   if (userAdmin.role !== "SUPER_ADMIN") throw new Error("No autorizado")
 
-  const { data: current, error: fError } = await supabase
-    .from('User')
+  const { data: current, error: fError } = await (supabase.from('User') as any)
     .select('id, isActive, email, companyId')
     .eq('id', userId)
     .single()
 
   if (fError || !current) throw new Error("Usuario no encontrado")
 
-  const { data: updated, error } = await supabase
-    .from('User')
-    .update({ isActive: !current.isActive })
+  const { data: updated, error } = await (supabase.from('User') as any)
+    .update({ isActive: !(current as any).isActive })
     .eq('id', userId)
     .select()
     .single()
@@ -157,4 +152,3 @@ export async function toggleUserStatus(userId: number) {
 
   revalidatePath('/dashboard/usuarios')
 }
-
