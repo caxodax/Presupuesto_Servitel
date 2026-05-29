@@ -35,7 +35,9 @@ import {
     Info,
     Folder,
     FolderOpen,
-    FileText
+    FileText,
+    Building2,
+    MapPin
 } from "lucide-react"
 import { ReportsSkeleton } from "./ReportsSkeleton"
 import { toast } from "sonner"
@@ -831,46 +833,117 @@ export function ReportsClient({ companies, branches, categories, businessGroups,
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-zinc-50 dark:bg-zinc-800/50">
-                                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400">Empresa</th>
-                                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400">Sucursal</th>
-                                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400">Periodo</th>
-                                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-emerald-500">Ingresos</th>
-                                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-rose-500">Egresos</th>
-                                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-white">Balance</th>
-                                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400">Estado</th>
+                                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                            <div className="flex items-center gap-1.5">
+                                                <Building2 className="w-3.5 h-3.5 opacity-60" />
+                                                Empresa
+                                            </div>
+                                        </th>
+                                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                            <div className="flex items-center gap-1.5">
+                                                <MapPin className="w-3.5 h-3.5 opacity-60" />
+                                                Sucursal
+                                            </div>
+                                        </th>
+                                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                            <div className="flex items-center gap-1.5">
+                                                <Calendar className="w-3.5 h-3.5 opacity-60" />
+                                                Periodo
+                                            </div>
+                                        </th>
+                                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-emerald-500 text-right">
+                                            <div className="flex items-center gap-1.5 justify-end">
+                                                <ArrowUpRight className="w-3.5 h-3.5 opacity-80" />
+                                                Ingresos
+                                            </div>
+                                        </th>
+                                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-rose-500 text-right">
+                                            <div className="flex items-center gap-1.5 justify-end">
+                                                <ArrowDownRight className="w-3.5 h-3.5 opacity-80" />
+                                                Egresos
+                                            </div>
+                                        </th>
+                                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-white text-right">
+                                            <div className="flex items-center gap-1.5 justify-end">
+                                                <DollarSign className="w-3.5 h-3.5 opacity-60" />
+                                                Balance
+                                            </div>
+                                        </th>
+                                        <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-center">Estado</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                    {reportData?.detailedBreakdown.map((row: any, i: number) => (
-                                        <tr key={i} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors group">
-                                            <td className="px-8 py-6">
-                                                <span className="text-xs font-black text-zinc-900 dark:text-zinc-100">{row.company}</span>
-                                            </td>
-                                            <td className="px-8 py-6">
-                                                <span className="text-xs font-bold text-zinc-500">{row.branch}</span>
-                                            </td>
-                                            <td className="px-8 py-6">
-                                                <span className="text-[10px] font-black uppercase bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1 rounded-lg text-zinc-500">{row.period}</span>
-                                            </td>
-                                            <td className="px-8 py-6">
-                                                <span className="text-xs font-black text-emerald-600">${row.income.toLocaleString()}</span>
-                                            </td>
-                                            <td className="px-8 py-6">
-                                                <span className="text-xs font-black text-rose-500">${row.expense.toLocaleString()}</span>
-                                            </td>
-                                            <td className="px-8 py-6">
-                                                <span className={`text-xs font-black ${row.balance >= 0 ? 'text-zinc-900 dark:text-white' : 'text-rose-600'}`}>
-                                                    ${row.balance.toLocaleString()}
-                                                </span>
-                                            </td>
-                                            <td className="px-8 py-6">
-                                                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${row.status === 'GAIN' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>
-                                                    {row.status === 'GAIN' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                                                    {row.status === 'GAIN' ? 'Ganancia' : 'Pérdida'}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {reportData?.detailedBreakdown.map((row: any, i: number) => {
+                                        // Obtener iniciales de la empresa para un avatar premium
+                                        const initials = row.company
+                                            ? row.company.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
+                                            : 'EP';
+
+                                        // Formatear periodo, ej: 2026-05 -> May 2026
+                                        const formatPeriod = (p: string) => {
+                                            if (!p) return '';
+                                            const parts = p.split('-');
+                                            if (parts.length < 2) return p;
+                                            const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                                            const mIdx = parseInt(parts[1], 10) - 1;
+                                            return `${months[mIdx] || parts[1]} ${parts[0]}`;
+                                        };
+
+                                        return (
+                                            <tr key={i} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 hover:-translate-y-[0.5px] hover:shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all duration-300 group">
+                                                <td className="px-8 py-6">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-500/80 to-violet-600/80 flex items-center justify-center text-white text-[10px] font-black shadow-sm shrink-0">
+                                                            {initials}
+                                                        </div>
+                                                        <span className="text-xs font-black text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                                            {row.company}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6">
+                                                    <div className="flex items-center gap-2">
+                                                        <MapPin className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                                                        <span className="text-xs font-bold text-zinc-600 dark:text-zinc-300">{row.branch}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6">
+                                                    <span className="text-[9px] font-black uppercase tracking-wider bg-zinc-100 dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-700/50 px-2.5 py-1 rounded-xl text-zinc-500 shrink-0">
+                                                        {formatPeriod(row.period)}
+                                                    </span>
+                                                </td>
+                                                <td className="px-8 py-6 text-right">
+                                                    <span className="text-xs font-black text-emerald-600">
+                                                        ${row.income.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </span>
+                                                </td>
+                                                <td className="px-8 py-6 text-right">
+                                                    <span className="text-xs font-black text-rose-500">
+                                                        ${row.expense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </span>
+                                                </td>
+                                                <td className="px-8 py-6 text-right">
+                                                    <span className={`text-xs font-black ${row.balance >= 0 ? 'text-zinc-900 dark:text-white' : 'text-rose-600'}`}>
+                                                        {row.balance >= 0 ? '' : '-'}
+                                                        ${Math.abs(row.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </span>
+                                                </td>
+                                                <td className="px-8 py-6 text-center">
+                                                    {row.status === 'GAIN' ? (
+                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-sm shadow-emerald-500/5">
+                                                            <ArrowUpRight className="w-3 h-3 text-emerald-500" />
+                                                            Ganancia
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shadow-sm shadow-rose-500/5">
+                                                            <ArrowDownRight className="w-3 h-3 text-rose-500" />
+                                                            Pérdida
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                     {reportData?.detailedBreakdown.length === 0 && (
                                         <tr>
                                             <td colSpan={7} className="px-8 py-20 text-center text-sm font-medium text-zinc-500 italic">
