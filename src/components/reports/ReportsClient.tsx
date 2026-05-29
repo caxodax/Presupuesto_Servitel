@@ -584,10 +584,11 @@ export function ReportsClient({ companies, branches, categories, businessGroups,
 
                             <div className="space-y-6 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
                                 {(reportData as any)?.budgetEfficiency?.map((item: any, i: number) => {
-                                    const percent = Math.min(100, (item.executed / item.budget) * 100);
+                                    const realPercent = item.budget > 0 ? (item.executed / item.budget) * 100 : 0;
+                                    const percentForBar = Math.min(100, realPercent);
                                     // Color dinámico según ejecución
-                                    const barColor = percent > 90 ? 'bg-rose-500' : percent > 70 ? 'bg-amber-500' : 'bg-emerald-500';
-                                    const textColor = percent > 90 ? 'text-rose-500' : percent > 70 ? 'text-amber-500' : 'text-emerald-500';
+                                    const barColor = realPercent > 90 ? 'bg-rose-500' : realPercent > 70 ? 'bg-amber-500' : 'bg-emerald-500';
+                                    const textColor = realPercent > 90 ? 'text-rose-500' : realPercent > 70 ? 'text-amber-500' : 'text-emerald-500';
 
                                     return (
                                         <div key={i} className="space-y-2">
@@ -601,14 +602,14 @@ export function ReportsClient({ companies, branches, categories, businessGroups,
                                                     </span>
                                                 </div>
                                                 <span className={`text-xs font-black ${textColor}`}>
-                                                    {percent.toFixed(1)}%
+                                                    {realPercent.toFixed(1)}%
                                                 </span>
                                             </div>
                                             {/* Barra de Progreso Premium */}
                                             <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                                                 <div 
                                                     className={`h-full ${barColor} transition-all duration-1000 ease-out rounded-full`}
-                                                    style={{ width: `${percent}%` }}
+                                                    style={{ width: `${percentForBar}%` }}
                                                 />
                                             </div>
                                         </div>
