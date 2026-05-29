@@ -22,4 +22,5 @@ export const invoiceSchema = z.object({
   accountId: z.union([z.string(), z.number()]).optional().nullable().transform(v => v ? Number(v) : null),
   companyAccountId: z.union([z.string(), z.number()]).optional().nullable().transform(v => v ? Number(v) : null),
   invoiceId: z.coerce.number().optional(),
+  extraordinaryRate: z.coerce.number().optional().nullable(),
 });

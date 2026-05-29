@@ -242,7 +242,10 @@ export function InvoicesClient({
                             <span className={`font-bold text-xs ${inv.status === 'CANCELLED' ? 'text-zinc-400 line-through' : 'text-zinc-500'}`}>
                                 {formatNumber(inv.amountVES)} Bs
                             </span>
-                            <span className="text-[10px] text-zinc-400 font-bold uppercase">Rate: {formatNumber(inv.exchangeRate, 4)}</span>
+                            <span className="text-[10px] text-zinc-400 font-bold uppercase">
+                                BCV: {formatNumber(inv.exchangeRate, 4)}
+                                {inv.extraordinaryRate ? ` | EXT: ${formatNumber(inv.extraordinaryRate, 4)}` : ''}
+                            </span>
                         </div>
                     </td>
                     <td className="px-8 py-5 text-center">

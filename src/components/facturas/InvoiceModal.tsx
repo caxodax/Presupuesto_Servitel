@@ -69,12 +69,14 @@ export function InvoiceModal({
             ...invoice,
             date: invoice?.date && !isNaN(new Date(invoice.date).getTime()) ? format(new Date(invoice.date.includes("T") ? invoice.date : invoice.date + "T00:00:00"), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
             companyAccountId: invoice.companyAccountId || null,
-            invoiceId: invoice.id
+            invoiceId: invoice.id,
+            extraordinaryRate: invoice?.extraordinaryRate || null
         } : {
             date: format(new Date(), 'yyyy-MM-dd'),
             exchangeRate: Number(currentBcvRate) || 0,
             amountUSD: 0,
-            companyAccountId: null
+            companyAccountId: null,
+            extraordinaryRate: null
         }
     })
 
@@ -332,10 +334,10 @@ export function InvoiceModal({
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                                    <Calendar className="w-3.5 h-3.5" /> Fecha
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-end min-h-[24px] pb-1 gap-2">
+                                    <Calendar className="w-3.5 h-3.5 mb-[1px]" /> Fecha
                                 </label>
                                 <input 
                                     {...register("date")}
@@ -346,8 +348,8 @@ export function InvoiceModal({
                                 {errors.date && <p className="text-[10px] text-rose-500 font-bold uppercase">{errors.date.message as string}</p>}
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-2">
-                                    <DollarSign className="w-3.5 h-3.5" /> Monto (USD)
+                                <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 flex items-end min-h-[24px] pb-1 gap-2">
+                                    <DollarSign className="w-3.5 h-3.5 mb-[1px]" /> Monto (USD)
                                 </label>
                                 <NumericFormat 
                                     thousandSeparator="." 
@@ -361,8 +363,8 @@ export function InvoiceModal({
                                 {errors.amountUSD && <p className="text-[10px] text-rose-500 font-bold uppercase">{errors.amountUSD.message as string}</p>}
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-amber-500 flex items-center gap-2">
-                                    <Wallet className="w-3.5 h-3.5" /> Tasa (BCV)
+                                <label className="text-[10px] font-black uppercase tracking-widest text-amber-500 flex items-end min-h-[24px] pb-1 gap-2">
+                                    <Wallet className="w-3.5 h-3.5 mb-[1px]" /> Tasa (BCV)
                                 </label>
                                 <NumericFormat 
                                     thousandSeparator="." 
@@ -375,6 +377,22 @@ export function InvoiceModal({
                                     className={`w-full h-12 rounded-2xl border ${errors.exchangeRate ? 'border-rose-500 ring-2 ring-rose-500/10' : 'border-amber-100 dark:border-amber-900/30'} bg-amber-50/30 dark:bg-amber-500/5 px-4 text-sm font-black text-amber-600 outline-none focus:ring-2 focus:ring-amber-500/20`} 
                                 />
                                 {errors.exchangeRate && <p className="text-[10px] text-rose-500 font-bold uppercase">{errors.exchangeRate.message as string}</p>}
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500 flex items-end min-h-[24px] pb-1 gap-2">
+                                    <Wallet className="w-3.5 h-3.5 mb-[1px]" /> Tasa Extraordinaria
+                                </label>
+                                <NumericFormat 
+                                    thousandSeparator="." 
+                                    decimalSeparator="," 
+                                    value={watch("extraordinaryRate")}
+                                    onValueChange={(values) => setValue("extraordinaryRate", values.value ? Number(values.value) : null)}
+                                    disabled={isPending} 
+                                    decimalScale={4}
+                                    placeholder="Opcional"
+                                    className={`w-full h-12 rounded-2xl border ${errors.extraordinaryRate ? 'border-rose-500 ring-2 ring-rose-500/10' : 'border-indigo-100 dark:border-indigo-900/30'} bg-indigo-50/30 dark:bg-indigo-500/5 px-4 text-sm font-black text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-500/20`} 
+                                />
+                                {errors.extraordinaryRate && <p className="text-[10px] text-rose-500 font-bold uppercase">{errors.extraordinaryRate.message as string}</p>}
                             </div>
                         </div>
 

@@ -26,6 +26,7 @@ export async function createInvoice(formData: FormData) {
     date: formData.get("date"),
     accountId: formData.get("accountId") || null,
     companyAccountId: formData.get("companyAccountId") || null,
+    extraordinaryRate: formData.get("extraordinaryRate") ? Number(formData.get("extraordinaryRate")) : null,
   })
 
   const { data: allocation, error: aError } = await (supabase.from('BudgetAllocation') as any)
@@ -95,7 +96,8 @@ export async function createInvoice(formData: FormData) {
     }))
   }
 
-  const calculatedVES = validated.amountUSD * validated.exchangeRate
+  const appliedRate = validated.extraordinaryRate || validated.exchangeRate;
+  const calculatedVES = validated.amountUSD * appliedRate;
 
   const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('rpc_register_invoice', {
     p_invoice_data: {
@@ -105,6 +107,7 @@ export async function createInvoice(formData: FormData) {
       amountUSD: validated.amountUSD,
       amountVES: calculatedVES,
       exchangeRate: validated.exchangeRate,
+      extraordinaryRate: validated.extraordinaryRate,
       date: validated.date + 'T12:00:00',
       companyAccountId: finalCompanyAccountId,
       companyId: companyId,
@@ -138,6 +141,7 @@ export async function updateInvoice(formData: FormData) {
     date: formData.get("date"),
     accountId: formData.get("accountId") || null,
     companyAccountId: formData.get("companyAccountId") || null,
+    extraordinaryRate: formData.get("extraordinaryRate") ? Number(formData.get("extraordinaryRate")) : null,
   })
 
   const { data: oldInvoice, error: fError } = await (supabase.from('Invoice') as any)
@@ -212,7 +216,8 @@ export async function updateInvoice(formData: FormData) {
     }))
   }
 
-  const calculatedVES = validated.amountUSD * validated.exchangeRate
+  const appliedRate = validated.extraordinaryRate || validated.exchangeRate;
+  const calculatedVES = validated.amountUSD * appliedRate;
 
   const { error: rpcError } = await (supabase.rpc as any)('rpc_update_invoice', {
     p_invoice_id: invoiceId,
@@ -223,6 +228,7 @@ export async function updateInvoice(formData: FormData) {
       amountUSD: validated.amountUSD,
       amountVES: calculatedVES,
       exchangeRate: validated.exchangeRate,
+      extraordinaryRate: validated.extraordinaryRate,
       date: validated.date + 'T12:00:00',
       companyAccountId: finalCompanyAccountId,
       companyId: targetCompanyId,

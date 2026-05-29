@@ -187,16 +187,27 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                           </div>
 
                           <div className="space-y-4">
-                              <div className="flex justify-between items-center">
-                                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Monto Facturado</span>
-                                  <span className="text-lg font-black text-zinc-900 dark:text-white">${Number(invoice.amountUSD).toLocaleString()}</span>
-                              </div>
-                              <div className="flex justify-between items-center pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Capacidad Restante</span>
-                                  <span className={`text-lg font-black ${analytics.currentCapacity < 0 ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                                      ${Math.max(analytics.currentCapacity, 0).toLocaleString()}
-                                  </span>
-                              </div>
+                               <div className="flex justify-between items-center">
+                                   <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Monto Facturado</span>
+                                   <span className="text-lg font-black text-zinc-900 dark:text-white">${Number(invoice.amountUSD).toLocaleString()}</span>
+                               </div>
+                               <div className="flex justify-between items-center pt-2 border-t border-zinc-100 dark:border-zinc-800/40 text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase">
+                                   <span>Monto en Bolívares (VES)</span>
+                                   <span>{Number(invoice.amountVES).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs</span>
+                               </div>
+                               <div className="flex justify-between items-center text-[10px] font-bold text-zinc-400 uppercase">
+                                   <span>Tasa de Cambio</span>
+                                   <span>
+                                       BCV: {Number(invoice.exchangeRate).toFixed(4)}
+                                       {invoice.extraordinaryRate && ` | EXT: ${Number(invoice.extraordinaryRate).toFixed(4)}`}
+                                   </span>
+                               </div>
+                               <div className="flex justify-between items-center pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                                   <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Capacidad Restante</span>
+                                   <span className={`text-lg font-black ${analytics.currentCapacity < 0 ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                       ${Math.max(analytics.currentCapacity, 0).toLocaleString()}
+                                   </span>
+                               </div>
 
                               {isOverBudget && (
                                 <div className="bg-rose-50 dark:bg-rose-950/20 p-4 rounded-2xl border border-rose-100 dark:border-rose-900/50 flex justify-between items-center mt-2">
