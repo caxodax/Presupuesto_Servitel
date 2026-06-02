@@ -1,4 +1,4 @@
-import { Search, User, LogOut } from "lucide-react"
+import { User, LogOut } from "lucide-react"
 import { logout } from "@/app/actions/auth"
 import { AlertCenter } from "@/components/dashboard/AlertCenter"
 import { getUnreadAlerts } from "@/features/alerts/server/queries"
@@ -16,22 +16,11 @@ export async function Topbar({ user }: { user: TopbarUser }) {
   
   return (
     <header className="flex h-16 items-center justify-between border-b bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800/80 px-6 shrink-0">
-      <div className="flex items-center gap-4 w-1/3">
+      <div className="flex items-center gap-4">
         <Breadcrumbs />
       </div>
-      
-      <div className="flex flex-1 items-center justify-center max-w-md">
-         <div className="relative w-full group">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400 group-focus-within:text-indigo-500 transition-colors" />
-            <input 
-              type="text" 
-              placeholder="Buscar factura o proveedor... (Cmd+K)" 
-              className="h-9 w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 pl-9 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all placeholder:text-zinc-400"
-            />
-         </div>
-      </div>
 
-      <div className="flex items-center justify-end gap-5 w-1/3">
+      <div className="flex items-center justify-end gap-5">
         <AlertCenter initialAlerts={alerts} />
         
         <div className="flex items-center gap-3 pl-5 border-l border-zinc-200 dark:border-zinc-800/80">

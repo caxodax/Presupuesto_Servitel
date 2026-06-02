@@ -1,10 +1,10 @@
 import { getExecutiveAnalytics } from "@/features/dashboard/server/queries"
-import { BarChart3, PieChart, ShieldAlert, Award, Zap, BookOpen } from "lucide-react"
+import { BarChart3, ShieldAlert, BookOpen, AlertTriangle } from "lucide-react"
 
 type SearchParamsResolved = { companyId?: string; branchId?: string; budgetId?: string; groupId?: string }
 
 export async function ExecutiveAnalytics({ searchParams }: { searchParams: SearchParamsResolved }) {
-    const { branchRankings, categoryRankings, accountRankings } = await getExecutiveAnalytics({
+    const { branchRankings, accountRankings, criticalAccounts } = await getExecutiveAnalytics({
         companyId: searchParams.companyId ? Number(searchParams.companyId) : undefined,
         branchId: searchParams.branchId ? Number(searchParams.branchId) : undefined,
         budgetId: searchParams.budgetId ? Number(searchParams.budgetId) : undefined,
@@ -13,7 +13,6 @@ export async function ExecutiveAnalytics({ searchParams }: { searchParams: Searc
 
     // Calculamos totales para porcentajes relativos
     const totalBranchConsumed = branchRankings.reduce((acc: number, curr: { consumed: number }) => acc + curr.consumed, 0)
-    const totalCategoryConsumed = categoryRankings.reduce((acc: number, curr: { consumed: number }) => acc + curr.consumed, 0)
     const totalAccountConsumed = (accountRankings || []).reduce((acc: number, curr: { consumed: number }) => acc + curr.consumed, 0)
 
     return (
@@ -109,45 +108,78 @@ export async function ExecutiveAnalytics({ searchParams }: { searchParams: Searc
                 </div>
             </div>
 
-            {/* Ranking de Categorías */}
+            {/* Alertas de Presupuesto (Cuentas Críticas) */}
             <div className="group relative overflow-hidden rounded-2xl border border-white/20 dark:border-zinc-800/50 bg-white dark:bg-zinc-900/40 p-8 shadow-[0_8px_32px_rgba(0,0,0,0.03)] backdrop-blur-sm transition-all duration-500 hover:shadow-[0_12px_44px_rgba(0,0,0,0.06)]">
                 <div className="absolute top-0 left-0 w-1 h-full bg-rose-500" />
                 <div className="flex items-center justify-between mb-10">
                     <div className="flex items-center gap-4">
                         <div className="p-2.5 bg-rose-50 dark:bg-rose-500/10 rounded-xl text-rose-600 dark:text-rose-400 shadow-sm border border-rose-100 dark:border-rose-500/20">
-                            <PieChart className="w-5 h-5" />
+                            <AlertTriangle className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="font-black text-zinc-900 dark:text-zinc-100 tracking-tight">Impacto por Categoría</h3>
-                            <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-[0.2em]">Agrupación legacy</p>
+                            <h3 className="font-black text-zinc-900 dark:text-zinc-100 tracking-tight">Alertas de Presupuesto</h3>
+                            <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-[0.2em]">Cuentas al límite o sobregiradas</p>
                         </div>
                     </div>
                 </div>
 
                 <div className="space-y-8">
-                    {categoryRankings.map((cat: { name: string; consumed: number }, i: number) => (
-                        <div key={cat.name} className="relative group/item">
-                            <div className="flex justify-between items-end mb-2.5">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex h-1.5 w-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]" />
-                                    <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">
-                                        {cat.name}
-                                    </span>
+                    {(criticalAccounts || []).map((acc: { code: string; name: string; budget: number; consumed: number; percent: number }) => {
+                        const isOver = acc.percent > 100
+                        const isWarning = acc.percent > 85
+                        const progressPercent = Math.min(acc.percent, 100)
+                        
+                        return (
+                            <div key={acc.code} className="relative group/item">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex flex-col gap-0.5">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`px-1.5 py-0.5 text-[9px] font-black rounded-md ${
+                                                isOver 
+                                                    ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' 
+                                                    : isWarning 
+                                                        ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                                                        : 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20'
+                                            }`}>
+                                                {acc.code}
+                                            </span>
+                                            <span className={`text-[10px] font-black uppercase ${
+                                                isOver ? 'text-rose-500' : isWarning ? 'text-amber-500' : 'text-indigo-500'
+                                            }`}>
+                                                {acc.percent.toFixed(1)}%
+                                            </span>
+                                        </div>
+                                        <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 truncate max-w-[170px] mt-1" title={acc.name}>
+                                            {acc.name}
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-sm font-black text-zinc-900 dark:text-zinc-100">
+                                            ${acc.consumed.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                        </span>
+                                        <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter mt-0.5">
+                                            Límite: ${acc.budget.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                        </span>
+                                    </div>
                                 </div>
-                                <span className="text-sm font-black text-zinc-900 dark:text-zinc-100">
-                                    ${cat.consumed.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                                </span>
+                                
+                                <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/50 rounded-full overflow-hidden p-[1px]">
+                                    <div 
+                                        className={`h-full rounded-full transition-all duration-1000 group-hover/item:opacity-80 bg-gradient-to-r ${
+                                            isOver 
+                                                ? 'from-rose-500 to-red-600' 
+                                                : isWarning 
+                                                    ? 'from-amber-500 to-orange-500' 
+                                                    : 'from-indigo-500 to-violet-500'
+                                        }`}
+                                        style={{ width: `${progressPercent}%` }}
+                                    />
+                                </div>
                             </div>
-                            <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/50 rounded-full overflow-hidden p-[1px]">
-                                <div 
-                                    className="h-full bg-gradient-to-r from-rose-500 to-amber-500 rounded-full transition-all duration-1000 group-hover/item:opacity-80"
-                                    style={{ width: `${totalCategoryConsumed > 0 ? (cat.consumed / categoryRankings[0].consumed) * 100 : 0}%` }}
-                                />
-                            </div>
-                        </div>
-                    ))}
-                    {categoryRankings.length === 0 && (
-                        <EmptyState message="Sin datos de categorías" />
+                        )
+                    })}
+                    {(criticalAccounts || []).length === 0 && (
+                        <EmptyState message="Sin alertas de presupuesto" />
                     )}
                 </div>
             </div>

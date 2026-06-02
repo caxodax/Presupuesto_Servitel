@@ -97,14 +97,42 @@ export async function getExecutiveAnalytics(searchParams: { companyId?: number; 
       return measureAsync("getExecutiveAnalytics", async () => {
         const supabase = createServiceRoleClient()
         
-        const [branchesResult, categoriesResult, accountsResult] = await Promise.all([
+        let criticalQuery = (supabase.from('BudgetAllocation') as any)
+          .select(`
+            amountUSD,
+            consumedUSD,
+            companyAccount:CompanyAccount(
+              globalAccount:GlobalAccount(
+                code,
+                name
+              )
+            ),
+            budget:Budget!inner(
+              id,
+              companyId,
+              branchId,
+              company:Company!inner(
+                groupId
+              )
+            )
+          `)
+          .gt('amountUSD', 0)
+
+        if (companyId) {
+          criticalQuery = criticalQuery.eq('budget.companyId', companyId)
+        }
+        if (branchId) {
+          criticalQuery = criticalQuery.eq('budget.branchId', branchId)
+        }
+        if (budgetId) {
+          criticalQuery = criticalQuery.eq('budget.id', budgetId)
+        }
+        if (groupId) {
+          criticalQuery = criticalQuery.eq('budget.company.groupId', groupId)
+        }
+
+        const [branchesResult, accountsResult, criticalResult] = await Promise.all([
           (supabase.rpc as any)('rpc_dashboard_branch_ranking', {
-            p_company_id: companyId,
-            p_branch_id: branchId,
-            p_budget_id: budgetId,
-            p_group_id: groupId
-          }),
-          (supabase.rpc as any)('rpc_dashboard_category_ranking', {
             p_company_id: companyId,
             p_branch_id: branchId,
             p_budget_id: budgetId,
@@ -115,21 +143,17 @@ export async function getExecutiveAnalytics(searchParams: { companyId?: number; 
             p_branch_id: branchId,
             p_budget_id: budgetId,
             p_group_id: groupId
-          })
+          }),
+          criticalQuery
         ])
 
         if (branchesResult.error) throw new Error(`Error Branch Rankings: ${branchesResult.error.message}`)
-        if (categoriesResult.error) throw new Error(`Error Category Rankings: ${categoriesResult.error.message}`)
         if (accountsResult.error) throw new Error(`Error Account Rankings: ${accountsResult.error.message}`)
+        if (criticalResult.error) throw new Error(`Error Critical Accounts: ${criticalResult.error.message}`)
 
         const branchRankings = (branchesResult.data || []).map((b: any) => ({
           name: b.name,
           consumed: Number(b.consumed)
-        }))
-
-        const categoryRankings = (categoriesResult.data || []).map((c: any) => ({
-          name: c.name,
-          consumed: Number(c.consumed)
         }))
 
         const accountRankings = (accountsResult.data || []).map((a: any) => ({
@@ -138,10 +162,28 @@ export async function getExecutiveAnalytics(searchParams: { companyId?: number; 
           consumed: Number(a.consumed)
         }))
 
+        const criticalAccounts = (criticalResult.data || [])
+          .map((row: any) => {
+            const ga = row.companyAccount?.globalAccount
+            const budget = Number(row.amountUSD || 0)
+            const consumed = Number(row.consumedUSD || 0)
+            const percent = budget > 0 ? (consumed / budget) * 100 : 0
+            return {
+              code: ga?.code || '',
+              name: ga?.name || '',
+              budget,
+              consumed,
+              percent
+            }
+          })
+          .filter((item: any) => item.consumed > 0)
+          .sort((a: any, b: any) => b.percent - a.percent || b.consumed - a.consumed)
+          .slice(0, 5)
+
         return {
           branchRankings,
-          categoryRankings,
-          accountRankings
+          accountRankings,
+          criticalAccounts
         }
       })
     },
