@@ -2,7 +2,15 @@
   "crons": [
     {
       "path": "/api/cron/update-rate",
-      "schedule": "0 8,13 * * 1-5"
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/update-rate",
+      "schedule": "20 17 * * *"
+    },
+    {
+      "path": "/api/cron/update-rate",
+      "schedule": "0 22 * * *"
     }
   ]
 }

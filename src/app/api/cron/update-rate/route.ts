@@ -46,7 +46,9 @@ export async function GET(request: Request) {
     }
 
     // 3. GUARDAR EN SUPABASE: Tabla "ExchangeRate" según tu esquema
-    const today = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+    // Es crítico usar la hora de Venezuela para la fecha y no la hora de los servidores de Vercel (UTC)
+    const vzlaTime = new Date().toLocaleString("sv-SE", { timeZone: "America/Caracas" });
+    const today = vzlaTime.split(' ')[0]; // Formato YYYY-MM-DD correcto a la hora de Vzla
     
     // Upsert: Inserta si no existe, actualiza si ya existe la fecha de hoy
     const { error } = await supabase
