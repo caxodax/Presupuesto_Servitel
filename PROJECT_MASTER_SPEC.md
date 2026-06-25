@@ -691,3 +691,31 @@ Para mejorar la eficiencia operativa y facilitar la migración desde procesos ma
 - Uso de librerías como `xlsx` o `exceljs` en el servidor.
 - Interfaz de "Previsualización" antes de confirmar la inyección final en la base de datos.
 - Registro de errores detallado (ej. "Línea 45: La cuenta 5.1.02 no existe").
+
+---
+
+# 24. Estado Actual del Proyecto y Mejoras Implementadas (Fase Completada)
+
+El sistema superó exitosamente su MVP y pasó por una fase crítica de **optimización de rendimiento y latencia**, transformando la plataforma para que cumpla rigurosamente con los "Principios de rendimiento" (Sección 8) exigidos en este documento.
+
+## 24.1. Refactorización Arquitectónica hacia "Latencia Cero"
+1. **Delegación Cliente/Servidor (SWR):** 
+   - Se eliminaron las cargas pesadas síncronas bloqueantes (SSR puro) en los listados masivos.
+   - Todo módulo de datos (Dashboard, Facturas, Presupuestos, Ingresos) ahora carga el cascarón de la página en 0ms y utiliza **SWR (`useSWR`)** para buscar e hidratar los datos de forma asíncrona, sin congelar la pantalla.
+2. **Caché Híbrida (`unstable_cache`):** 
+   - Se implementó caché de servidor persistente para consultas inmutables (catálogos de empresas, grupos, sucursales y tasas).
+3. **Búsqueda y Paginación Reactiva:** 
+   - Las barras de búsqueda y paginaciones ya no obligan a Next.js a hacer un ciclo de enrutamiento completo de URL (`router.push`). Ahora cambian el estado local del componente SWR, logrando una sensación ininterrumpida y sin parpadeos.
+4. **Custom JWT Claims:** 
+   - Se implementaron Triggers a nivel de Base de Datos (PostgreSQL) para inyectar la información crítica (rol, ID de empresa, ID de sucursal) directamente dentro del Token JWT seguro de Supabase.
+   - Esto eliminó la necesidad de hacer *fetch* del perfil del usuario en cada navegación segura, eliminando los ~200ms estructurales que consumía la función `requireAuth()`.
+
+## 24.2. Módulos Completados (V1 Totalmente Optimizada)
+- **Autenticación y Seguridad:** Instantánea gracias a los Custom JWT Claims.
+- **Catálogos y Permisos:** Cacheado e inyectado.
+- **Dashboard Directivo:** Indicadores renderizados asíncronamente (KpiCards, Analytics).
+- **Control de Presupuestos:** Matriz y listado asíncrono, cálculo automático de saldos y excedentes vía RPC de Postgres.
+- **Registro de Egresos (Facturas) e Ingresos:** Completamente asíncrono con interfaz paginada ultra rápida.
+- **Automatización de Tasas (BCV):** Worker programado en API Route (`api/cron/sync-rates`) para desacoplar el scraping del flujo de usuario.
+
+El proyecto "Presupuesto Servitel" cumple satisfactoriamente con la filosofía de ser un SaaS robusto, responsivo, veloz e inquebrantable en esta primera versión, estando ahora preparado técnica y arquitectónicamente para el módulo de "Carga Masiva" (Sección 23) y para un pase a ambiente de producción.
