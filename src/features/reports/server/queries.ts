@@ -11,11 +11,11 @@ export async function getConsolidatedReport(filters: {
     subcategoryId?: number
     groupId?: number
     supplierName?: string
-}) {
+}, user?: any) {
     return measureAsync("getConsolidatedReport", async () => {
-        const user = await requireAuth()
+        const currentUser = user || await requireAuth()
         const supabase = await createClient()
-        const scope = enforceCompanyScope(user)
+        const scope = enforceCompanyScope(currentUser)
 
         const finalCompanyId = scope.companyId || filters.companyId
 
@@ -142,11 +142,11 @@ export async function getFinancialTreeReport(filters: {
     companyId: number
     branchId?: number
     budgetId?: number
-}) {
+}, user?: any) {
     return measureAsync("getFinancialTreeReport", async () => {
-        const user = await requireAuth()
+        const currentUser = user || await requireAuth()
         const supabase = await createClient()
-        enforceCompanyScope(user, filters.companyId)
+        enforceCompanyScope(currentUser, filters.companyId)
 
         const { data, error } = await (supabase.rpc as any)('rpc_financial_tree_report', {
             p_company_id: filters.companyId,

@@ -7,28 +7,22 @@ export async function getBudgets(companyId?: string, branchId?: string, queryPar
     const user = await requireAuth()
     const supabase = await createClient()
     
-    let query = supabase
-      .from('budget_list_view')
-      .select('*', { count: 'planned' })
-      .order('initialDate', { ascending: false })
+    const targetCompanyId = user.role !== 'SUPER_ADMIN' && user.companyId ? user.companyId : (companyId ? Number(companyId) : null)
+    const targetGroupId = groupId ? Number(groupId) : null
+    const targetBranchId = branchId ? Number(branchId) : null
 
-    if (user.role !== 'SUPER_ADMIN' && user.companyId) {
-      query = query.eq('companyId', user.companyId)
-    } else if (companyId) {
-      query = query.eq('companyId', Number(companyId))
-    }
+    const actualPage = page === undefined ? 1 : page
+    const actualLimit = page === undefined ? 1000 : limit
+    const from = (actualPage - 1) * actualLimit
 
-    if (branchId) {
-      query = query.eq('branchId', Number(branchId))
-    }
-
-    if (groupId) {
-      query = query.eq('companyGroupId', Number(groupId))
-    }
-
-    if (queryParam) {
-      query = query.ilike('name', `%${queryParam}%`)
-    }
+    const { data: items, error } = await (supabase.rpc as any)('rpc_get_budget_list', {
+      p_company_id: targetCompanyId,
+      p_group_id: targetGroupId,
+      p_search: queryParam || null,
+      p_limit: actualLimit,
+      p_offset: from,
+      p_branch_id: targetBranchId
+    })
 
     const mapBudget = (b: any) => ({
       ...b,
@@ -40,32 +34,25 @@ export async function getBudgets(companyId?: string, branchId?: string, queryPar
       }
     })
 
-    if (page === undefined) {
-      const { data } = await query
-      const formatted = (data || []).map(mapBudget)
-      return {
-          items: formatted,
-          total: formatted.length,
-          pageCount: 1
-      }
-    }
-
-    const from = (page - 1) * limit
-    const to = from + limit - 1
-
-    const { data: items, count, error } = await query.range(from, to)
-
     if (error) {
       throw new Error(`Error al obtener presupuestos: ${error.message}`)
     }
 
-    const total = count || 0
     const formattedItems = (items || []).map(mapBudget)
+    const count = items && items.length > 0 ? Number(items[0].total_count) : 0
+
+    if (page === undefined) {
+      return {
+          items: formattedItems,
+          total: formattedItems.length,
+          pageCount: 1
+      }
+    }
 
     return {
       items: formattedItems,
-      total: total,
-      pageCount: Math.ceil(total / limit)
+      total: count,
+      pageCount: Math.ceil(count / limit)
     }
   })
 }

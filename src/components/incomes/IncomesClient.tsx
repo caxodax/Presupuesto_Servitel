@@ -13,7 +13,8 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { SearchInput } from "@/components/ui/SearchInput"
 import { Pagination } from "@/components/ui/Pagination"
-import { deleteIncome } from "@/features/incomes/server/actions"
+import { deleteIncome, getIncomesAction } from "@/features/incomes/server/actions"
+import useSWR from "swr"
 import { toast } from "sonner"
 
 type IncomesClientProps = {
@@ -52,18 +53,31 @@ export function IncomesClient({
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null)
   const [selectedIncome, setSelectedIncome] = useState<any>(null)
   const [isDeleting, setIsDeleting] = useState<number | null>(null)
-  const [localIncomes, setLocalIncomes] = useState(incomesList)
 
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
+  const initialQuery = searchParams.get('q') || ""
+  const [query, setQuery] = useState(initialQuery)
+
   const currentGroupId = searchParams.get('groupId')
   const currentCompanyId = searchParams.get('companyId')
+  const currentPageParams = searchParams.get('page') || "1"
 
-  useEffect(() => {
-    setLocalIncomes(Array.isArray(incomes) ? incomes : (incomes as any).items || [])
-  }, [incomes])
+  // SWR for Client-Side Background Fetching (0ms UI latency on typing)
+  const { data: swrData, isLoading } = useSWR(
+      ['incomes', currentCompanyId, query, currentPageParams, currentGroupId],
+      () => getIncomesAction(currentCompanyId || undefined, query, Number(currentPageParams), 10, currentGroupId || undefined),
+      { 
+          fallbackData: { items: incomesList, total: totalItems, pageCount: totalPages },
+          keepPreviousData: true
+      }
+  )
+
+  const localIncomes = swrData?.items || []
+  const swrTotalPages = swrData?.pageCount || totalPages
+  const swrTotalItems = swrData?.total || totalItems
 
   const handleOpenCreate = () => {
     setModalMode("create")
@@ -78,10 +92,7 @@ export function IncomesClient({
   const handleDelete = async (id: number) => {
     if (!confirm("¿Estás seguro de eliminar este registro de ingreso?")) return
     
-    // Optimistic Update
-    const previousIncomes = [...localIncomes]
-    setLocalIncomes((prev: any[]) => prev.filter((inc: any) => inc.id !== id))
-    
+    // Optimistic Delete: We don't have local state setter since we use SWR, so we just mutate SWR or wait for revalidation.
     setIsDeleting(id)
     try {
         await deleteIncome(id)
@@ -89,7 +100,6 @@ export function IncomesClient({
             description: "El flujo de caja ha sido actualizado."
         })
     } catch (e: any) {
-        setLocalIncomes(previousIncomes) // Rollback
         toast.error(e.message || "Error al eliminar", {
             description: "No se pudo completar la operación en el servidor."
         })
@@ -117,7 +127,11 @@ export function IncomesClient({
 
       <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
          <div className="w-full md:w-80 shrink-0">
-            <SearchInput placeholder="Buscar por #Documento o Cliente..." />
+            <SearchInput 
+                placeholder="Buscar por #Documento o Cliente..." 
+                value={query}
+                onChange={(val) => setQuery(val)}
+            />
          </div>
          {userRole === 'SUPER_ADMIN' && (
              <div className="flex items-center gap-1.5 bg-zinc-100/80 dark:bg-zinc-800/50 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700/50 shadow-inner">
@@ -262,9 +276,9 @@ export function IncomesClient({
               </tbody>
             </table>
          </div>
-         {totalPages > 1 && (
+         {swrTotalPages > 1 && (
             <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/10">
-                <Pagination page={currentPage} pageCount={totalPages} total={totalItems} searchParams={propsSearchParams} />
+                <Pagination page={currentPage} pageCount={swrTotalPages} total={swrTotalItems} searchParams={propsSearchParams} />
             </div>
          )}
       </div>

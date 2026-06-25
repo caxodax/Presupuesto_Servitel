@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/permissions"
+import { measureAsync } from "@/lib/perf"
 
 /**
  * Devuelve el catálogo jerárquico segmentado exclusivamente 
@@ -12,49 +13,51 @@ export async function getCategories(options: {
   type?: 'EXPENSE' | 'INCOME', 
   companyId?: number 
 } = {}) {
-  const { query: queryParam, page, limit = 10, type, companyId } = options
-  const user = await requireAuth()
-  const supabase = await createClient()
-  
-  let query = supabase
-    .from('Category')
-    .select(`
-      *,
-      subcategories:Subcategory(*)
-    `, { count: 'exact' })
-    .order('isActive', { ascending: false })
-    .order('name', { ascending: true })
+  return measureAsync("getCategories", async () => {
+    const { query: queryParam, page, limit = 10, type, companyId } = options
+    const user = await requireAuth()
+    const supabase = await createClient()
+    
+    let query = supabase
+      .from('Category')
+      .select(`
+        *,
+        subcategories:Subcategory(*)
+      `, { count: 'exact' })
+      .order('isActive', { ascending: false })
+      .order('name', { ascending: true })
 
-  if (queryParam) {
-    query = query.ilike('name', `%${queryParam}%`)
-  }
+    if (queryParam) {
+      query = query.ilike('name', `%${queryParam}%`)
+    }
 
-  if (type) {
-    query = query.eq('type', type)
-  }
+    if (type) {
+      query = query.eq('type', type)
+    }
 
-  if (companyId) {
-    query = query.or(`companyId.eq.${companyId},companyId.is.null`)
-  }
+    if (companyId) {
+      query = query.or(`companyId.eq.${companyId},companyId.is.null`)
+    }
 
-  if (page === undefined) {
-    const { data } = await query.limit(500)
-    return data || []
-  }
+    if (page === undefined) {
+      const { data } = await query.limit(500)
+      return data || []
+    }
 
-  const from = (page - 1) * limit
-  const to = from + limit - 1
+    const from = (page - 1) * limit
+    const to = from + limit - 1
 
-  const { data: items, count, error } = await query.range(from, to)
+    const { data: items, count, error } = await query.range(from, to)
 
-  if (error) {
-    throw new Error(`Error al obtener categorías: ${error.message}`)
-  }
+    if (error) {
+      throw new Error(`Error al obtener categorías: ${error.message}`)
+    }
 
-  return {
-    items: items || [],
-    total: count || 0,
-    pageCount: Math.ceil((count || 0) / limit)
-  }
+    return {
+      items: items || [],
+      total: count || 0,
+      pageCount: Math.ceil((count || 0) / limit)
+    }
+  })
 }
 

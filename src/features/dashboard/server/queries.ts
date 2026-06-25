@@ -215,17 +215,13 @@ export async function getRecentActivity(searchParams: { companyId?: number; bran
       return measureAsync("getRecentActivity", async () => {
         const supabase = createServiceRoleClient()
         
-        let query = (supabase.from('recent_activity_view') as any)
-          .select('*')
-
-        if (finalCompanyId) query = query.eq('companyId', finalCompanyId)
-        if (searchParams.branchId) query = query.eq('branchId', searchParams.branchId)
-        if (searchParams.budgetId) query = query.eq('budgetId', searchParams.budgetId)
-        if (searchParams.groupId) query = query.eq('companyGroupId', searchParams.groupId)
-
-        const { data, error } = await query
-          .order('createdAt', { ascending: false })
-          .limit(6)
+        const { data, error } = await (supabase.rpc as any)('rpc_get_recent_activity', {
+          p_company_id: finalCompanyId || null,
+          p_branch_id: searchParams.branchId || null,
+          p_budget_id: searchParams.budgetId || null,
+          p_group_id: searchParams.groupId || null,
+          p_limit: 6
+        })
 
         if (error) throw error
 

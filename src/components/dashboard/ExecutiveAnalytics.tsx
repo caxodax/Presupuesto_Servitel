@@ -1,15 +1,27 @@
-import { getExecutiveAnalytics } from "@/features/dashboard/server/queries"
+"use client"
+
 import { BarChart3, ShieldAlert, BookOpen, AlertTriangle } from "lucide-react"
+import useSWR from "swr"
+import { getExecutiveAnalytics } from "@/features/dashboard/server/actions"
 
 type SearchParamsResolved = { companyId?: string; branchId?: string; budgetId?: string; groupId?: string }
 
-export async function ExecutiveAnalytics({ searchParams }: { searchParams: SearchParamsResolved }) {
-    const { branchRankings, accountRankings, criticalAccounts } = await getExecutiveAnalytics({
-        companyId: searchParams.companyId ? Number(searchParams.companyId) : undefined,
-        branchId: searchParams.branchId ? Number(searchParams.branchId) : undefined,
-        budgetId: searchParams.budgetId ? Number(searchParams.budgetId) : undefined,
-        groupId: searchParams.groupId ? Number(searchParams.groupId) : undefined,
-    })
+export function ExecutiveAnalytics({ searchParams }: { searchParams: SearchParamsResolved }) {
+    const { data, isLoading } = useSWR(
+        ['dashboard-analytics', searchParams],
+        () => getExecutiveAnalytics({
+            companyId: searchParams.companyId ? Number(searchParams.companyId) : undefined,
+            branchId: searchParams.branchId ? Number(searchParams.branchId) : undefined,
+            budgetId: searchParams.budgetId ? Number(searchParams.budgetId) : undefined,
+            groupId: searchParams.groupId ? Number(searchParams.groupId) : undefined,
+        })
+    )
+
+    if (isLoading || !data) {
+        return <ExecutiveAnalyticsSkeleton />
+    }
+
+    const { branchRankings, accountRankings, criticalAccounts } = data
 
     // Calculamos totales para porcentajes relativos
     const totalBranchConsumed = branchRankings.reduce((acc: number, curr: { consumed: number }) => acc + curr.consumed, 0)

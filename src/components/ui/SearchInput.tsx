@@ -5,16 +5,29 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { useState, useTransition, useEffect } from "react"
 import { useDebounce } from "@/hooks/use-debounce"
 
-export function SearchInput({ placeholder = "Buscar..." }: { placeholder?: string }) {
+export function SearchInput({ 
+  placeholder = "Buscar...",
+  value: externalValue,
+  onChange: externalOnChange
+}: { 
+  placeholder?: string
+  value?: string
+  onChange?: (val: string) => void
+}) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   
   const [value, setValue] = useState(searchParams.get("q") || "")
   const [isPending, startTransition] = useTransition()
-  const debouncedValue = useDebounce(value, 400)
+  const debouncedValue = useDebounce(externalValue !== undefined ? externalValue : value, 400)
 
   useEffect(() => {
+    if (externalOnChange) {
+      externalOnChange(debouncedValue)
+      return
+    }
+
     const params = new URLSearchParams(searchParams)
     if (debouncedValue) {
       params.set("q", debouncedValue)
@@ -26,7 +39,7 @@ export function SearchInput({ placeholder = "Buscar..." }: { placeholder?: strin
     startTransition(() => {
       router.push(`${pathname}?${params.toString()}`)
     })
-  }, [debouncedValue, pathname, router, searchParams])
+  }, [debouncedValue, pathname, router, searchParams, externalOnChange])
 
   return (
     <div className="relative group w-full max-w-sm">
@@ -35,14 +48,14 @@ export function SearchInput({ placeholder = "Buscar..." }: { placeholder?: strin
       </div>
       <input
         type="text"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
+        value={externalValue !== undefined ? externalValue : value}
+        onChange={(e) => externalValue !== undefined ? externalOnChange?.(e.target.value) : setValue(e.target.value)}
         placeholder={placeholder}
         className="w-full h-11 pl-11 pr-10 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
       />
-      {value && (
+      {(externalValue !== undefined ? externalValue : value) && (
         <button
-          onClick={() => setValue("")}
+          onClick={() => externalValue !== undefined ? externalOnChange?.("") : setValue("")}
           className="absolute inset-y-0 right-4 flex items-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
         >
           <X className="w-3.5 h-3.5" />

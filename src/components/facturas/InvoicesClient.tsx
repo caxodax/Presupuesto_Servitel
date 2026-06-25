@@ -7,6 +7,7 @@ const InvoiceModal = dynamic(
   () => import("@/components/facturas/InvoiceModal").then(m => m.InvoiceModal),
   { ssr: false, loading: () => null }
 )
+import useSWR from "swr"
 import { 
     Receipt, 
     Plus, 
@@ -23,7 +24,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { SearchInput } from "@/components/ui/SearchInput"
 import { Pagination } from "@/components/ui/Pagination"
-import { anulateInvoice } from "@/features/invoices/server/actions"
+import { anulateInvoice, getInvoicesAction } from "@/features/invoices/server/actions"
 import { toast } from "sonner"
 import { formatNumber, formatDate } from "@/lib/utils"
 
@@ -56,21 +57,35 @@ export function InvoicesClient({
   const companiesList = Array.isArray(companies) ? companies : (companies as any).items || []
   const businessGroupsList = Array.isArray(businessGroups) ? businessGroups : (businessGroups as any).items || []
 
-  const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null)
-  const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
-  const [isAnulating, setIsAnulating] = useState<number | null>(null)
-  const [localInvoices, setLocalIncomes] = useState(invoicesList)
-
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
+  const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null)
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
+  const [isAnulating, setIsAnulating] = useState<number | null>(null)
+  
+  // Controlled Search State
+  const initialQuery = searchParams.get('q') || ""
+  const [query, setQuery] = useState(initialQuery)
+
   const currentGroupId = searchParams.get('groupId')
   const currentCompanyId = searchParams.get('companyId')
+  const currentPageParams = searchParams.get('page') || "1"
 
-  useEffect(() => {
-    setLocalIncomes(Array.isArray(invoices) ? invoices : (invoices as any).items || [])
-  }, [invoices])
+  // SWR for Client-Side Background Fetching (0ms UI latency on typing)
+  const { data: swrData, isLoading } = useSWR(
+      ['invoices', currentCompanyId, query, currentPageParams, currentGroupId],
+      () => getInvoicesAction(currentCompanyId || undefined, query, Number(currentPageParams), 10, currentGroupId || undefined),
+      { 
+          fallbackData: { items: invoicesList, total: totalItems, pageCount: totalPages },
+          keepPreviousData: true
+      }
+  )
+
+  const localInvoices = swrData?.items || []
+  const swrTotalPages = swrData?.pageCount || totalPages
+  const swrTotalItems = swrData?.total || totalItems
 
   const handleOpenCreate = () => {
     setModalMode("create")
@@ -85,10 +100,6 @@ export function InvoicesClient({
   const handleAnulate = async (id: number) => {
     if (!confirm("¿Desea anular esta factura? Esta acción restaurará los fondos al presupuesto.")) return
     
-    // Optimistic Update
-    const previousInvoices = [...localInvoices]
-    setLocalIncomes((prev: any[]) => prev.map((inv: any) => inv.id === id ? { ...inv, status: 'CANCELLED' } : inv))
-    
     setIsAnulating(id)
     try {
         await anulateInvoice(id)
@@ -96,7 +107,6 @@ export function InvoicesClient({
             description: "Los fondos han sido reintegrados a la categoría correspondiente."
         })
     } catch (e: any) {
-        setLocalIncomes(previousInvoices) // Rollback
         toast.error(e.message || "Error al anular", {
             description: "No se pudo procesar la anulación en el servidor."
         })
@@ -124,7 +134,11 @@ export function InvoicesClient({
 
       <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
          <div className="w-full md:w-80 shrink-0">
-            <SearchInput placeholder="Buscar por nro. o proveedor..." />
+            <SearchInput 
+                placeholder="Buscar por nro. o proveedor..." 
+                value={query}
+                onChange={(val) => setQuery(val)}
+            />
          </div>
          {userRole === 'SUPER_ADMIN' && (
              <div className="flex items-center gap-1.5 bg-zinc-100/80 dark:bg-zinc-800/50 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700/50 shadow-inner">
@@ -301,9 +315,9 @@ export function InvoicesClient({
               </tbody>
             </table>
          </div>
-         {totalPages > 1 && (
+         {swrTotalPages > 1 && (
             <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/10">
-                <Pagination page={currentPage} pageCount={totalPages} total={totalItems} searchParams={propsSearchParams} />
+                <Pagination page={currentPage} pageCount={swrTotalPages} total={swrTotalItems} searchParams={propsSearchParams} />
             </div>
          )}
       </div>

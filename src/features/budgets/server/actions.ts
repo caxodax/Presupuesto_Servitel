@@ -464,3 +464,8 @@ export async function fetchBudgetAdjustments(budgetId: number) {
     categoryName: adj.allocation?.companyAccount?.globalAccount?.name || 'S/A'
   }))
 }
+
+export async function getBudgetsAction(companyId?: string, branchId?: string, queryParam?: string, page?: number, limit: number = 10, groupId?: string) {
+  const { getBudgets } = await import("./queries")
+  return getBudgets(companyId, branchId, queryParam, page, limit, groupId)
+}

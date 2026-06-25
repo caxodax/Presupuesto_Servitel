@@ -244,3 +244,8 @@ export async function getCompanyDataForIncome(companyId: number) {
         branches: branches || []
     }
 }
+
+export async function getIncomesAction(companyId?: string, queryParam?: string, page?: number, limit: number = 10, groupId?: string) {
+  const { getIncomes } = await import("./queries")
+  return getIncomes(companyId, queryParam, page, limit, groupId)
+}

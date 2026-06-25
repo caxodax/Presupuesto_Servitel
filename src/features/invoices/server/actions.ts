@@ -281,3 +281,8 @@ export async function anulateInvoice(id: number) {
   revalidateTag('dashboard')
   revalidatePath('/dashboard')
 }
+
+export async function getInvoicesAction(companyId?: string, queryParam?: string, page?: number, limit: number = 10, groupId?: string) {
+  const { getInvoices } = await import("./queries")
+  return getInvoices(companyId, queryParam, page, limit, groupId)
+}

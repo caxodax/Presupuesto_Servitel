@@ -1,15 +1,25 @@
-import { getDashboardKpis } from "@/features/dashboard/server/queries"
+"use client"
+
 import { DollarSign, AlertCircle, TrendingUp, Layers, CheckCircle2 } from "lucide-react"
+import useSWR from "swr"
+import { getDashboardKpis } from "@/features/dashboard/server/actions"
 
 type SearchParamsResolved = { companyId?: string; branchId?: string; budgetId?: string; groupId?: string }
 
-export async function KpiCards({ searchParams }: { searchParams: SearchParamsResolved }) {
-    const kpis = await getDashboardKpis({
-        companyId: searchParams.companyId ? Number(searchParams.companyId) : undefined,
-        branchId: searchParams.branchId ? Number(searchParams.branchId) : undefined,
-        budgetId: searchParams.budgetId ? Number(searchParams.budgetId) : undefined,
-        groupId: searchParams.groupId ? Number(searchParams.groupId) : undefined,
-    })
+export function KpiCards({ searchParams }: { searchParams: SearchParamsResolved }) {
+    const { data: kpis, isLoading } = useSWR(
+        ['dashboard-kpis', searchParams], 
+        () => getDashboardKpis({
+            companyId: searchParams.companyId ? Number(searchParams.companyId) : undefined,
+            branchId: searchParams.branchId ? Number(searchParams.branchId) : undefined,
+            budgetId: searchParams.budgetId ? Number(searchParams.budgetId) : undefined,
+            groupId: searchParams.groupId ? Number(searchParams.groupId) : undefined,
+        })
+    )
+    
+    if (isLoading || !kpis) {
+        return <KpiCardsSkeleton />
+    }
     
     return (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">

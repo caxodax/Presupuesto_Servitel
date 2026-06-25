@@ -1,6 +1,7 @@
 "use server"
 
 import { getConsolidatedReport, getFinancialTreeReport } from "./queries"
+import { requireAuth } from "@/lib/permissions"
 
 export async function fetchReportAction(filters: {
     startDate: string
@@ -13,7 +14,8 @@ export async function fetchReportAction(filters: {
     supplierName?: string
 }) {
     try {
-        const consolidated = await getConsolidatedReport(filters)
+        const user = await requireAuth()
+        const consolidated = await getConsolidatedReport(filters, user)
         let tree: any[] = []
         
         if (filters.companyId) {
@@ -23,7 +25,7 @@ export async function fetchReportAction(filters: {
                 companyId: filters.companyId,
                 branchId: filters.branchId,
                 budgetId: filters.budgetId
-            })
+            }, user)
         }
 
         return {

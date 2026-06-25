@@ -1,16 +1,26 @@
-import { getRecentActivity } from "@/features/dashboard/server/queries"
+"use client"
+
 import { FileText, ArrowRight, BookOpen } from "lucide-react"
 import Link from "next/link"
+import useSWR from "swr"
+import { getRecentActivity } from "@/features/dashboard/server/actions"
 
 type SearchParamsResolved = { companyId?: string; branchId?: string; budgetId?: string; groupId?: string }
 
-export async function RecentActivity({ searchParams }: { searchParams: SearchParamsResolved }) {
-    const invoices = await getRecentActivity({
-        companyId: searchParams.companyId ? Number(searchParams.companyId) : undefined,
-        branchId: searchParams.branchId ? Number(searchParams.branchId) : undefined,
-        budgetId: searchParams.budgetId ? Number(searchParams.budgetId) : undefined,
-        groupId: searchParams.groupId ? Number(searchParams.groupId) : undefined,
-    })
+export function RecentActivity({ searchParams }: { searchParams: SearchParamsResolved }) {
+    const { data: invoices, isLoading } = useSWR(
+        ['dashboard-activity', searchParams],
+        () => getRecentActivity({
+            companyId: searchParams.companyId ? Number(searchParams.companyId) : undefined,
+            branchId: searchParams.branchId ? Number(searchParams.branchId) : undefined,
+            budgetId: searchParams.budgetId ? Number(searchParams.budgetId) : undefined,
+            groupId: searchParams.groupId ? Number(searchParams.groupId) : undefined,
+        })
+    )
+
+    if (isLoading || !invoices) {
+        return <ActivitySkeleton />
+    }
     
     return (
        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 shadow-[0_4px_40px_rgba(0,0,0,0.02)] overflow-hidden h-full flex flex-col">
